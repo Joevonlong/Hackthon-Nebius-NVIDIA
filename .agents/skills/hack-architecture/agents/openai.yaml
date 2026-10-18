@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Architecture"
-  short_description: "Stack, ownership map, and contracts for a hackathon"
-  default_prompt: "Use $hack-architecture to design the stack, ownership map, and contracts for our hackathon app."
-policy:
-  allow_implicit_invocation: true
