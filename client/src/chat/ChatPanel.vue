@@ -25,8 +25,21 @@ const turns = computed(() => chat.turns)
 const ready = computed(() => !!libId.value && library.status === 'done')
 const settings = computed(() => currentSettings(lib))
 
-async function scrollEnd() { await nextTick(); list.value?.scrollTo({ top: list.value.scrollHeight, behavior: 'smooth' }) }
-watch(() => turns.value.length + (chat.busy ? 1 : 0), scrollEnd)
+/**
+ * Q-2: keep the newest turn in view. The reply arriving adds a turn AND clears busy in the same tick, so watch both
+ * separately (their sum did not change before). Wait for layout, then bring the end of the list (the proposal card's
+ * Apply / Dismiss row) into view above the input.
+ */
+async function scrollEnd() {
+  await nextTick()
+  requestAnimationFrame(() => {
+    const el = list.value
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    el.querySelector('.msg:last-of-type .btns')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
+}
+watch(() => [turns.value.length, chat.busy, libId.value], scrollEnd)
 
 async function send(text = draft.value) {
   if (!text.trim() || chat.busy || !ready.value) return

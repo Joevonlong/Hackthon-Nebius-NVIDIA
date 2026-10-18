@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ChatResponse, DEFAULT_WEIGHTS, type LibPaper } from '@shared/library'
-import { buildChatContext, normalizeCitations, resolveCited, runChat, sanitizeProposal } from './chat'
+import { buildChatContext, CLINICAL_KINDS, normalizeCitations, percentify, resolveCited, runChat, sanitizeProposal, weightPct } from './chat'
 import { labelRecord } from './labels'
 import { scoreLibrary } from './score'
 import { mkRecord, testGoals } from './test-records'
@@ -78,5 +78,35 @@ describe('runChat', () => {
     expect(res.proposal).toBeNull()
     expect(res.reply).toMatch(/could not answer/)
     expect(res.reply).not.toMatch(/Bearer|sk-|key=/)
+  })
+})
+
+describe('Q-3 intents + normalized weights', () => {
+  it('"recent clinical studies, ignore preprints" → minYear, clinical kinds, relevance up, even without a model proposal', () => {
+    const p = sanitizeProposal(null, current, 'Prioritize recent clinical studies and ignore preprints', 2026)
+    expect(p?.filters?.minYear).toBe(2023)
+    expect(p?.filters?.kinds).toEqual(CLINICAL_KINDS)
+    expect(p!.weights!.relevance!).toBeGreaterThan(current.weights.relevance)
+    expect(p!.rationale).toMatch(/no study-design filter/)
+  })
+  it('"last 5 years" overrides the model minYear; "no preprints" strips preprint from the model kinds', () => {
+    const p = sanitizeProposal({ filters: { minYear: 2010, kinds: ['journal-article', 'preprint'] }, rationale: 'r' }, current, 'only papers from the last 5 years, no preprints', 2026)
+    expect(p?.filters).toEqual({ kinds: ['journal-article'], minYear: 2021 })
+  })
+  it('drops filter fields that do not change and an open-ended maxYear', () => {
+    const cur = { ...current, filters: { kinds: [...CLINICAL_KINDS], minYear: 2023 } }
+    const p = sanitizeProposal({ weights: { venue: 0.3 }, filters: { kinds: [...CLINICAL_KINDS], minYear: 2023, maxYear: 2026 }, rationale: 'r' }, cur, 'venue matters more', 2026)
+    expect(p?.filters).toBeUndefined()
+    expect(p?.weights?.venue).toBe(0.3)
+  })
+  it('questions do not create proposals', () => {
+    expect(sanitizeProposal(null, current, 'Which papers are recent clinical trials?', 2026)).toBeNull()
+  })
+  it('rewrites raw weights in text into normalized % shares, keeps component values', () => {
+    const next = { ...current.weights, relevance: 0.4 } // sum 1.1 → relevance 36%
+    expect(weightPct(next, 'relevance')).toBe(36)
+    expect(percentify('Raise relevance to 0.4 (from 0.3).', next, current.weights)).toBe('Raise relevance to 36% (from 30%).')
+    expect(percentify('relevance weight 40%', next, current.weights)).toBe('relevance weight 36%')
+    expect(percentify('#3 has relevance 0.94 vs 0.67', next, current.weights)).toBe('#3 has relevance 0.94 vs 0.67')
   })
 })
