@@ -138,7 +138,7 @@ function run() { void disc.start() }
 </template>
 
 <style scoped>
-.side{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto;height:100%;min-height:0;background:var(--surface);color:var(--fg)}
+.side{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto;height:100%;min-height:0;contain:size;background:var(--surface);color:var(--fg)}
 .block{display:flex;flex-direction:column;gap:6px}
 h4{margin:4px 0 0;font:500 10.5px/1.3 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 h4 small{letter-spacing:0;text-transform:none;font-size:10.5px;margin-left:4px}

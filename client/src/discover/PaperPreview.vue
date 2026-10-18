@@ -132,7 +132,7 @@ const clearFb = () => disc.setFeedback(props.paperId, null)
 </template>
 
 <style scoped>
-.doc{padding:18px 22px 28px;overflow:auto;height:100%;min-width:0;color:var(--fg);background:var(--surface)}
+.doc{padding:18px 22px 28px;overflow:auto;height:100%;contain:size;min-width:0;color:var(--fg);background:var(--surface)}
 .state{display:flex;flex-direction:column;gap:10px;max-width:640px}
 .state h4{font:600 20px/1.25 var(--font-display);margin:0}
 .docbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}

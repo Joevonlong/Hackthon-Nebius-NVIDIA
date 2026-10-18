@@ -127,7 +127,7 @@ function render(animate: boolean) {
     )
   nodeSel.attr('aria-label', d => d.label)
   nodeSel.select('circle').attr('r', d => R[d.kind]).attr('class', d => 'nd nd-' + d.kind)
-  nodeSel.select<SVGTextElement>('text').text(d => (d.kind === 'seed' || d.kind === 'lit' || d.kind === 'note') ? d.label : '')
+  nodeSel.select<SVGTextElement>('text').text(d => (d.kind === 'seed' || d.kind === 'lit' || d.kind === 'note') ? (d.label.length > 26 ? d.label.slice(0, 25) + '…' : d.label) : '')
     .attr('class', d => 'glbl' + (d.kind === 'seed' ? ' glbl-seed' : ''))
   nodeSel
     .on('click', (_e, d) => openNode(d))
@@ -212,7 +212,7 @@ watch(signature, () => render(true))
 </template>
 
 <style scoped>
-.graphwrap{position:relative;height:100%;min-height:440px;overflow:hidden;background:var(--surface)}
+.graphwrap{position:relative;height:100%;contain:size;min-height:440px;overflow:hidden;background:var(--surface)}
 svg{width:100%;height:100%;display:block;cursor:grab}
 svg:active{cursor:grabbing}
 .empty{position:absolute;inset:40% 20% auto;text-align:center;color:var(--muted);font-size:13px}
