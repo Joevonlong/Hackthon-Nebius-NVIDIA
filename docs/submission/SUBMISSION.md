@@ -41,7 +41,7 @@ Live Library runs on the real backend (melanoma example, local):
 | Model quotes verified word for word against the abstract | 38 of 40 (95%); earlier seed pipeline: 32 of 35 (91%) |
 | Figures for the final recorded run | TBD-2 (from the recorded demo run / eval lane) |
 | Cost per build | TBD-10 (from the recorded demo run / eval lane) |
-| Evaluation of the full six-component score against known references | TBD-3 (from the recorded demo run / eval lane); not yet evaluated if left empty |
+| Evaluation of the full six-component score against known references | Hold-out on two real immunology reviews (5 of each review's references as seeds, the rest hidden; 7 runs): the Library put 6–10 hidden references in its top 30 (precision@30 0.20–0.33) where a PubMed title search found 0–4 and an OpenAlex search 0–1; the review itself, not in the vault, ranked in the top 4 every run. Lower bounds: ground truth is one review's reference list and 7–14 of each top 30 were published after the review. Details: eval/RESULTS_LIBRARY.md |
 
 Hold-out test on two real reviews (Nat Rev Cancer 2023, 235 references; 2020 review, 93 references), for the citation routes of the earlier seed pipeline: hide all but 5 references as seeds, build a pool, count hidden references. One review's reference list is incomplete, so every number is a lower bound. Method and tables: `docs/RANKING_AND_STORAGE.md` section 1.
 

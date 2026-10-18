@@ -29,7 +29,7 @@ Only measured numbers are listed. Numbers from the final recorded run are marked
 
 - **Recall.** The union of the citation routes reaches **16% and 42%** of the hidden references. PubMed keyword search reaches 2% and 0%; OpenAlex search reaches 1% and 6%.
 - **Ranking.** Ranking by seed links puts **40% and 35%** relevant papers in the top 20, against a base rate of 5.2% and 4.5%. Citation count alone scores 0% and 25%.
-- This test did not evaluate the six-component Library score or its default weights. Evaluation of the full Library score: TBD-3 (from the recorded demo run / eval lane).
+- This test did not evaluate the six-component Library score or its default weights. Evaluation of the full Library score: Hold-out on two real immunology reviews (5 of each review's references as seeds, the rest hidden; 7 runs): the Library put 6–10 hidden references in its top 30 (precision@30 0.20–0.33) where a PubMed title search found 0–4 and an OpenAlex search 0–1; the review itself, not in the vault, ranked in the top 4 every run. Lower bounds: ground truth is one review's reference list and 7–14 of each top 30 were published after the review. Details: eval/RESULTS_LIBRARY.md.
 
 ## What is real
 

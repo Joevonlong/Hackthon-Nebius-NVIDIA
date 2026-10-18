@@ -69,7 +69,7 @@ Spoken lines are written to be said: 291 words counted with `wc -w`, at 140 word
 ### 2:40 Proof and close (20 s)
 - **Screen:** keep the graph visible (no click).
 - **Say:** "We tested the citation approach on two real reviews: hide all but five references, see what comes back. Our routes reached sixteen to forty-two percent of the hidden ones; keyword search, six at best. Models run on Nebius Token Factory, search on Tavily, and it all runs on this laptop. PaperTrail: find the papers you missed, with receipts."
-- Add only if TBD-3 is filled: one sentence on the evaluation of the full Library score.
+- Proof line (measured): "From five seeds taken from a real review, the library put six to ten of its hidden references in the top thirty; a PubMed title search found zero to four."
 - Timer at 3:00: stop.
 
 ## Beat table: what can fail and the recovery
