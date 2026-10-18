@@ -136,3 +136,12 @@ export const sameWeights = (a: Weights, b: Weights) => COMPONENT_KEYS.every(k =>
 export const weightSum = (w: Weights) => COMPONENT_KEYS.reduce((s, k) => s + w[k], 0)
 export const pct = (v: number) => Math.round(v * 100)
 export const f2 = (v: number | null | undefined) => v == null ? 'n/a' : v.toFixed(2)
+
+// ---- CR-11 chart helpers -------------------------------------------------------------------------------------
+/** Σ raw weights of the assessed components (the not-assessed weight is redistributed over these). */
+export const assessedWeight = (cs: ScoreComponent[]) => cs.filter(c => c.value != null).reduce((s, c) => s + c.weight, 0)
+/** Effective share of the total a component carries after the not-assessed weight moved (0 when not assessed). */
+export function weightShare(c: ScoreComponent, cs: ScoreComponent[]): number {
+  const sum = assessedWeight(cs)
+  return c.value == null || sum <= 0 ? 0 : c.weight / sum
+}

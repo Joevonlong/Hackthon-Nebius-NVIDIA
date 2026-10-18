@@ -1,13 +1,16 @@
 <script setup lang="ts">
 // F-60: one component as a tiny bar; tooltip = value + reason + top evidence line. Dashed empty bar = not assessed.
+// CR-11: the fill uses the component's chart colour (charts/tokens.css).
 import type { ScoreComponent } from '@shared/library'
+import { compColor } from '../charts/slices'
+import '../charts/tokens.css'
 
 defineProps<{ c?: ScoreComponent; tip: string }>()
 </script>
 
 <template>
   <span class="sb" :class="{ na: c?.value == null }" :title="tip" :aria-label="tip">
-    <span class="fill" :style="{ width: ((c?.value ?? 0) * 100) + '%' }" />
+    <span class="fill" :style="{ width: ((c?.value ?? 0) * 100) + '%', background: c ? compColor(c.key) : undefined }" />
   </span>
 </template>
 

@@ -4,6 +4,7 @@ import { reactive } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../../stores/library'
 import ResultTile from './ResultTile.vue'
+import ChartLegend from '../charts/ChartLegend.vue'
 
 defineProps<{ papers: LibPaper[]; inVault: (id: string) => boolean; moves: Record<string, number>; gen: number }>()
 const emit = defineEmits<{ open: [id: string] }>()
@@ -12,6 +13,7 @@ const expanded = reactive<Record<string, boolean>>({})
 </script>
 
 <template>
+  <ChartLegend />
   <ol class="grid">
     <li v-for="(p, i) in papers" :key="p.paper.id" :class="{ wide: expanded[p.paper.id] }">
       <ResultTile :paper="p" :index="i" :threshold="lib.threshold" :move="moves[p.paper.id]" :gen="gen" :in-vault="inVault(p.paper.id)" :expanded="!!expanded[p.paper.id]"

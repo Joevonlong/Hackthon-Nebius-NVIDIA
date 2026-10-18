@@ -1,0 +1,12 @@
+/* CR-11: one fixed colour per score component, used by every score chart (donut, value bars, stacked bar).
+   Defined once here; light values on paper #F2F2F0, brighter values on the dark paper #161718. */
+:root{
+  --c-relevance:#2F6FD0; --c-graph:#7B52C9; --c-citations:#D9731F; --c-venue:#178F7E; --c-authors:#B58E10; --c-llm:#5C8A2A;
+  --c-missed:color-mix(in oklch,var(--ink) 13%,transparent);
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --c-relevance:#6FA0FF; --c-graph:#A98BF0; --c-citations:#FF9F55; --c-venue:#3FCFB8; --c-authors:#E8C547; --c-llm:#A3CC62;
+}}
+:root[data-theme="dark"]{
+  --c-relevance:#6FA0FF; --c-graph:#A98BF0; --c-citations:#FF9F55; --c-venue:#3FCFB8; --c-authors:#E8C547; --c-llm:#A3CC62;
+}
