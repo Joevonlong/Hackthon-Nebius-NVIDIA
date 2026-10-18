@@ -132,8 +132,9 @@ export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], 
     const minY = num(r.filters.minYear), maxY = num(r.filters.maxYear)
     if (minY != null && minY > 1800 && minY < 2100) f.minYear = Math.round(minY)
     if (maxY != null && maxY > 1800 && maxY < 2100) f.maxYear = Math.round(maxY)
-    if (typeof r.filters.openAccessOnly === 'boolean') f.openAccessOnly = r.filters.openAccessOnly
-    if (typeof r.filters.peerReviewedOnly === 'boolean') f.peerReviewedOnly = r.filters.peerReviewedOnly
+    // false is the no-filter default: keep it only when it switches off a filter that is on now
+    if (r.filters.openAccessOnly === true || (r.filters.openAccessOnly === false && current.filters?.openAccessOnly)) f.openAccessOnly = r.filters.openAccessOnly
+    if (r.filters.peerReviewedOnly === true || (r.filters.peerReviewedOnly === false && current.filters?.peerReviewedOnly)) f.peerReviewedOnly = r.filters.peerReviewedOnly
     if (Object.keys(f).length && JSON.stringify(f) !== JSON.stringify(current.filters ?? {})) out.filters = f
   }
   if (!out.weights && out.topPercent == null && out.threshold == null && !out.filters) return null
@@ -148,6 +149,9 @@ export function normalizeCitations(reply: string): string {
   return reply
     .replace(/(^|[^[\w])\*{0,2}#(\d{1,4})\*{0,2}[ :.\-–]*["“]([^"”\n]{3,200})["”]/g, (_m, pre, n, t) => `${pre}[#${n} ${t.trim()}]`)
     .replace(/\[\s*#(\d{1,4})\s*\]\s*["“]([^"”\n]{3,200})["”]/g, (_m, n, t) => `[#${n} ${t.trim()}]`)
+    // a list line that starts with a bare "#9 Title (2020)" → "- [#9 Title] (2020)"
+    .replace(/^(\s*(?:[-*•]|\d{1,3}[.)])?\s*)\*{0,2}#(\d{1,4})\*{0,2}[ :.\-–]+([^\n([\]]{3,200}?)(\s*\((?=\s*(?:19|20)\d\d\b))/gm,
+      (_m, pre, n, t, post) => `${pre.trim() ? pre : '- '}[#${n} ${t.trim()}]${post}`)
 }
 
 /** Cited papers: the model's list plus every [#rank …] in the reply, resolved against the ranked library. */
@@ -166,7 +170,7 @@ When asked "why is #a above #b", compare their component values and weights.
 Score = Σ weight·value over assessed components / Σ assessed weights. Components: relevance (embedding similarity to the goals), graph (citation links to the user's own papers), citations (field/year-normalized impact), venue (journal standing), authors (track record), llm (an LLM's read of the abstract; lowest weight by design).
 PROPOSALS: only when the user asks to change priorities, filters or the pass rule (e.g. "care more about recent clinical papers", "ignore preprints", "venue matters more than citations", "be stricter"), add a proposal; otherwise proposal is null.
 A proposal never applies itself: the user clicks Apply. Weights are each in 0..1 (they are normalized to sum 1 in the UI); only include weights you change. Keep "llm" the lowest weight unless the user explicitly asks about the LLM read, and say so in the rationale.
-There is no "recency" weight: express recency with filters.minYear; clinical focus with filters (kinds) or by raising relevance; "ignore preprints" = filters.kinds listing every kind to KEEP (valid kinds: ${KINDS.join(', ')}).
+There is no "recency" weight: express recency with filters.minYear. There is no study-design filter: express a clinical focus by raising relevance (and venue) and say which clinical papers would rise. Only set filters.kinds when the user asks to include or exclude a kind; "ignore preprints" = filters.kinds listing every kind to KEEP (valid kinds: ${KINDS.join(', ')}). Omit filter fields you do not change.
 topPercent (1..100) and threshold (0..1, the absolute floor) form the pass rule. In the reply, summarize the proposed change in one or two sentences.
 Respond with ONE JSON object and nothing else:
 {"reply": "markdown answer", "cited": [rank numbers], "proposal": null | {"weights": {"venue": 0.3}, "topPercent": 25, "threshold": 0.5, "filters": {"kinds": ["journal-article"], "minYear": 2020, "maxYear": 2026, "openAccessOnly": false, "peerReviewedOnly": false}, "rationale": "one or two sentences"}}`

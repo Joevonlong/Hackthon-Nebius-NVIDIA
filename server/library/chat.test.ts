@@ -50,6 +50,8 @@ describe('chat context + citations', () => {
   })
   it('normalizes loose citations and resolves ranks', () => {
     expect(normalizeCitations('#9 "CD8+ T cells" (2020)\n- **#3** "Other paper"')).toBe('[#9 CD8+ T cells] (2020)\n- [#3 Other paper]')
+    expect(normalizeCitations('#9 CD8+ T cell states in cancer (2020)\n#19 Dynamics of T cells (2023)')).toBe('- [#9 CD8+ T cell states in cancer] (2020)\n- [#19 Dynamics of T cells] (2023)')
+    expect(normalizeCitations('- #3 has higher relevance (0.94 vs 0.67)')).toBe('- #3 has higher relevance (0.94 vs 0.67)')
     const ranked = library(10)
     const cited = resolveCited('see [#2 Foo] and [#99 nope]', [1, { rank: '2' }], ranked)
     expect(cited.map(c => c.rank)).toEqual([1, 2])
