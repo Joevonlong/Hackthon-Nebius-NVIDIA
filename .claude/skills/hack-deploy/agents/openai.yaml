@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Deploy"
+  short_description: "Public URL in hour one, demoable through judging"
+  default_prompt: "Use $hack-deploy to get our walking skeleton live on a public URL with prod smoke green, and prepare the demo-day fallbacks."
+policy:
+  allow_implicit_invocation: true

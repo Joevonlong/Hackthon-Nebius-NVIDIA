@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Spec"
+  short_description: "Turn the pitch into a demo script and P0 board rows"
+  default_prompt: "Use $hack-spec to turn our locked pitch into a timed demo script, sized P0 features, and board rows."
+policy:
+  allow_implicit_invocation: true

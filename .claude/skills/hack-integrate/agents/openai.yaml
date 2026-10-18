@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Integrate"
+  short_description: "Merge, smoke, and report burn-down at sync points"
+  default_prompt: "Use $hack-integrate to run this sync point: merge ready branches in order, smoke main and prod, and write the sync report with burn-down."
+policy:
+  allow_implicit_invocation: true

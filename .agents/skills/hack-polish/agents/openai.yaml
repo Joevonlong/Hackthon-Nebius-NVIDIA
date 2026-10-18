@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Polish"
+  short_description: "Judge's-eye polish pass on the demo path"
+  default_prompt: "Use $hack-polish to review our demo path the way a judge sees it and fix what matters before freeze ends."
+policy:
+  allow_implicit_invocation: true

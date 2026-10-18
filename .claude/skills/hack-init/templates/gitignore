@@ -1,0 +1,14 @@
+# hack-team
+.env*.local
+.env
+.worktrees/
+.claude/worktrees/
+hack/demo/shots/
+hack/demo/video/raw/
+hack/demo/video/renders/
+hack/demo/video/takes/
+hack/demo/video/clips/
+hack/demo/video/project/node_modules/
+test-results/
+playwright-report/
+!.env.example

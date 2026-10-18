@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Pitch"
+  short_description: "Timed hackathon pitch, judge Q&A, and live-demo runbook"
+  default_prompt: "Use $hack-pitch to write, rehearse, and time our hackathon pitch with Q&A and a demo runbook."
+policy:
+  allow_implicit_invocation: true

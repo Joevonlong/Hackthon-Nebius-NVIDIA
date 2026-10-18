@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hack · Build"
+  short_description: "Build one hackathon card from claim to merged demo"
+  default_prompt: "Use $hack-build to take the next ready card in my lane from claim to merged, with every demo check observed and screenshotted."
+policy:
+  allow_implicit_invocation: true
