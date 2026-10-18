@@ -35,7 +35,8 @@ describe('library score', () => {
     const strict = rescore(papers, { topPercent: 25, threshold: 0.95 })
     expect(strict.filter(p => p.passed).length).toBeLessThan(r.filter(p => p.passed).length)
     expect(strict.filter(p => p.passed).every(p => p.total >= 0.95)).toBe(true)
-    expect(rescore(papers, { topPercent: 100, threshold: 0 }).filter(p => p.passed).length).toBe(n)
+    const offTopicAll = papers.filter(p => !p.excluded && p.llmRead && p.llmRead.relevance <= 1).length
+    expect(rescore(papers, { topPercent: 100, threshold: 0 }).filter(p => p.passed).length).toBe(n - offTopicAll)
     const reweighted = rescore(papers, { topPercent: 25, threshold: 0.5, weights: { ...DEFAULT_WEIGHTS, citations: 0.5 } })
     expect(reweighted.map(p => p.paper.id)).not.toEqual(r.map(p => p.paper.id))
   })
