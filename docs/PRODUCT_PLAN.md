@@ -309,3 +309,13 @@ Order if confirmed: F-47 (after design pick) ∥ F-45 ∥ F-49 → F-46 → F-48
 | F-45 node radius ∝ score · F-47 score design A + D · F-49 pass-rule UI | U1 | building |
 | F-46 chat column · F-48 chat adjusts weights · F-49 server (pass rule, subtopics) | U2 | building |
 
+
+---
+
+## 15. Change request CR-3 · Real demo, no mock data (proposed 16:25)
+| # | Requirement | Card |
+|---|---|---|
+| R-3.1 | Production build never uses mock or fixture data. Silent fallbacks to the mock (on 404/5xx/offline) are removed; failures show an error with Retry. Mock data stays only behind an explicit dev flag (`?mock=1`, dev builds only) | F-50 |
+| R-3.2 | A visible research-question box at the top of the Library panel (plus a Build button). The typed question becomes the library's question and is saved into `Notes/Question.md`; the goals agent still reads every note | F-51 |
+| R-3.3 | Run the whole process for real (seeds → library → review → add to vault → graph → chat adjust → export) on the demo question(s), fix what breaks, and record the run as the `?demo=1` replay (replaces the mock and the old seed recording) | F-52 |
+| R-3.4 | Docs (pitch, runbook, README) describe only what the real run shows, with numbers from that run | F-53 |
