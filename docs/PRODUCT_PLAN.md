@@ -450,3 +450,9 @@ Clean start passes. Fixes:
 - Q2-10 "Which papers are reviews?" lists 2 of 4 → kind questions answered from labels, complete.
 - Q2-11 switching question keeps the old library + chat in the centre → opens that question's latest library or its empty state.
 - Q2-12 Files "⋯" menu does not close on Escape/outside click. Q2-13 status bar count vs header mismatch. Q2-14 graph legend overlaps nodes. Q2-15 stray notes/Untitled.md at build start.
+
+## 26. CR-14 · Citation / venue data without OpenAlex (user, 18:15; confirmed)
+Problem: when the OpenAlex budget is exhausted (key and shared keyless budget both $0 until midnight UTC), citations, venue and authors are "not assessed" for every paper (live build lib_20261018160959_849178: citations 0/600, authors 0/600, venue 206/600).
+- Citations fallback: cited-by counts from Europe PMC (PMID/DOI, free, no key) and Crossref `is-referenced-by-count` (DOI); scored as a year-normalized percentile within this library; evidence names the source ("Europe PMC cited-by 123 · 87th percentile in this library for 2016–2018"). OpenAlex data wins when present.
+- Venue fallback: journal matched by ISSN / normalized name to the cached OpenAlex sources; else stays not assessed.
+- Authors: stay "not assessed" without OpenAlex (no free source), labelled clearly.
