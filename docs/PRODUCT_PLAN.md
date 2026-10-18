@@ -319,3 +319,16 @@ Order if confirmed: F-47 (after design pick) ∥ F-45 ∥ F-49 → F-46 → F-48
 | R-3.2 | A visible research-question box at the top of the Library panel (plus a Build button). The typed question becomes the library's question and is saved into `Notes/Question.md`; the goals agent still reads every note | F-51 |
 | R-3.3 | Run the whole process for real (seeds → library → review → add to vault → graph → chat adjust → export) on the demo question(s), fix what breaks, and record the run as the `?demo=1` replay (replaces the mock and the old seed recording) | F-52 |
 | R-3.4 | Docs (pitch, runbook, README) describe only what the real run shows, with numbers from that run | F-53 |
+
+---
+
+## 16. Change request CR-4 · Judge review fixes (proposed 16:10)
+Judge (simulated, read-only) scored 6.1/10. Already covered by running lanes: stale story docs (story lane), pass rule (U1/U2), real `?demo=1` (demo lane), build speed incl. parallel Tavily (perf lane).
+New items proposed:
+| # | Fix | Card | Est |
+|---|---|---|---|
+| J-1 | **Deploy to a Nebius Serverless Endpoint** (brief deliverable; reverses D-18 for the submission, local stays for development). Needs `nebius profile create` finished by the user; then `scripts/deploy.sh v2` after the merge | F-54 | 30m + 5m wait |
+| J-2 | Plain-language "why relevant" sentence + verified quote on every top-N card; LLM read covers every returned paper (llmReadTopK ≥ topK) | F-55 | 30m |
+| J-3 | "Recent (≤ 3 years)" filter and Fresh badge so new work is visible in the top 10 | F-56 | 20m |
+| J-4 | Visible Tavily evidence: "found via Tavily" chip linking the page, Tavily row in the sources panel | F-57 | 20m |
+| J-5 | Cleanups: remove the Google Scholar chip (dropped, D-21), label graph nodes, show seed titles instead of K-ids, fix field-label noise (use the topic field, not the first OpenAlex topic) | F-58 | 30m |
