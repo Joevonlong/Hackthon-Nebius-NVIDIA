@@ -418,3 +418,9 @@ The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browse
 | R-9.1 | On a fresh start the app shows an empty workspace: no sample question, no sample seeds, no sample notes; the first screen invites "Create your first research question" | W2 |
 | R-9.2 | No topic-specific defaults anywhere in production code: question placeholder is neutral ("Type your research question"), no hard-coded seed DOIs, no melanoma keyword rules (the legacy Discover store's lens rule goes) | W2 + captain |
 | R-9.3 | Demo content stays only behind `?demo=1` (replay of the recorded real run) and never writes into the user's workspace | captain (check) |
+
+## 22. CR-10 · Graph edges between papers (user, 17:50; confirmed)
+Problem: the graph view drew no edges. Cause 1: it ignored `paper.referencedWorks` (real melanoma build: ~1,100 citation links among the 149 passed papers, none drawn) and matched seed relations only by exact note.paperId. Cause 2: when OpenAlex is rate-limited (HTTP 429, no key) papers carry no reference lists at all.
+- **E-1 Citation edges (client graph + graph.json):** paper→paper edges from OpenAlex `referenced_works` among the drawn library papers; edges to seed / vault notes matched by any id (OpenAlex id, DOI, PMID, arXiv). Legend + edge count in the graph header; hover highlights a node's edges. `graph.json` on disk gets the same edges.
+- **E-2 Europe PMC fallback (server):** after scoring, passed papers with a PMID and no OpenAlex references get their reference list from Europe PMC (`/MED/<pmid>/references`, free, no key), time-boxed and cached; matched references become `relations` (cites) and edges. Traced to `references.jsonl`.
+- **E-3 Final graph test:** after every feature is merged, a final QA run screenshots the graph view (edges visible, counts) on the final build.
