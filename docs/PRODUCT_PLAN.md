@@ -276,3 +276,18 @@ Open findings (need a decision before changing):
 1. Threshold 0.55 passes 500–553 of 599 (median total 0.67), so it barely filters. Option: calibrate the threshold as a percentile of the pile, or raise the default to ~0.75.
 2. The `subtopics` label lists every subtopic for most papers (match rule too loose).
 3. F-38 Library demo recording and F-39 story updates not started.
+
+---
+
+## 14. Change request CR-2 · Feedback from 王星然 (proposed 16:10 — awaiting confirmation)
+
+| # | Feedback (verbatim, shortened) | Proposed requirement | Card | Lane | Est |
+|---|---|---|---|---|---|
+| FB-1 | Node diameters in the graph should relate to grades | Library paper node radius ∝ total score (min 4 px at 0, max 16 px at 1); seed/vault notes keep a fixed size; legend shows the scale | F-40 | UI | 20m |
+| FB-2 | Chat feature on the right side, several rounds | A chat panel on the right (see placement options) with multi-round history per library; the agent answers questions about the library (goals, papers, scores, evidence) using the library JSON as context, cites papers by rank/title, and can act (FB-5) | F-41 | UI + AI | 60m |
+| FB-3 | Visualization of gradings is not easy to understand | Replace the six-colour stacked bar with the design chosen from the candidates (see below); plain-language summary line per paper ("Strong on relevance and venue; weak on author record") | F-42 | UI | 40m |
+| FB-4 | "Why this score" should be easy to understand; give several candidates to review | Show 3–4 candidate designs now (this request); build the chosen one; each component shows value as a grade + one-sentence reason, evidence collapsed below | F-42 | UI | (in F-42) |
+| FB-5 | Weights adjustable at runtime; the agent adjusts gradings from the prompt | In chat, a prompt like "care more about recent clinical papers, less about citations" → the agent proposes new weights (and optional filters: kind, year, OA) as a diff, the user applies it, the library re-scores instantly in the browser and shows rank changes; every change is logged with the prompt | F-43 | AI + UI | 45m |
+| — | Pending from CR-1 | Threshold behaviour (0.55 passes ~85%) and the loose `subtopics` label | F-44 | core | 20m |
+
+Order if confirmed: F-42 (after design pick) ∥ F-40 ∥ F-44 → F-41 → F-43. Total ≈ 3 h of agent work; with three parallel agents ≈ 75 min.
