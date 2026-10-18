@@ -7,9 +7,9 @@ import { hasKey } from '../ai/http'
 import { env } from '../env'
 import { trace } from '../trace'
 import { deriveGoals } from './goals'
-import { labelRecord, subtopicsByKeywords } from './labels'
+import { labelRecord, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
-import { scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
+import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
 import { writeLibraryFiles } from './store'
 import { writeLibraryReport } from './report'
 import type { EnrichedRecord, SourceCall, SourcesApi } from './types'
@@ -97,7 +97,11 @@ export async function embeddingRelevance(goals: Goals, recs: EnrichedRecord[], t
   if (!qv || !dv || qv.length !== queries.length || dv.length !== docs.length) return null
   const dot = (a: number[], b: number[]) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s }
   const M = dv.map(d => qv.map(q => dot(d, q)))
-  const thr = queries.map((_, j) => quantile(M.map(row => row[j]), 0.7))
+  const subIdx = queries.map((q, j) => (q.kind === 'subtopic' ? j : -1)).filter(j => j >= 0)
+  const subNames = subIdx.map(j => queries[j].name)
+  const subRows = M.map(row => subIdx.map(j => row[j]))
+  // D-28: the library's 60th percentile of each paper's best subtopic cosine
+  const p60 = quantile(subRows.map(r => (r.length ? Math.max(...r) : -Infinity)), 0.6)
   const rel = new Map<string, RelevanceSignal>()
   const subtopics = new Map<string, string[]>()
   docs.forEach((r, i) => {
@@ -105,7 +109,7 @@ export async function embeddingRelevance(goals: Goals, recs: EnrichedRecord[], t
     let bj = 0
     for (let j = 1; j < row.length; j++) if (row[j] > row[bj]) bj = j
     rel.set(r.key, { cos: row[bj], best: queries[bj].name, bestKind: queries[bj].kind, method: 'embedding' })
-    const subs = queries.map((q, j) => (q.kind === 'subtopic' && (row[j] >= thr[j] || j === bj) ? q.name : null)).filter((x): x is string => !!x)
+    const subs = pickSubtopics(subRows[i], subNames, p60)
     subtopics.set(r.key, subs)
   })
   return { rel, subtopics, method: 'embedding', docs: docs.length, queries: queries.length }
@@ -164,9 +168,10 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   emitLib(s, { type: 'stage', stage: 'label', status: 'done', count: items.length, ms: lb.ms, message: `relevance by ${rel.method === 'embedding' ? `${env.models.embed} (${rel.docs} docs × ${rel.queries} queries)` : 'keyword overlap (no embeddings)'}` })
 
   // 4. pre-LLM score
-  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, now }))
+  const rule = { topPercent: req.topPercent, threshold: req.threshold }
+  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
   const pre = sc.out
-  emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${pre.filter(p => p.passed).length} pass ${req.threshold}` })
+  emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
   // 5. LLM read of the best pre-scored papers
   const byKey = new Map(items.map(i => [i.rec.paper.id, i]))
@@ -187,12 +192,12 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   }
 
   // 6. re-score + select
-  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, now }))
+  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
   s.papers = se.out
   const passed = s.papers.filter(p => p.passed).length
   const top = s.papers.slice(0, req.topK)
   emitLib(s, { type: 'papers', papers: top, total: s.papers.length, passed })
-  emitLib(s, { type: 'stage', stage: 'select', status: 'done', count: top.length, ms: se.ms, message: `${passed} of ${s.papers.length} pass ${req.threshold} · ${s.papers.filter(p => p.excluded).length} excluded · top ${top.length} sent` })
+  emitLib(s, { type: 'stage', stage: 'select', status: 'done', count: top.length, ms: se.ms, message: `${passSummary(s.papers, rule)} · ${s.papers.filter(p => p.excluded).length} excluded · top ${top.length} sent` })
 
   // 7. files + report
   s.dir = writeLibraryFiles(s)

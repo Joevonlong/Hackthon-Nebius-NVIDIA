@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { env } from '../env'
 import { runLogDir, writeRunFile } from '../trace'
 import type { LibraryState } from './pipeline'
+import { passSummary } from './score'
 
 const jsonl = (rows: unknown[]) => rows.map(r => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : '')
 const readJsonl = (file: string): any[] => existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : []
@@ -44,8 +45,7 @@ function summary(s: LibraryState, topN: number, nRel: number): string {
   const g = s.goals
   const L: string[] = []
   const ms = Date.now() - s.startedAt
-  const passed = s.papers.filter(p => p.passed).length
-  L.push(`# Library ${s.id}`, '', `- Notes: ${s.request.notes.length} · total ${(ms / 1000).toFixed(1)} s · ${s.papers.length} scored papers · ${passed} pass threshold ${s.request.threshold} · ${nRel} relations`,
+  L.push(`# Library ${s.id}`, '', `- Notes: ${s.request.notes.length} · total ${(ms / 1000).toFixed(1)} s · ${s.papers.length} scored papers · ${passSummary(s.papers, { topPercent: s.request.topPercent, threshold: s.request.threshold })} · ${nRel} relations`,
     `- Files: ${s.dir ?? '(not written)'} · logs: ${dir}`, `- Relevance: ${s.relevanceMethod === 'embedding' ? env.models.embed : s.relevanceMethod} · LLM reads: ${s.llmReads} (${env.models.judge})`, '')
 
   L.push('## Goals', '')
