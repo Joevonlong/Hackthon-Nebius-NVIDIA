@@ -7,6 +7,7 @@ import { useVault } from '../stores/vault'
 import { noteName } from '../stores/vault-utils'
 import PaperPreview from '../discover/PaperPreview.vue'
 import GraphView from '../graph/GraphView.vue'
+import LibraryTab from '../library/LibraryTab.vue'
 import MarkdownEditor from '../editor/MarkdownEditor.vue'
 import Icon from './Icon.vue'
 
@@ -16,7 +17,7 @@ const saving = ref(false)
 
 function dot(t: Tab) {
   if (t.kind === 'graph') return 'var(--o2)'
-  if (t.kind === 'preview') return 'var(--cand)'
+  if (t.kind === 'preview') return t.ref.startsWith('lib:') ? 'var(--warn)' : 'var(--cand)'
   const k = vault.byPath(t.ref)?.kind
   return k === 'seed' ? 'var(--seed)' : k === 'lit' ? 'var(--cand)' : 'var(--line-2)'
 }
@@ -47,6 +48,7 @@ function openQuestion() { const q = vault.byPath('Notes/Question.md') || vault.n
           <button class="btn" type="button" @click="ui.close(ui.activeTab.id)">Close tab</button>
         </div>
       </template>
+      <LibraryTab v-else-if="ui.activeTab?.kind === 'preview' && ui.activeTab.ref.startsWith('lib:')" :ref-id="ui.activeTab.ref" />
       <PaperPreview v-else-if="ui.activeTab?.kind === 'preview'" :key="ui.activeTab.ref" :paper-id="ui.activeTab.ref" />
       <GraphView v-else-if="ui.activeTab?.kind === 'graph'" />
       <div v-else class="empty-state">
