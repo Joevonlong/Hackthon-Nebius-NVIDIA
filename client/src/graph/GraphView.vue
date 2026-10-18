@@ -2,7 +2,7 @@
 // Vault graph. Owner: lane C. Force layout ported from Zettlr's GraphView (source/win-stats/GraphView.vue, GPL-3.0):
 // d3 forceSimulation with link / charge / collide / x / y forces and keyed joins; adds zoom/pan via d3.zoom,
 // ghost nodes for run candidates not yet in the vault, and enter animations while a run streams.
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import * as d3 from 'd3'
 import type { Candidate } from '@shared/contracts'
 import type { LibPaper } from '@shared/library'
@@ -13,6 +13,8 @@ import { useDiscovery } from '../stores/discovery'
 import { useUi } from '../stores/ui'
 import { extractLinks, noteName, resolveLink } from '../stores/vault-utils'
 import { firstAuthor, lastName, shortTitle } from '../discover/literatureNote'
+
+defineOptions({ name: 'GraphView' }) // kept alive by EditorArea (CR-6: zoom, layout and selection survive a jump)
 
 type Kind = 'seed' | 'lit' | 'note' | 'ghost' | 'bridge' | 'lib'
 interface GNode extends d3.SimulationNodeDatum { id: string; kind: Kind; label: string; sub: string; note?: Note; cand?: Candidate; lib?: LibPaper; component?: string }
@@ -145,20 +147,35 @@ const idOf = (e: string | GNode) => typeof e === 'string' ? e : e.id
 const linkKey = (l: GLink) => `${idOf(l.source)}|${idOf(l.target)}`
 const PRIORITY: Record<Kind, number> = { seed: 300, lit: 200, note: 150, lib: 100, ghost: 50, bridge: 40 }
 
+// CR-6: the clicked node stays selected (ring + star) so Back lands on the same zoom and the same node.
+let selected: string | null = null
+let inactive = false
+let starTimer: ReturnType<typeof setTimeout> | undefined
+let W = 0, H = 0
+function select(id: string | null) { selected = id; ui.saveView('graph', { selected: id }); setActive(id) }
 function openNode(d: GNode) {
-  if (d.note) ui.openNote(d.note.path, noteName(d.note.path))
-  else if (d.cand) ui.openPreview(d.cand.paper.id, shortTitle(d.cand.paper))
-  else if (d.lib) ui.openLibPaper(d.lib.paper.id, shortTitle(d.lib.paper))
+  select(d.id)
+  const from = { from: 'graph' as const }
+  if (d.note) ui.openNote(d.note.path, noteName(d.note.path), from)
+  else if (d.cand) ui.openPreview(d.cand.paper.id, shortTitle(d.cand.paper), from)
+  else if (d.lib) ui.openLibPaper(d.lib.paper.id, shortTitle(d.lib.paper), from)
 }
-
-function focusOn(d: GNode) {
-  const s = st.get(d.id); if (!s || !svgEl.value || !zoomer) return
-  userZoomed = true
-  const k = Math.max(transform.k, 1.3)
-  const t = d3.zoomIdentity.scale(k).translate(-s.x, -s.y)
-  const sel = d3.select(svgEl.value)
-  if (reduce) sel.call(zoomer.transform, t)
-  else sel.transition().duration(700).ease(d3.easeCubicOut).call(zoomer.transform, t)
+/** Applies the zoom/pan and selection stored in ui.viewState.graph (set by a Back/Forward restore). */
+function applyView() {
+  const v = ui.viewState.graph
+  if (v?.zoom && svgEl.value && zoomer) {
+    const z = v.zoom
+    if (Math.abs(z.k - transform.k) > 1e-4 || Math.abs(z.x - transform.x) > 0.5 || Math.abs(z.y - transform.y) > 0.5) {
+      userZoomed = true
+      d3.select(svgEl.value).interrupt().call(zoomer.transform, d3.zoomIdentity.translate(z.x, z.y).scale(z.k))
+    }
+  }
+  selected = v?.selected && st.has(v.selected) ? v.selected : null
+  // The star around the selected node shows for a moment on return; the node keeps its selection ring after that.
+  active = '__'; setActive(selected)
+  clearTimeout(starTimer)
+  const s = selected
+  if (s) starTimer = setTimeout(() => { if (active === s) setActive(null) }, 2500)
 }
 
 function setActive(id: string | null) {
@@ -230,7 +247,7 @@ function render(animate: boolean, replay = false) {
   nodeSel.select('circle').attr('r', d => rad(d)).attr('class', d => 'nd nd-' + d.kind)
   nodeSel.select<SVGTextElement>('text').text(d => d.label.length > 28 ? d.label.slice(0, 27) + '…' : d.label)
   nodeSel
-    .on('click', (_e, d) => { openNode(d); focusOn(d) })
+    .on('click', (e: MouseEvent, d) => { e.stopPropagation(); openNode(d) })
     .on('keydown', (e: KeyboardEvent, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNode(d) } })
     .on('focus', (_e, d) => setActive(d.id))
     .on('blur', () => setActive(null))
@@ -262,7 +279,7 @@ function render(animate: boolean, replay = false) {
   sim.on('tick', () => { for (const n of nodes) pos.set(n.id, { x: n.x!, y: n.y! }); if (!fitted && sim!.alpha() < 0.12) { fitted = true; fit(nodes) } })
   if (reduce) { sim.stop(); for (let i = 0; i < 300; i++) sim.tick(); for (const n of nodes) pos.set(n.id, { x: n.x!, y: n.y! }); fit(nodes) }
   else sim.alpha(animate ? 0.7 : 0.5).restart()
-  if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(frame) }
+  if (!raf && !inactive) { lastT = performance.now(); raf = requestAnimationFrame(frame) }
 }
 
 const approx = (s: string) => s.length * 5.4 + 4
@@ -341,10 +358,16 @@ function frame(nowT: number) {
     for (const n of order) {
       const s = st.get(n.id); if (!s) continue
       const lw = approx(n.label.length > 28 ? n.label.slice(0, 28) : n.label), lh = 13
-      const x0 = sx(s.x) + (rad(n) + 4) * transform.k, y0 = sy(s.y) - lh / 2
+      // Q-11: a label that would leave the canvas on the right goes to the node's left instead.
+      const gap = (rad(n) + 4) * transform.k
+      const flip = W > 0 && sx(s.x) + gap + lw > W / 2 - 8
+      const x0 = flip ? sx(s.x) - gap - lw : sx(s.x) + gap, y0 = sy(s.y) - lh / 2
+      ;(s as NState & { flip?: boolean }).flip = flip
       const box = { x0, y0, x1: x0 + lw, y1: y0 + lh }
       const clash = placed.some(p => p.id !== n.id && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
-      const show = n.id === active || !clash
+      // Q-11: labels stay inside the canvas; a node off the edge keeps its dot but not a clipped label.
+      const inside = W <= 0 || (box.x0 >= -W / 2 + 4 && box.x1 <= W / 2 - 4 && box.y0 >= -H / 2 + 4 && box.y1 <= H / 2 - 4)
+      const show = inside && (n.id === active || !clash)
       if (show) placed.push({ ...box, id: '#' + n.id })
       ;(s as NState & { want?: number }).want = show ? 1 : 0
     }
@@ -359,7 +382,10 @@ function frame(nowT: number) {
     const c = g.firstChild as SVGCircleElement, t = g.lastChild as SVGTextElement
     c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(rad(n) * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
     c.style.opacity = String(Math.min(1, e * 1.5) * s.dim)
-    t.setAttribute('x', String(s.x + rad(n) + 4 / transform.k)); t.setAttribute('y', String(s.y + 3.6 / transform.k))
+    const flip = (s as NState & { flip?: boolean }).flip
+    t.setAttribute('x', String(flip ? s.x - rad(n) - 4 / transform.k : s.x + rad(n) + 4 / transform.k)); t.setAttribute('y', String(s.y + 3.6 / transform.k))
+    t.setAttribute('text-anchor', flip ? 'end' : 'start')
+    c.classList.toggle('sel', n.id === selected)
     t.style.opacity = String(Math.min(1, e * 1.5) * s.dim * s.lbl)
     t.classList.toggle('on', n.id === active)
   })
@@ -371,6 +397,7 @@ function fit(nodes: GNode[]) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const n of nodes) { x0 = Math.min(x0, n.x!); y0 = Math.min(y0, n.y!); x1 = Math.max(x1, n.x! + 120 * (n.kind === 'seed' ? 1 : 0)); y1 = Math.max(y1, n.y!) }
   const { width, height } = wrap.value.getBoundingClientRect()
+  if (width <= 0 || height <= 0) return // hidden (kept alive behind another tab)
   const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - 160) / Math.max(1, y1 - y0)))
   const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
   const sel = d3.select(svgEl.value)
@@ -384,6 +411,8 @@ function replay() { userZoomed = false; render(true, true); fitNow() }
 function resize() {
   if (!svgEl.value || !wrap.value) return
   const { width, height } = wrap.value.getBoundingClientRect()
+  if (width <= 0 || height <= 0) return
+  W = width; H = height
   d3.select(svgEl.value).attr('viewBox', [-width / 2, -height / 2, width, height].join(' '))
 }
 
@@ -398,16 +427,28 @@ onMounted(() => {
   zoomer = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 5]).on('zoom', e => {
     if (e.sourceEvent) userZoomed = true
     transform = e.transform
+    if (!inactive) ui.saveView('graph', { zoom: { x: e.transform.x, y: e.transform.y, k: e.transform.k } })
     svgEl.value!.style.setProperty('--fs', 10.5 / e.transform.k + 'px')
     zoomLayer!.attr('transform', e.transform.toString())
   })
   svg.call(zoomer).on('dblclick.zoom', null)
+  svg.on('click.select', (e: MouseEvent) => { if (e.target === svgEl.value) select(null) })
   resize()
   ro = new ResizeObserver(() => requestAnimationFrame(resize))
   if (wrap.value) ro.observe(wrap.value)
   render(false)
+  if (ui.viewState.graph?.zoom) applyView()
 })
 onBeforeUnmount(() => { sim?.stop(); sim = null; ro?.disconnect(); cancelAnimationFrame(raf); raf = 0 })
+onDeactivated(() => { inactive = true; cancelAnimationFrame(raf); raf = 0; tip.value = null })
+onActivated(() => {
+  if (!inactive) return
+  inactive = false
+  resize()
+  applyView()
+  if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(frame) }
+})
+watch(() => ui.restoreSeq, () => { if (!inactive && ui.activeTabId === 'graph') applyView() })
 
 // Re-render on structural change only (node ids + edges); new nodes bloom in from the centre or their linked node.
 const signature = computed(() => data.value.nodes.map(n => n.id + ':' + n.kind).join(',') + '#' + data.value.links.length)
@@ -418,7 +459,12 @@ watch(signature, () => render(true))
   <div ref="wrap" class="graphwrap">
     <svg ref="svgEl" role="img" aria-label="Vault graph: seeds, kept notes and candidates" />
     <div class="grain" aria-hidden="true" />
-    <div class="eyebrow">Graph · {{ counts.seed + counts.lit + counts.note }} notes · {{ counts.lib }} library<template v-if="counts.ghost"> · {{ counts.ghost }} candidates</template></div>
+    <div class="g-top">
+      <button class="g-back" type="button" :disabled="!ui.canBack" :title="ui.backEntry ? 'Back to ' + ui.backEntry.tab.title + ' (⌘[ or Alt+←)' : 'Nothing to go back to'" @click="ui.back()">
+        <span aria-hidden="true">←</span> <span class="bt">{{ ui.backEntry ? ui.backEntry.tab.title : 'Back' }}</span>
+      </button>
+      <div class="eyebrow">Graph · {{ counts.seed + counts.lit + counts.note }} notes · {{ counts.lib }} library<template v-if="counts.ghost"> · {{ counts.ghost }} candidates</template></div>
+    </div>
     <div v-if="!data.nodes.length" class="empty">
       <template v-if="disc.status === 'running'"><b>Resolving seeds…</b> Seed notes appear here first, then candidates grow out of them.</template>
       <template v-else><b>The graph is empty.</b> Build a library from the Library tab: papers above the threshold appear here, linked to the notes they cite.</template>
@@ -455,15 +501,21 @@ svg{width:100%;height:100%;display:block;cursor:grab}
 svg:active{cursor:grabbing}
 .grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:.5;z-index:1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
 .eyebrow,.g-legend,.g-live{font:500 10.5px/1.2 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-64)}
-.eyebrow{position:absolute;left:18px;top:16px;z-index:2;pointer-events:none}
+.g-top{position:absolute;left:14px;top:12px;z-index:2;display:flex;align-items:center;gap:12px;max-width:calc(100% - 28px)}
+.eyebrow{pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.g-back{display:inline-flex;align-items:center;gap:6px;max-width:240px;border:1px solid var(--ink-26);background:var(--paper-2);color:var(--ink);border-radius:99px;padding:5px 12px 5px 10px;font:600 12px/1 var(--font-sans);cursor:pointer;flex:none;transition:background .4s var(--reveal),border-color .4s var(--reveal)}
+.g-back:hover:not(:disabled){background:var(--ink-8);border-color:var(--ink-46)}
+.g-back:disabled{opacity:.45;cursor:default}
+.g-back:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.g-back .bt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .empty{position:absolute;inset:42% 20% auto;text-align:center;color:var(--ink-64);font-size:13px;z-index:2}
 .empty b{color:var(--ink)}
-.g-status{position:absolute;left:18px;top:38px;z-index:2;display:flex;flex-direction:column;gap:6px}
+.g-status{position:absolute;left:18px;top:50px;z-index:2;display:flex;flex-direction:column;gap:6px}
 .g-live{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hair);border-radius:99px;padding:4px 10px;background:var(--paper-2)}
 .g-live i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.3}}
 @media (prefers-reduced-motion: reduce){.g-live i{animation:none}}
-.g-legend{position:absolute;left:18px;bottom:16px;z-index:2;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.g-legend{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 140px);z-index:2;display:flex;flex-wrap:wrap;column-gap:16px;row-gap:7px;align-items:center;pointer-events:none;padding:7px 9px;border-radius:6px;background:color-mix(in srgb,var(--paper) 86%,transparent)}
 .g-legend span{display:inline-flex;gap:9px;align-items:center}
 .g-legend .d{width:9px;height:9px;border-radius:50%;display:inline-block;box-sizing:border-box}
 .g-legend .d.seed{background:var(--ink)}
@@ -486,6 +538,7 @@ svg:active{cursor:grabbing}
 :deep(.particle){fill:var(--ink);pointer-events:none}
 :deep(.gn){cursor:pointer;outline:none}
 :deep(.gn:focus-visible circle){stroke:var(--ink);stroke-width:2}
+:deep(.nd.sel){stroke:var(--ink);stroke-width:2.2;paint-order:stroke}
 :deep(.nd){transition:fill .4s var(--reveal),stroke .4s var(--reveal)}
 :deep(.nd-seed){fill:var(--ink)}
 :deep(.nd-lit){fill:var(--ink-80)}
