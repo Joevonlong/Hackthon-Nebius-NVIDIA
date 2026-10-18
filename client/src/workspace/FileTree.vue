@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Owner: lane B. Zettlr-style file tree (win-main/file-manager): folders by path prefix, colored note dots.
-import { computed, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useVault, type Note } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { useLibrary } from '../stores/library'
@@ -12,6 +12,13 @@ const vault = useVault()
 const ui = useUi()
 const collapsed = reactive<Record<string, boolean>>({})
 const menu = ref(false)
+// Q2-12: the "⋯" menu closes on Escape, on any click outside it, and after an item is chosen (it used to stay open until
+// the mouse left it, covering the file rows — a click there hit "New note", Q2-15).
+const menuWrap = ref<HTMLElement | null>(null)
+const onDocDown = (e: PointerEvent) => { if (menu.value && !menuWrap.value?.contains(e.target as Node)) menu.value = false }
+const onDocKey = (e: KeyboardEvent) => { if (menu.value && e.key === 'Escape') { menu.value = false; (menuWrap.value?.querySelector('button') as HTMLElement | null)?.focus() } }
+onMounted(() => { document.addEventListener('pointerdown', onDocDown, true); document.addEventListener('keydown', onDocKey) })
+onBeforeUnmount(() => { document.removeEventListener('pointerdown', onDocDown, true); document.removeEventListener('keydown', onDocKey) })
 const fileInput = ref<HTMLInputElement | null>(null)
 const imported = ref<{ file: string; dois: string[] } | null>(null)
 const importError = ref('')
@@ -102,9 +109,9 @@ async function useAsSeeds() {
     <div class="files-head">
       <span class="files-title">Files</span>
       <button class="ibtn" type="button" title="New note" @click="newNote"><Icon name="plus" /></button>
-      <div class="menu-wrap">
-        <button class="ibtn" type="button" title="More" :aria-expanded="menu" @click="menu = !menu">⋯</button>
-        <div v-if="menu" class="menu" role="menu" @mouseleave="menu = false">
+      <div ref="menuWrap" class="menu-wrap">
+        <button class="ibtn" type="button" title="More" aria-haspopup="menu" :aria-expanded="menu" @click="menu = !menu">⋯</button>
+        <div v-if="menu" class="menu" role="menu">
           <button role="menuitem" type="button" @click="newNote"><Icon name="note" />New note</button>
           <button role="menuitem" type="button" @click="pickImport"><Icon name="upload" />Import .bib / CSL JSON</button>
         </div>

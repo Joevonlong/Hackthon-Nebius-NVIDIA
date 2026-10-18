@@ -23,7 +23,7 @@ watch(view, saveView)
 // Q-4: the header counts every paper once (found = scored + excluded); "Show all N passed" raises the visible count
 // locally (no rebuild), "Show top K" goes back.
 const showAll = ref(false)
-const excludedCount = computed(() => lib.papers.length - lib.eligibleCount)
+const excludedCount = computed(() => lib.excludedCount) // Q2-13: same numbers as the status bar
 const canShowAll = computed(() => lib.passedAll.length > lib.top.length)
 const shown = computed(() => {
   const base = showAll.value ? lib.view.slice(0, Math.max(lib.topK, lib.passedAll.length)) : lib.top
@@ -83,7 +83,7 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
         <h2>{{ lib.goals?.topic || 'Library' }}</h2>
         <p class="muted">
           <template v-if="lib.status === 'running'">Building… {{ lib.calls.length }} source calls so far.</template>
-          <template v-else-if="lib.status === 'done'"><b class="ink">{{ lib.passedCount }} pass</b> of {{ lib.eligibleCount }} scored <span class="tipd" :title="`${lib.papers.length} papers found = ${lib.eligibleCount} scored + ${excludedCount} excluded by a hard gate (retracted, duplicate, off-language…). A paper passes when it is inside the top ${lib.topPercent}% of the scored papers and its total is at least ${f2(lib.threshold)}.`">({{ excludedCount }} excluded of {{ lib.papers.length }} found)</span> · top {{ lib.topPercent }}% and score ≥ {{ f2(lib.threshold) }} · showing {{ showAll ? 'all ' + shown.length : 'top ' + shown.length }}<template v-if="nFilters"> filtered</template>
+          <template v-else-if="lib.status === 'done'"><b class="ink">{{ lib.passedCount }} pass</b> of {{ lib.eligibleCount }} scored <span class="tipd" :title="`${lib.foundCount} papers found = ${lib.eligibleCount} scored + ${excludedCount} excluded by a hard gate (retracted, duplicate, off-language…). A paper passes when it is inside the top ${lib.topPercent}% of the scored papers and its total is at least ${f2(lib.threshold)}.`">({{ excludedCount }} excluded of {{ lib.foundCount }} found)</span> · top {{ lib.topPercent }}% and score ≥ {{ f2(lib.threshold) }} · showing {{ showAll ? 'all ' + shown.length : 'top ' + shown.length }}<template v-if="nFilters"> filtered</template>
             <button v-if="!showAll && canShowAll" type="button" class="lnk more" @click="showAll = true">Show all {{ lib.passedAll.length }} passed</button>
             <button v-else-if="showAll" type="button" class="lnk more" @click="showAll = false">Show top {{ lib.topK }}</button></template>
           <template v-else-if="lib.status === 'idle'">No library yet. Type a research question in the Library tab and press Build library.</template>

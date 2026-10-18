@@ -2,7 +2,9 @@
 // Paths follow shared/contracts.ts: 'Seeds/S1 Tirosh 2016.md', 'Discovered/<Author> <Year> <first 5 title words>.md'.
 import { ROUTE_LABEL, type Candidate, type Paper, type Seed, type Signal } from '@shared/contracts'
 
-export const lastName = (a: string | undefined) => { const p = String(a || '').trim().split(/\s+/); return p[p.length - 1] || '' }
+import { lastName } from '../library/names'
+// Q2-8: "Yan M" / "Smith JA" / "van der Berg, A." aware (was: last whitespace token, so "Yan M" → "M").
+export { lastName }
 export const firstAuthor = (p: Paper) => p.authors[0] || 'Unknown'
 const safe = (s: string) => s.replace(/[\\/:*?"<>|#^[\]]/g, ' ').replace(/\s+/g, ' ').trim()
 const yaml = (v: string) => '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ') + '"'

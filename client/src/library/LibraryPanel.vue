@@ -53,24 +53,36 @@ async function build() {
 const onQuestionKey = (e: KeyboardEvent) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void build() } }
 
 // D-35: History of the current question; the last opened library of that question reopens (also after a reload, Q-1).
-async function reopenFor(qid: string | null) {
+// Q2-11: selecting another question shows ITS library in the centre right away: the last opened one (else the newest in
+// History) with its chat, or the empty "Build library" state when the question has none.
+let quietSwitch: string | null = null // set by Back / Forward, which opens its own library entry
+async function reopenFor(qid: string | null, switched: boolean) {
   await lib.loadHistory(qid)
+  if ((vault.current ?? null) !== qid) return // a newer selection won
   if (lib.status === 'running' || lib.mode === 'demo' || lib.mode === 'mock') return
-  if (lib.libraryId && lib.questionId === qid) return
+  const quiet = quietSwitch === qid; quietSwitch = null
+  const show = (id: string | null) => {
+    if (switched && !quiet) ui.openLibrary({ meta: { libraryId: id, questionId: qid } })
+    else if (id && !ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary({ meta: { libraryId: id, questionId: qid } })
+  }
+  if (lib.libraryId && lib.questionId === qid) return show(lib.libraryId)
   const last = lastOpened(qid)
-  if (!last || !lib.history.some(h => h.libraryId === last)) { if (lib.questionId !== qid) lib.reset(); return }
+  const pick = last && lib.history.some(h => h.libraryId === last) ? last : lib.history[0]?.libraryId ?? null
   // openStored restores this library's saved pass rule / weights / filters / topK (Q-1); chat history is keyed by libraryId
-  if (await lib.openStored(last, qid)) { if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary({ meta: { libraryId: last, questionId: qid } }) }
-  else if (lib.questionId !== qid) lib.reset()
+  if (pick && await lib.openStored(pick, qid)) return show(pick)
+  if (lib.libraryId || lib.questionId !== qid) lib.reset()
+  show(null)
 }
-watch(() => [vault.ready, vault.current] as const, ([ready, q]) => { if (ready) void reopenFor(q ?? null) }, { immediate: true })
+watch(() => [vault.ready, vault.current] as const, ([ready, q], old) => {
+  if (ready) void reopenFor(q ?? null, !!old?.[0] && old[1] !== q)
+}, { immediate: true })
 // CR-6: Back / Forward to a Library entry that showed another saved library reloads that library (no rebuild).
 watch(() => ui.restoreSeq, () => {
   const meta = ui.restoring?.entry.meta as { libraryId?: unknown; questionId?: unknown } | undefined
   const id = typeof meta?.libraryId === 'string' ? meta.libraryId : null
   if (!id || id === lib.libraryId || lib.status === 'running') return
   const qid = typeof meta?.questionId === 'string' ? meta.questionId : vault.current
-  if (qid && qid !== vault.current && vault.questions.some(q => q.id === qid)) vault.setCurrent(qid)
+  if (qid && qid !== vault.current && vault.questions.some(q => q.id === qid)) { quietSwitch = qid; vault.setCurrent(qid) }
   void lib.openStored(id, qid ?? null)
 })
 // Q-1: remember the pass rule, weights, filters and topK per library so a reload restores them.

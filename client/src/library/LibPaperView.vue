@@ -3,7 +3,7 @@
 // (GET /api/library/:id/papers/:paperId) as a collapsible tree, and "Add to vault".
 import { computed, onMounted, ref } from 'vue'
 import { useLibrary } from '../stores/library'
-import { useVault } from '../stores/vault'
+import { useVault, questionNotePath } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName } from '../stores/vault-utils'
 import { doiUrl } from '../discover/literatureNote'
@@ -28,11 +28,20 @@ async function loadJson() {
 }
 onMounted(loadJson)
 
+// Q2-5 (D-37): the note goes into the library's question folder, <question>/notes/<Author Year short title>.md, and is
+// written to disk by the vault's write-through (same path as seeds and notes). paperId links it into the graph.
+const noteQuestion = computed(() => {
+  const q = lib.questionId ?? vault.current
+  return q && vault.questions.some(x => x.id === q) ? q : null
+})
 async function addToVault() {
   if (!lp.value) return
   const n = buildLibraryNote(lp.value, { libraryId: lib.libraryId, threshold: lib.threshold })
-  await vault.upsert({ ...n, kind: 'lit', paperId: lp.value.paper.id })
-  ui.openNote(n.path, noteName(n.path))
+  const q = noteQuestion.value
+  let path = q ? questionNotePath(q, n.title) : n.path
+  for (let k = 2; vault.byPath(path); k++) path = q ? questionNotePath(q, `${n.title} ${k}`) : n.path.replace(/\.md$/, ` ${k}.md`)
+  await vault.upsert({ ...n, path, title: noteName(path), kind: 'lit', paperId: lp.value.paper.id })
+  ui.openNote(path, noteName(path))
 }
 /** The LLM read's quote, located in the text it was checked against (char offsets when it is found verbatim). */
 const read = computed(() => {
@@ -76,7 +85,7 @@ const copy = async () => { try { await navigator.clipboard.writeText(JSON.string
         <a v-if="lp.paper.pmid" :href="`https://pubmed.ncbi.nlm.nih.gov/${lp.paper.pmid}/`" target="_blank" rel="noopener">PubMed</a>
       </p>
       <div class="acts">
-        <button v-if="!note" class="btn primary" type="button" @click="addToVault">Add to vault</button>
+        <button v-if="!note" class="btn primary" type="button" :title="noteQuestion ? `Saves a note to ${noteQuestion}/notes/` : 'Saves a note in this browser'" @click="addToVault">Add to vault</button>
         <button v-else class="btn" type="button" @click="ui.openNote(note.path, noteName(note.path))">Open note · {{ noteName(note.path) }}</button>
       </div>
     </header>

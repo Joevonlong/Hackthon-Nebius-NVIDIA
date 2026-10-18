@@ -155,7 +155,7 @@ export function questionLibraryIds(questionId: string): string[] {
 }
 
 /** Writes an export file into <question>/exports/ (best effort). */
-export function writeExport(questionId: string | null | undefined, name: string, content: string): string | null {
+export function writeExport(questionId: string | null | undefined, name: string, content: string | Uint8Array): string | null {
   if (!questionId) return null
   const dir = questionDir(questionId)
   if (!dir || !existsSync(dir)) return null

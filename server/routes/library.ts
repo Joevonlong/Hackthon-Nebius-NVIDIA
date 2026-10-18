@@ -93,6 +93,18 @@ library.put('/questions/:id/notes/*', async c => {
   return writeNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url), body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
 })
 
+// Q2-4 (D-37): the References tab's BibTeX / CSL JSON / Markdown .zip of one question → <question>/exports/<name>
+const EXPORT_NAME = /^[^\\/:*?"<>|\x00-\x1f]{1,120}\.(bib|json|zip)$/
+library.put('/questions/:id/exports/:name', async c => {
+  const id = decodeURIComponent(c.req.param('id')), name = decodeURIComponent(c.req.param('name'))
+  if (!EXPORT_NAME.test(name) || name.startsWith('.')) return c.json({ error: 'bad export file name (.bib, .json or .zip)' }, 400)
+  const body = await c.req.json().catch(() => null) as { content?: unknown; encoding?: unknown } | null
+  if (!body || typeof body.content !== 'string' || body.content.length > 20_000_000) return c.json({ error: 'Body must be { content: string, encoding?: "base64" }' }, 400)
+  const data = body.encoding === 'base64' ? new Uint8Array(Buffer.from(body.content, 'base64')) : body.content
+  const path = writeExport(id, name, data)
+  return path ? c.json({ ok: true, path }) : c.json({ error: 'question not found' }, 404)
+})
+
 library.delete('/questions/:id/notes/*', c => {
   return deleteNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url)) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
 })

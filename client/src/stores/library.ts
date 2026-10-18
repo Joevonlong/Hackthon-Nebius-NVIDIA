@@ -28,6 +28,8 @@ export interface SourceCall { source: SourceName; query: string; count: number; 
 export interface LibSettings { weights: Weights; topPercent: number; threshold: number; filters: Filters }
 type RunReq = Extract<LibraryEvent, { type: 'library' }>['request']
 
+/** Q2-2: the settings a library starts with when nothing else is known (LibraryRequest defaults, no filters). */
+export const DEFAULT_SETTINGS = { topK: 30, threshold: 0.5, topPercent: 25 } as const
 const freshStages = (): LibStage[] => LIB_STAGES.map(name => ({ name, status: 'pending' }))
 const param = (k: string) => typeof location !== 'undefined' && new URLSearchParams(location.search).get(k) === '1'
 const isDemoParam = () => param('demo')
@@ -65,9 +67,9 @@ export function seedInfo(content: string): { title: string; year: string; id: st
 export const useLibrary = defineStore('library', {
   state: () => ({
     // controls
-    topK: 30,
-    threshold: 0.5, // D-27: minimum score (absolute floor)
-    topPercent: 25, // D-27: pass = top X% of this library
+    topK: DEFAULT_SETTINGS.topK as number,
+    threshold: DEFAULT_SETTINGS.threshold as number, // D-27: minimum score (absolute floor)
+    topPercent: DEFAULT_SETTINGS.topPercent as number, // D-27: pass = top X% of this library
     filters: {} as Filters,
     sources: [...UI_SOURCES] as SourceName[],
     weights: { ...DEFAULT_WEIGHTS } as Weights,
@@ -134,6 +136,9 @@ export const useLibrary = defineStore('library', {
     /** Every passed paper in the filtered view (the graph layer). */
     passedAll(): LibPaper[] { return this.view.filter(p => p.passed && !p.excluded) },
     eligibleCount(): number { return this.complete ? this.papers.filter(p => !p.excluded).length : this.total },
+    /** Q2-13: papers found = scored + excluded by a hard gate (one source for the results header and the status bar). */
+    foundCount(): number { return this.complete ? this.papers.length : this.total },
+    excludedCount(): number { return Math.max(0, this.foundCount - this.eligibleCount) },
     /** D-27 passed count (top X% of the non-excluded papers AND total >= the minimum score); the server's count while the library is partial. */
     passedCount(): number { return this.complete ? this.papers.filter(p => p.passed).length : this.passed },
     /** Number of papers inside the top X% (before the minimum score). */
@@ -175,6 +180,16 @@ export const useLibrary = defineStore('library', {
       this.goals = null; this.calls = []; this.stages = freshStages(); this.streamed = []; this.allPapers = []
       this.total = 0; this.passed = 0; this.ms = null; this.dir = null; this.rankBefore = null; this.lastApplied = null
       this.questionId = null
+      this.resetSettings()
+    },
+    /**
+     * Q2-2: weights, pass rule, topK and filters belong to ONE library. Opening another library or a question without
+     * one starts from the request defaults (openStored then applies that library's request + its saved state).
+     */
+    resetSettings() {
+      this.weights = { ...DEFAULT_WEIGHTS }; this.topK = DEFAULT_SETTINGS.topK
+      this.threshold = DEFAULT_SETTINGS.threshold; this.topPercent = DEFAULT_SETTINGS.topPercent
+      this.filters = {}; this.passedOnly = false; this.filterSource = ''
     },
     resetWeights() { this.weights = { ...DEFAULT_WEIGHTS } },
 
@@ -209,7 +224,15 @@ export const useLibrary = defineStore('library', {
     },
 
     async start() {
+      // Q2-2: a new build sends the weights / pass rule / topK shown in the sidebar when they are this question's (its
+      // loaded library, or a draft with no library loaded); another question's applied settings are not carried over.
+      // Result filters are view-only and never carry into a new library.
+      const q = useVault().current
+      const keep = !this.libraryId || this.questionId === q
+        ? { weights: { ...this.weights }, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent }
+        : null
       this.reset()
+      if (keep) Object.assign(this, keep)
       let req: LibraryRequest
       try { req = this.request() } catch { this.status = 'error'; this.error = 'No research question selected. Create a research question first.'; return }
       this.questionId = req.questionId ?? null

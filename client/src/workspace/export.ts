@@ -1,6 +1,7 @@
 // Bibliography + vault export: BibTeX, CSL JSON and a store-only Markdown .zip (no dependency).
 import type { Note } from '../stores/vault'
 import { parseFrontMatter } from '../stores/vault-utils'
+import { splitName } from '../library/names'
 
 export interface BibEntry { key: string; path: string; kind: Note['kind']; authors: string[]; year: string; title: string; venue: string; doi: string; paperId: string }
 
@@ -22,7 +23,7 @@ export function bibliography(notes: Note[]): BibEntry[] {
     const year = clean(d.year)
     const title = clean(d.title) || n.title
     const a0 = authors[0] || 'anon'
-    const family = a0.includes(',') ? a0.split(',')[0] : a0.trim().split(/\s+/).pop()!
+    const family = splitName(a0).family || a0 // Q2-8: "Yan M" → Yan, not M
     const last = family.toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') || 'anon'
     const word = title.toLowerCase().normalize('NFD').replace(/[^a-z ]/g, '').split(' ').find(w => w.length > 3) || 'paper'
     let key = `${last}${year}${word}`; let k = 1
@@ -51,10 +52,7 @@ export function toCslJson(entries: BibEntry[]): string {
     id: e.key,
     type: 'article-journal',
     title: e.title,
-    author: e.authors.map(a => {
-      if (a.includes(',')) { const [family, given] = a.split(',').map(x => x.trim()); return { family, given } }
-      const parts = a.split(' '); return parts.length > 1 ? { family: parts.pop()!, given: parts.join(' ') } : { literal: a }
-    }),
+    author: e.authors.map(a => { const { family, given } = splitName(a); return given ? { family, given } : { literal: a } }),
     ...(e.year ? { issued: { 'date-parts': [[Number(e.year) || e.year]] } } : {}),
     ...(e.venue ? { 'container-title': e.venue } : {}),
     ...(e.doi ? { DOI: e.doi } : {}),
@@ -101,6 +99,45 @@ export function download(name: string, data: Blob | string, type = 'text/plain')
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
 
-export const exportBibTeX = (notes: Note[]) => download('papertrail.bib', toBibTeX(bibliography(notes)), 'application/x-bibtex')
-export const exportCslJson = (notes: Note[]) => download('papertrail.csl.json', toCslJson(bibliography(notes)), 'application/json')
-export const exportMarkdownZip = (notes: Note[]) => download('papertrail-vault.zip', zip(notes.map(n => ({ name: n.path, content: n.content }))))
+// ---- Q2-4 / D-37: exports are scoped to ONE research question and also saved to <question>/exports/ ----
+/**
+ * The notes one question's exports cover: everything in Questions/<q>/ (Question.md, seeds/, notes/ — library papers
+ * added to the vault land in notes/) plus older notes outside any question folder (e.g. Discovered/) whose paper is in
+ * that question's library (`libraryPaperIds`). Notes of other questions are never included.
+ */
+export function questionScope(notes: Note[], question: string | null, libraryPaperIds: Iterable<string> = []): Note[] {
+  if (!question) return []
+  const prefix = `Questions/${question}/`
+  const ids = new Set([...libraryPaperIds].map(x => x.toLowerCase()))
+  return notes.filter(n => n.path.startsWith(prefix) || (!n.path.startsWith('Questions/') && !!n.paperId && ids.has(n.paperId.toLowerCase())))
+}
+
+export type ExportFormat = 'bib' | 'csl' | 'zip'
+export interface ExportFile { name: string; data: Blob | string; type: string }
+const safeFile = (s: string) => s.replace(/[\\/:*?"<>|#^[\]]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 80) || 'papertrail'
+
+/** The file one export button produces for a question (named after the question folder). */
+export function exportFile(format: ExportFormat, notes: Note[], question: string | null): ExportFile {
+  const base = safeFile(question || 'papertrail')
+  if (format === 'bib') return { name: `${base}.bib`, data: toBibTeX(bibliography(notes)), type: 'application/x-bibtex' }
+  if (format === 'csl') return { name: `${base}.csl.json`, data: toCslJson(bibliography(notes)), type: 'application/json' }
+  const prefix = question ? `Questions/${question}/` : ''
+  return { name: `${base} notes.zip`, data: zip(notes.map(n => ({ name: prefix && n.path.startsWith(prefix) ? n.path.slice(prefix.length) : n.path, content: n.content }))), type: 'application/zip' }
+}
+
+/** D-37: PUT /api/questions/<q>/exports/<name>; returns the workspace-relative path written, or why it was not saved. */
+export async function saveExport(question: string, f: ExportFile): Promise<{ path?: string; error?: string }> {
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1') return { error: 'Demo mode (?demo=1) is read-only: the file was only downloaded.' }
+  let body: { content: string; encoding?: 'base64' }
+  if (typeof f.data === 'string') body = { content: f.data }
+  else {
+    const bytes = new Uint8Array(await f.data.arrayBuffer()); let bin = ''
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+    body = { content: btoa(bin), encoding: 'base64' }
+  }
+  try {
+    const res = await fetch(`/api/questions/${encodeURIComponent(question)}/exports/${encodeURIComponent(f.name)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    const j = await res.json().catch(() => ({})) as { path?: string; error?: string }
+    return res.ok ? { path: j.path } : { error: j.error || `Saving to the question folder failed (${res.status}).` }
+  } catch { return { error: 'Server unreachable: the file was only downloaded.' } }
+}

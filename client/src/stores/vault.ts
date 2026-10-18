@@ -70,8 +70,13 @@ function dropNote(path: string) {
   clearTimeout(pending.get(path)); pending.delete(path)
   void call(noteUrl(sp.q, sp.rel), { method: 'DELETE' })
 }
-const kindOf = (rel: string): NoteKind => rel.startsWith('seeds/') ? 'seed' : 'note'
 const paperIdOf = (content: string) => content.match(/^paper_id:\s*(\S+)/m)?.[1]
+/** seeds/ → seed; a note with a paper_id (a library / discovery paper added to the vault, Q2-5) → lit; else note. */
+const kindOf = (rel: string, content = ''): NoteKind => rel.startsWith('seeds/') ? 'seed' : paperIdOf(content) && /^role:\s*literature\s*$/m.test(content) ? 'lit' : 'note'
+/** Q2-5: notes/<Author Year title>.md of a library paper (written by "Add to vault"); the graph links it by paperId. */
+export const questionNotePath = (question: string, name: string) => `${questionFolder(question)}/notes/${name}.md`
+/** Q2-15: the untouched body vault.create() gives a new note; it stays in the browser until the user writes in it. */
+const isStub = (path: string, content: string) => content === `# ${path.split('/').pop()!.replace(/\.md$/, '')}\n\n`
 
 const topFolder = (p: string) => (p.includes('/') ? p.split('/')[0] : '')
 
@@ -140,7 +145,8 @@ export const useVault = defineStore('vault', {
         this.notes = this.notes.filter(n => !n.path.startsWith(prefix))
         for (const n of notes) {
           const path = prefix + n.path
-          this.notes.push({ path, kind: kindOf(n.path), title: path.split('/').pop()!.replace(/\.md$/, ''), content: n.content, paperId: kindOf(n.path) === 'seed' ? paperIdOf(n.content) : undefined, updatedAt: n.updatedAt })
+          const kind = kindOf(n.path, n.content)
+          this.notes.push({ path, kind, title: path.split('/').pop()!.replace(/\.md$/, ''), content: n.content, paperId: kind === 'note' ? undefined : paperIdOf(n.content), updatedAt: n.updatedAt })
         }
       }
       for (const q of this.questions.filter(x => !onServer.has(x.id))) {
@@ -220,7 +226,8 @@ export const useVault = defineStore('vault', {
       const i = this.notes.findIndex(x => x.path === n.path)
       if (i >= 0) this.notes[i] = n; else this.notes.push(n)
       this.persist()
-      pushNote(n.path, n.content)
+      // Q2-15: a stray click on "New note" must not leave notes/Untitled.md on disk; it is written on the first edit
+      if (!isStub(n.path, n.content)) pushNote(n.path, n.content)
     },
     async remove(path: string) { this.notes = this.notes.filter(n => n.path !== path); this.persist(); dropNote(path) },
     async rename(path: string, newPath: string) {
