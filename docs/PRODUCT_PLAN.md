@@ -338,7 +338,7 @@ Decisions (16:15): **D-31** J-1 rejected by the user — the app stays local (la
 
 ---
 
-## 17. Change request CR-5 · Visual library list, saved history, question-scoped seeds (proposed 16:25)
+## 17. Change request CR-5 · Visual library list, saved history, question-scoped seeds (confirmed 16:30)
 | # | Requirement (user, 16:18) | Proposal | Card | Est |
 |---|---|---|---|---|
 | R-5.1 | The Library list is too text-heavy; redesign it to be visual without losing information; still show the score basis | Replace the text rows with the layout chosen from the candidates below. Every field stays reachable (hover / expand), scores keep their evidence | F-60 | 60m |
@@ -351,4 +351,10 @@ Layout candidates for R-5.1 (pick one or two):
 - **V4 Ranked lanes** — columns by grade A/B/C/D with small cards, drag-free; counts on top.
 
 | R-5.3 | Seeds must be easy to upload and manage; the vault starts **empty**; seeds belong to a question; each build reads only one question and its own seeds, never another question's seeds (user, 16:24) | **Research question = a folder** `Questions/<short name>/` holding `Question.md` + `seeds/*.md` (+ the user's own notes for that question). A **Questions** switcher at the top of the Library panel: New question, rename, delete-with-confirm. Seeds per question: paste DOIs/PMIDs/arXiv/OpenAlex ids, **upload** `.bib`, `.ris`, CSL JSON or a text/CSV list of ids; a seed table with title, year, status (resolved / not found), remove, and "open note". A build sends **only that question's folder** (goals agent + known papers come from it); libraries are stored with their question id, and History is grouped by question. Default vault: empty with an empty state "Create your first research question". Supersedes D-20's "whole vault is one topic" (a question folder is now the topic). | F-62 | 60m |
+
+Decisions (16:30): **D-33** one folder per research question (`Questions/<name>/Question.md` + `seeds/`), empty default vault, a build reads only its question folder (supersedes D-20's whole-vault topic). **D-34** list layout = V1 score tiles by default + V3 table-with-sparkbars toggle; no information lost (hover/click). **D-35** History list per question in the Library panel (open, rename, delete-with-confirm, export JSON); libraries stored with their question id. **D-36** seed upload: paste ids, BibTeX / RIS / CSL JSON, CSV or text id lists, PDF (DOI extracted from the first pages).
+| Card | Lane | Status |
+|---|---|---|
+| F-60 tiles + table toggle | W1 | building |
+| F-61 history + F-62 question folders, seeds table, uploads, empty vault | W2 | building |
 
