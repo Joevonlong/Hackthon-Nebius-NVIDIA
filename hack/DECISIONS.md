@@ -13,3 +13,4 @@ D-33..D-36 (16:30): CR-5 confirmed — question folders with own seeds, empty va
 D-38 (17:15): LLM off-topic gate (relevance ≤1/3 cannot pass).
 D-39 (17:50): CR-10 — graph draws citation edges (OpenAlex referenced_works + any-id seed matching); Europe PMC references fill in when OpenAlex is rate-limited; final graph screenshot test after all merges.
 D-40 (17:58): CR-11 — "why this score" = donut of contributions + value bars on the report card, small donut in the popover, mini stacked bar on tiles/rows.
+D-41 (18:05): CR-12 — graph library nodes coloured by score on a blue ramp (dark = high/big, light = low/small), plus size.

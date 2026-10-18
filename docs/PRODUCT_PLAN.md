@@ -431,3 +431,6 @@ Readers should get the score at a glance, not by reading text.
 - **V-2 Value bars** next to the donut: one bar per component, length = value 0–1, label = value and weight share; not-assessed components show a dotted empty bar with "not assessed". The existing text rows (rule + evidence with links) stay below, folded.
 - **V-3 Small donut** in the tile hover popover; **V-4 mini stacked bar** (contributions, same colours) on every tile and table row, so the list is scannable.
 - Values come from the paper's stored components after rescoring (live weights); no new data.
+
+## 24. CR-12 · Graph node colour follows score (user, 18:05; clear, started immediately)
+Library nodes keep size ∝ total score and also get a blue colour ramp on the same score: biggest/highest = darkest blue → smallest/lowest = lightest blue (one sequential blue scale, readable in light and dark themes; legend shows the ramp with its score range). Vault notes / seeds keep their own styling.
