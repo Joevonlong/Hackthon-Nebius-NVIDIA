@@ -1,0 +1,197 @@
+{
+  "review": "W4365143025",
+  "title": "Dynamics and specificities of T cells in cancer immunotherapy",
+  "date": "2023-04-12",
+  "refs": 235,
+  "unresolvedRefs": 0,
+  "seeds": [
+    "W3196420804",
+    "W4285097347",
+    "W2568328220",
+    "W3106005610",
+    "W2507608410"
+  ],
+  "hidden": 230,
+  "truth": 230,
+  "libraryId": "lib_20261018135629_c981ab",
+  "libraryMs": 166451,
+  "summary": {
+    "ms": 164410,
+    "total": 600,
+    "passed": 546,
+    "excluded": 4,
+    "relevance": "embedding",
+    "llmReads": 40,
+    "sourceCalls": 72,
+    "stageMs": {
+      "goals": 2906,
+      "search": 114591,
+      "label": 34983,
+      "score": 2164,
+      "llm": 7368,
+      "select": 1516
+    },
+    "models": {
+      "planner": "nvidia/nemotron-3-super-120b-a12b",
+      "embed": "Qwen/Qwen3-Embedding-8B",
+      "judge": "nvidia/Nemotron-3_5-Lightning"
+    }
+  },
+  "goalsModel": "nvidia/nemotron-3-super-120b-a12b",
+  "knownPapers": [
+    "10.1038/s41586-021-03862-z",
+    "10.1016/j.cell.2022.06.035",
+    "10.1007/s00281-016-0614-9",
+    "10.1146/annurev-pathol-042020-042741",
+    "10.1038/nbt.3662"
+  ],
+  "subtopics": [
+    "stem-like CD8 T cells cancer immunotherapy",
+    "T cell receptor repertoire cancer prognosis",
+    "immune checkpoint inhibitors resistance mechanisms",
+    "peptide MHC multimer T cell detection",
+    "cancer vaccines T cell response",
+    "HPV-specific T cells head neck cancer"
+  ],
+  "library": {
+    "pile": 600,
+    "ranked": 596,
+    "excluded": 4,
+    "reach": 32,
+    "reachRanked": 32,
+    "hits30": 8,
+    "p30": 0.26666666666666666,
+    "r30": 0.034782608695652174,
+    "postReviewInTop30": 8,
+    "passed": 546,
+    "hitsPassed": 32,
+    "topPctN": 149,
+    "hitsTopPct": 21,
+    "hitIds": [
+      "W2899145148",
+      "W2909486828",
+      "W2920270836",
+      "W2506616866",
+      "W2139517175",
+      "W3111462718",
+      "W2144796561",
+      "W2804073610"
+    ]
+  },
+  "pubmed": {
+    "count": 792,
+    "returned": 30,
+    "translation": "(\"dynamer\"[All Fields] OR \"dynamers\"[All Fields] OR \"dynamic\"[All Fields] OR \"dynamical\"[All Fields] OR \"dynamically\"[All Fields] OR \"dynamicity\"[All Fields] OR \"dynamics\"[All Fields] OR \"dynamism\"[All Fields] OR \"dynamisms\"[All Fields]) AND (\"sensitivity and specificity\"[MeSH Terms] OR (\"sensitivity\"[All Fields] AND \"specificity\"[All Fields]) OR \"sensitivity and specificity\"[All Fields] OR \"speci",
+    "hits30": 4,
+    "p30": 0.13333333333333333,
+    "r30": 0.017391304347826087
+  },
+  "openalex": {
+    "count": 100409,
+    "returned": 30,
+    "hits30": 0,
+    "p30": 0,
+    "r30": 0,
+    "postReviewInTop30": 5
+  },
+  "dateRestricted": {
+    "library": {
+      "candidates": 458,
+      "hits30": 9,
+      "p30": 0.3,
+      "r30": 0.0391304347826087
+    },
+    "pubmed": {
+      "count": 356,
+      "returned": 30,
+      "hits30": 4,
+      "p30": 0.13333333333333333,
+      "r30": 0.017391304347826087
+    },
+    "openalex": {
+      "count": 43324,
+      "returned": 30,
+      "hits30": 1,
+      "p30": 0.03333333333333333,
+      "r30": 0.004347826086956522
+    }
+  },
+  "pubmedPlainTitle": {
+    "query": "Dynamics and specificities of T cells in cancer immunotherapy",
+    "count": 792,
+    "returned": 30,
+    "hits30": 4,
+    "p30": 0.13333333333333333,
+    "r30": 0.017391304347826087
+  },
+  "seedRefReach": 35,
+  "reviewRankInLibrary": 2,
+  "ablation": {
+    "full (default weights)": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.034782608695652174
+    },
+    "- relevance": {
+      "hits": 6,
+      "p": 0.2,
+      "r": 0.02608695652173913
+    },
+    "- graph": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.034782608695652174
+    },
+    "- citations": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.034782608695652174
+    },
+    "- venue": {
+      "hits": 7,
+      "p": 0.23333333333333334,
+      "r": 0.030434782608695653
+    },
+    "- authors": {
+      "hits": 6,
+      "p": 0.2,
+      "r": 0.02608695652173913
+    },
+    "- llm": {
+      "hits": 7,
+      "p": 0.23333333333333334,
+      "r": 0.030434782608695653
+    },
+    "only relevance": {
+      "hits": 2,
+      "p": 0.06666666666666667,
+      "r": 0.008695652173913044
+    },
+    "only graph": {
+      "hits": 3,
+      "p": 0.1,
+      "r": 0.013043478260869565
+    },
+    "only citations": {
+      "hits": 3,
+      "p": 0.1,
+      "r": 0.013043478260869565
+    },
+    "only venue": {
+      "hits": 5,
+      "p": 0.16666666666666666,
+      "r": 0.021739130434782608
+    },
+    "only authors": {
+      "hits": 5,
+      "p": 0.16666666666666666,
+      "r": 0.021739130434782608
+    },
+    "only llm": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.034782608695652174
+    }
+  },
+  "truthWithPmid": 228
+}

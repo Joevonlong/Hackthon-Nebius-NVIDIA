@@ -1,0 +1,198 @@
+{
+  "review": "W3005326482",
+  "title": "CD8+ T cell states in human cancer: insights from single-cell analysis",
+  "date": "2020-02-05",
+  "refs": 93,
+  "unresolvedRefs": 1,
+  "seeds": [
+    "W2887637538",
+    "W2951641571",
+    "W2611919322",
+    "W2049491375",
+    "W2021472146"
+  ],
+  "hidden": 88,
+  "truth": 87,
+  "libraryId": "lib_20261018141048_9456f1",
+  "libraryMs": 60500,
+  "summary": {
+    "ms": 58106,
+    "total": 1497,
+    "passed": 374,
+    "excluded": 3,
+    "relevance": "embedding",
+    "llmReads": 40,
+    "sourceCalls": 67,
+    "stageMs": {
+      "goals": 2816,
+      "search": 32518,
+      "label": 9578,
+      "score": 72,
+      "llm": 13059,
+      "select": 51
+    },
+    "models": {
+      "planner": "nvidia/nemotron-3-super-120b-a12b",
+      "embed": "Qwen/Qwen3-Embedding-8B",
+      "judge": "nvidia/Nemotron-3_5-Lightning"
+    }
+  },
+  "goalsModel": "nvidia/nemotron-3-super-120b-a12b",
+  "knownPapers": [
+    "10.3389/fimmu.2018.01884",
+    "10.1084/jem.20190249",
+    "10.1016/j.cell.2017.04.016",
+    "10.1038/nrc3245",
+    "10.1126/science.1251102"
+  ],
+  "subtopics": [
+    "CD8 T cell exhaustion tumor single cell",
+    "tissue resident memory T cells lung cancer",
+    "T cell receptor sequencing tumor infiltrating lymphocytes",
+    "CD8 T cell differentiation pseudotime cancer",
+    "immune infiltrate spatial transcriptomics survival cancer"
+  ],
+  "library": {
+    "pile": 1497,
+    "ranked": 1494,
+    "excluded": 3,
+    "reach": 39,
+    "reachRanked": 39,
+    "hits30": 10,
+    "p30": 0.3333333333333333,
+    "r30": 0.11494252873563218,
+    "postReviewInTop30": 12,
+    "passed": 374,
+    "hitsPassed": 36,
+    "topPctN": 374,
+    "hitsTopPct": 36,
+    "hitIds": [
+      "W2907549567",
+      "W2808837841",
+      "W2506616866",
+      "W2807534769",
+      "W2809205318",
+      "W2849303123",
+      "W2909486828",
+      "W2908581980",
+      "W2804073610",
+      "W2332292689"
+    ]
+  },
+  "pubmed": {
+    "count": 0,
+    "returned": 0,
+    "translation": "(\"cd8 positive t lymphocytes\"[MeSH Terms] OR (\"cd8 positive\"[All Fields] AND \"t lymphocytes\"[All Fields]) OR \"cd8 positive t lymphocytes\"[All Fields] OR \"cd8 t cell\"[All Fields]) AND (\"state\"[All Fields] OR \"state s\"[All Fields] OR \"stated\"[All Fields] OR \"states\"[All Fields] OR \"stating\"[All Fields]) AND human, in[Author] AND (\"cancer s\"[All Fields] OR \"cancerated\"[All Fields] OR \"canceration\"[Al",
+    "hits30": 0,
+    "p30": 0,
+    "r30": 0
+  },
+  "openalex": {
+    "count": 62137,
+    "returned": 30,
+    "hits30": 1,
+    "p30": 0.03333333333333333,
+    "r30": 0.011494252873563218,
+    "postReviewInTop30": 25
+  },
+  "dateRestricted": {
+    "library": {
+      "candidates": 914,
+      "hits30": 13,
+      "p30": 0.43333333333333335,
+      "r30": 0.14942528735632185
+    },
+    "pubmed": {
+      "count": 0,
+      "returned": 0,
+      "hits30": 0,
+      "p30": 0,
+      "r30": 0
+    },
+    "openalex": {
+      "count": 15037,
+      "returned": 30,
+      "hits30": 4,
+      "p30": 0.13333333333333333,
+      "r30": 0.04597701149425287
+    }
+  },
+  "pubmedPlainTitle": {
+    "query": "CD8 T cell states in human cancer insights from single cell analysis",
+    "count": 0,
+    "returned": 0,
+    "hits30": 0,
+    "p30": 0,
+    "r30": 0
+  },
+  "seedRefReach": 20,
+  "reviewRankInLibrary": 2,
+  "ablation": {
+    "full (default weights)": {
+      "hits": 10,
+      "p": 0.3333333333333333,
+      "r": 0.11494252873563218
+    },
+    "- relevance": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.09195402298850575
+    },
+    "- graph": {
+      "hits": 6,
+      "p": 0.2,
+      "r": 0.06896551724137931
+    },
+    "- citations": {
+      "hits": 9,
+      "p": 0.3,
+      "r": 0.10344827586206896
+    },
+    "- venue": {
+      "hits": 8,
+      "p": 0.26666666666666666,
+      "r": 0.09195402298850575
+    },
+    "- authors": {
+      "hits": 9,
+      "p": 0.3,
+      "r": 0.10344827586206896
+    },
+    "- llm": {
+      "hits": 9,
+      "p": 0.3,
+      "r": 0.10344827586206896
+    },
+    "only relevance": {
+      "hits": 2,
+      "p": 0.06666666666666667,
+      "r": 0.022988505747126436
+    },
+    "only graph": {
+      "hits": 4,
+      "p": 0.13333333333333333,
+      "r": 0.04597701149425287
+    },
+    "only citations": {
+      "hits": 2,
+      "p": 0.06666666666666667,
+      "r": 0.022988505747126436
+    },
+    "only venue": {
+      "hits": 5,
+      "p": 0.16666666666666666,
+      "r": 0.05747126436781609
+    },
+    "only authors": {
+      "hits": 4,
+      "p": 0.13333333333333333,
+      "r": 0.04597701149425287
+    },
+    "only llm": {
+      "hits": 10,
+      "p": 0.3333333333333333,
+      "r": 0.11494252873563218
+    }
+  },
+  "truthWithPmid": 87
+}

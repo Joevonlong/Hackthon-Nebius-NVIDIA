@@ -1,0 +1,395 @@
+[
+  {
+    "review": "W3005326482",
+    "title": "CD8+ T cell states in human cancer: insights from single-cell analysis",
+    "date": "2020-02-05",
+    "refs": 93,
+    "unresolvedRefs": 1,
+    "seeds": [
+      "W2887637538",
+      "W2951641571",
+      "W2611919322",
+      "W2049491375",
+      "W2021472146"
+    ],
+    "hidden": 88,
+    "truth": 87,
+    "libraryId": "lib_20261018141048_9456f1",
+    "libraryMs": 60500,
+    "summary": {
+      "ms": 58106,
+      "total": 1497,
+      "passed": 374,
+      "excluded": 3,
+      "relevance": "embedding",
+      "llmReads": 40,
+      "sourceCalls": 67,
+      "stageMs": {
+        "goals": 2816,
+        "search": 32518,
+        "label": 9578,
+        "score": 72,
+        "llm": 13059,
+        "select": 51
+      },
+      "models": {
+        "planner": "nvidia/nemotron-3-super-120b-a12b",
+        "embed": "Qwen/Qwen3-Embedding-8B",
+        "judge": "nvidia/Nemotron-3_5-Lightning"
+      }
+    },
+    "goalsModel": "nvidia/nemotron-3-super-120b-a12b",
+    "knownPapers": [
+      "10.3389/fimmu.2018.01884",
+      "10.1084/jem.20190249",
+      "10.1016/j.cell.2017.04.016",
+      "10.1038/nrc3245",
+      "10.1126/science.1251102"
+    ],
+    "subtopics": [
+      "CD8 T cell exhaustion tumor single cell",
+      "tissue resident memory T cells lung cancer",
+      "T cell receptor sequencing tumor infiltrating lymphocytes",
+      "CD8 T cell differentiation pseudotime cancer",
+      "immune infiltrate spatial transcriptomics survival cancer"
+    ],
+    "library": {
+      "pile": 1497,
+      "ranked": 1494,
+      "excluded": 3,
+      "reach": 39,
+      "reachRanked": 39,
+      "hits30": 10,
+      "p30": 0.3333333333333333,
+      "r30": 0.11494252873563218,
+      "postReviewInTop30": 12,
+      "passed": 374,
+      "hitsPassed": 36,
+      "topPctN": 374,
+      "hitsTopPct": 36,
+      "hitIds": [
+        "W2907549567",
+        "W2808837841",
+        "W2506616866",
+        "W2807534769",
+        "W2809205318",
+        "W2849303123",
+        "W2909486828",
+        "W2908581980",
+        "W2804073610",
+        "W2332292689"
+      ]
+    },
+    "pubmed": {
+      "count": 0,
+      "returned": 0,
+      "translation": "(\"cd8 positive t lymphocytes\"[MeSH Terms] OR (\"cd8 positive\"[All Fields] AND \"t lymphocytes\"[All Fields]) OR \"cd8 positive t lymphocytes\"[All Fields] OR \"cd8 t cell\"[All Fields]) AND (\"state\"[All Fields] OR \"state s\"[All Fields] OR \"stated\"[All Fields] OR \"states\"[All Fields] OR \"stating\"[All Fields]) AND human, in[Author] AND (\"cancer s\"[All Fields] OR \"cancerated\"[All Fields] OR \"canceration\"[Al",
+      "hits30": 0,
+      "p30": 0,
+      "r30": 0
+    },
+    "openalex": {
+      "count": 62137,
+      "returned": 30,
+      "hits30": 1,
+      "p30": 0.03333333333333333,
+      "r30": 0.011494252873563218,
+      "postReviewInTop30": 25
+    },
+    "dateRestricted": {
+      "library": {
+        "candidates": 914,
+        "hits30": 13,
+        "p30": 0.43333333333333335,
+        "r30": 0.14942528735632185
+      },
+      "pubmed": {
+        "count": 0,
+        "returned": 0,
+        "hits30": 0,
+        "p30": 0,
+        "r30": 0
+      },
+      "openalex": {
+        "count": 15037,
+        "returned": 30,
+        "hits30": 4,
+        "p30": 0.13333333333333333,
+        "r30": 0.04597701149425287
+      }
+    },
+    "pubmedPlainTitle": {
+      "query": "CD8 T cell states in human cancer insights from single cell analysis",
+      "count": 0,
+      "returned": 0,
+      "hits30": 0,
+      "p30": 0,
+      "r30": 0
+    },
+    "seedRefReach": 20,
+    "reviewRankInLibrary": 2,
+    "ablation": {
+      "full (default weights)": {
+        "hits": 10,
+        "p": 0.3333333333333333,
+        "r": 0.11494252873563218
+      },
+      "- relevance": {
+        "hits": 8,
+        "p": 0.26666666666666666,
+        "r": 0.09195402298850575
+      },
+      "- graph": {
+        "hits": 6,
+        "p": 0.2,
+        "r": 0.06896551724137931
+      },
+      "- citations": {
+        "hits": 9,
+        "p": 0.3,
+        "r": 0.10344827586206896
+      },
+      "- venue": {
+        "hits": 8,
+        "p": 0.26666666666666666,
+        "r": 0.09195402298850575
+      },
+      "- authors": {
+        "hits": 9,
+        "p": 0.3,
+        "r": 0.10344827586206896
+      },
+      "- llm": {
+        "hits": 9,
+        "p": 0.3,
+        "r": 0.10344827586206896
+      },
+      "only relevance": {
+        "hits": 2,
+        "p": 0.06666666666666667,
+        "r": 0.022988505747126436
+      },
+      "only graph": {
+        "hits": 4,
+        "p": 0.13333333333333333,
+        "r": 0.04597701149425287
+      },
+      "only citations": {
+        "hits": 2,
+        "p": 0.06666666666666667,
+        "r": 0.022988505747126436
+      },
+      "only venue": {
+        "hits": 5,
+        "p": 0.16666666666666666,
+        "r": 0.05747126436781609
+      },
+      "only authors": {
+        "hits": 4,
+        "p": 0.13333333333333333,
+        "r": 0.04597701149425287
+      },
+      "only llm": {
+        "hits": 10,
+        "p": 0.3333333333333333,
+        "r": 0.11494252873563218
+      }
+    },
+    "truthWithPmid": 87
+  },
+  {
+    "review": "W4365143025",
+    "title": "Dynamics and specificities of T cells in cancer immunotherapy",
+    "date": "2023-04-12",
+    "refs": 235,
+    "unresolvedRefs": 0,
+    "seeds": [
+      "W3196420804",
+      "W4285097347",
+      "W2568328220",
+      "W3106005610",
+      "W2507608410"
+    ],
+    "hidden": 230,
+    "truth": 230,
+    "libraryId": "lib_20261018141149_9dcf97",
+    "libraryMs": 75679,
+    "summary": {
+      "ms": 75114,
+      "total": 1499,
+      "passed": 374,
+      "excluded": 4,
+      "relevance": "embedding",
+      "llmReads": 40,
+      "sourceCalls": 72,
+      "stageMs": {
+        "goals": 4237,
+        "search": 60717,
+        "label": 5389,
+        "score": 51,
+        "llm": 4617,
+        "select": 83
+      },
+      "models": {
+        "planner": "nvidia/nemotron-3-super-120b-a12b",
+        "embed": "Qwen/Qwen3-Embedding-8B",
+        "judge": "nvidia/Nemotron-3_5-Lightning"
+      }
+    },
+    "goalsModel": "nvidia/nemotron-3-super-120b-a12b",
+    "knownPapers": [
+      "10.1038/s41586-021-03862-z",
+      "10.1016/j.cell.2022.06.035",
+      "10.1007/s00281-016-0614-9",
+      "10.1146/annurev-pathol-042020-042741",
+      "10.1038/nbt.3662"
+    ],
+    "subtopics": [
+      "immune checkpoint inhibitors cancer response",
+      "stem-like CD8 T cells tumor",
+      "T cell receptor repertoire cancer",
+      "cancer vaccine immunotherapy",
+      "peptide MHC multimer T cell detection",
+      "HPV specific T cells head neck cancer"
+    ],
+    "library": {
+      "pile": 1499,
+      "ranked": 1495,
+      "excluded": 4,
+      "reach": 53,
+      "reachRanked": 53,
+      "hits30": 6,
+      "p30": 0.2,
+      "r30": 0.02608695652173913,
+      "postReviewInTop30": 7,
+      "passed": 374,
+      "hitsPassed": 37,
+      "topPctN": 374,
+      "hitsTopPct": 37,
+      "hitIds": [
+        "W2899145148",
+        "W2909486828",
+        "W2605630275",
+        "W2966465234",
+        "W2920270836",
+        "W2541574334"
+      ]
+    },
+    "pubmed": {
+      "count": 792,
+      "returned": 30,
+      "translation": "(\"dynamer\"[All Fields] OR \"dynamers\"[All Fields] OR \"dynamic\"[All Fields] OR \"dynamical\"[All Fields] OR \"dynamically\"[All Fields] OR \"dynamicity\"[All Fields] OR \"dynamics\"[All Fields] OR \"dynamism\"[All Fields] OR \"dynamisms\"[All Fields]) AND (\"sensitivity and specificity\"[MeSH Terms] OR (\"sensitivity\"[All Fields] AND \"specificity\"[All Fields]) OR \"sensitivity and specificity\"[All Fields] OR \"speci",
+      "hits30": 4,
+      "p30": 0.13333333333333333,
+      "r30": 0.017391304347826087
+    },
+    "openalex": {
+      "count": 100409,
+      "returned": 30,
+      "hits30": 0,
+      "p30": 0,
+      "r30": 0,
+      "postReviewInTop30": 5
+    },
+    "dateRestricted": {
+      "library": {
+        "candidates": 1119,
+        "hits30": 10,
+        "p30": 0.3333333333333333,
+        "r30": 0.043478260869565216
+      },
+      "pubmed": {
+        "count": 356,
+        "returned": 30,
+        "hits30": 4,
+        "p30": 0.13333333333333333,
+        "r30": 0.017391304347826087
+      },
+      "openalex": {
+        "count": 43324,
+        "returned": 30,
+        "hits30": 1,
+        "p30": 0.03333333333333333,
+        "r30": 0.004347826086956522
+      }
+    },
+    "pubmedPlainTitle": {
+      "query": "Dynamics and specificities of T cells in cancer immunotherapy",
+      "count": 792,
+      "returned": 30,
+      "hits30": 4,
+      "p30": 0.13333333333333333,
+      "r30": 0.017391304347826087
+    },
+    "seedRefReach": 35,
+    "reviewRankInLibrary": 4,
+    "ablation": {
+      "full (default weights)": {
+        "hits": 6,
+        "p": 0.2,
+        "r": 0.02608695652173913
+      },
+      "- relevance": {
+        "hits": 5,
+        "p": 0.16666666666666666,
+        "r": 0.021739130434782608
+      },
+      "- graph": {
+        "hits": 7,
+        "p": 0.23333333333333334,
+        "r": 0.030434782608695653
+      },
+      "- citations": {
+        "hits": 7,
+        "p": 0.23333333333333334,
+        "r": 0.030434782608695653
+      },
+      "- venue": {
+        "hits": 8,
+        "p": 0.26666666666666666,
+        "r": 0.034782608695652174
+      },
+      "- authors": {
+        "hits": 7,
+        "p": 0.23333333333333334,
+        "r": 0.030434782608695653
+      },
+      "- llm": {
+        "hits": 6,
+        "p": 0.2,
+        "r": 0.02608695652173913
+      },
+      "only relevance": {
+        "hits": 3,
+        "p": 0.1,
+        "r": 0.013043478260869565
+      },
+      "only graph": {
+        "hits": 3,
+        "p": 0.1,
+        "r": 0.013043478260869565
+      },
+      "only citations": {
+        "hits": 2,
+        "p": 0.06666666666666667,
+        "r": 0.008695652173913044
+      },
+      "only venue": {
+        "hits": 7,
+        "p": 0.23333333333333334,
+        "r": 0.030434782608695653
+      },
+      "only authors": {
+        "hits": 4,
+        "p": 0.13333333333333333,
+        "r": 0.017391304347826087
+      },
+      "only llm": {
+        "hits": 8,
+        "p": 0.26666666666666666,
+        "r": 0.034782608695652174
+      }
+    },
+    "truthWithPmid": 228
+  }
+]
