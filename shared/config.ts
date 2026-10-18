@@ -18,7 +18,7 @@ export interface RunConfig {
 }
 
 export const PRESETS: Record<RunPreset, RunConfig> = {
-  demo: { rerankTopK: 60, rerankFacets: false, judgeTopK: 30, judgeExtraK: 5, judgeConcurrency: 8, embedMaxDocs: 600, scoutMaxCalls: 4, scoutMaxMs: 30000, r2MaxPerPair: 200, r3PerSeed: 60, freshMonths: 18, sendPerLane: 40, timeoutMs: 20000 },
+  demo: { rerankTopK: 60, rerankFacets: false, judgeTopK: 30, judgeExtraK: 5, judgeConcurrency: 8, embedMaxDocs: 600, scoutMaxCalls: 4, scoutMaxMs: 30000, r2MaxPerPair: 400, r3PerSeed: 60, freshMonths: 18, sendPerLane: 40, timeoutMs: 20000 },
   deep: { rerankTopK: 150, rerankFacets: true, judgeTopK: 50, judgeExtraK: 10, judgeConcurrency: 8, embedMaxDocs: 1500, scoutMaxCalls: 6, scoutMaxMs: 45000, r2MaxPerPair: 400, r3PerSeed: 100, freshMonths: 18, sendPerLane: 80, timeoutMs: 25000 },
 }
 

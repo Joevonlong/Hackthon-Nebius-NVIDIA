@@ -4,7 +4,7 @@
 local/
 node_modules/
 dist/
-data/
+/data/
 .env
 .env.local
 .env.*.local
