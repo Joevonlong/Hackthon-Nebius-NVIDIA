@@ -110,3 +110,9 @@ describe('Q-3 intents + normalized weights', () => {
     expect(percentify('#3 has relevance 0.94 vs 0.67', next, current.weights)).toBe('#3 has relevance 0.94 vs 0.67')
   })
 })
+
+describe('double-escaped replies', () => {
+  it('turns a literal \\n into a line break before citations', () => {
+    expect(normalizeCitations('Top picks:\\n#14 "Some paper" (2021)')).toBe('Top picks:\n[#14 Some paper] (2021)')
+  })
+})

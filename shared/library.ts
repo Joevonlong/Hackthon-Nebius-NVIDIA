@@ -188,6 +188,6 @@ export const ChatResponse = z.object({
   model: z.string().nullable(),
 })
 export type ChatResponse = z.infer<typeof ChatResponse>
-//   POST /api/library/:id/chat     ChatRequest -> ChatResponse   (logged to logs/runs/<id>/chat.jsonl)
+//   POST /api/library/:id/chat     ChatRequest -> ChatResponse   (logged to logs/runs/<id>/chat.jsonl and <library folder>/chat.jsonl)
 //   POST /api/library/:id/applied  { prompt, proposal, before: string[], after: string[] } -> { ok }  (logs an applied change)
 

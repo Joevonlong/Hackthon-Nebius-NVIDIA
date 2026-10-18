@@ -10,6 +10,7 @@ import { deriveGoals } from './goals'
 import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
 import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
+import { addEuropePmcReferences, type RefsOptions } from './references'
 import { writeLibraryFiles } from './store'
 import { writeLibraryReport } from './report'
 import type { EnrichedRecord, SourceCall, SourcesApi } from './types'
@@ -119,7 +120,12 @@ export async function embeddingRelevance(goals: Goals, recs: EnrichedRecord[], t
 /** D-32 / J-2: the LLM reads at least every returned paper: max(llmReadTopK, topK), capped at 60; 0 keeps it off. */
 export const effectiveLlmReadK = (req: Pick<LibraryRequest, 'llmReadTopK' | 'topK'>) => (req.llmReadTopK === 0 ? 0 : Math.min(60, Math.max(req.llmReadTopK, req.topK)))
 
-export interface PipelineDeps { gather: SourcesApi['gather']; now?: () => Date }
+export interface PipelineDeps {
+  gather: SourcesApi['gather']
+  now?: () => Date
+  /** CR-10 E-2 Europe PMC reference fallback. Default: on (EPMC_REFS=0 turns it off; off under vitest unless injected). */
+  references?: RefsOptions | false
+}
 
 type Stage = 'goals' | 'search' | 'label' | 'score' | 'llm' | 'select'
 const timed = async <T>(s: LibraryState, stage: Stage, fn: () => Promise<T>) => {
@@ -209,6 +215,22 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   // 6. re-score + select
   const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
   s.papers = markFieldUncertain(se.out)
+
+  // 6b. CR-10 E-2: reference lists from Europe PMC for passed papers OpenAlex gave none (429 / PubMed-only records)
+  const refsOpts = deps.references ?? (env.raw.EPMC_REFS === '0' || process.env.VITEST ? false : {})
+  if (refsOpts === false) {
+    emitLib(s, { type: 'stage', stage: 'expand', status: 'skipped', message: 'europepmc refs: off' })
+  } else {
+    emitLib(s, { type: 'stage', stage: 'expand', status: 'start', message: 'europepmc refs' })
+    try {
+      const r = await addEuropePmcReferences(s.papers, goals.knownPapers, refsOpts)
+      s.stageMs.expand = r.ms
+      emitLib(s, { type: 'stage', stage: 'expand', status: 'done', count: r.papersLinked, ms: r.ms,
+        message: `europepmc refs: ${r.papersWithRefs} papers, ${r.links} links · ${r.calls}/${r.candidates} calls${r.errors ? ` · ${r.errors} errors` : ''}${r.timedOut ? ` · ${r.timedOut} timed out` : ''}` })
+    } catch (e) { // never fails the build
+      emitLib(s, { type: 'stage', stage: 'expand', status: 'error', message: `europepmc refs: ${(e as Error).message?.slice(0, 200)}` })
+    }
+  }
   const passed = s.papers.filter(p => p.passed).length
   const top = s.papers.slice(0, req.topK)
   emitLib(s, { type: 'papers', papers: top, total: s.papers.length, passed })
