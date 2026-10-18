@@ -1,6 +1,29 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { NAV_MAX, useUi } from './ui'
+import { NAV_MAX, isNavKey, useUi } from './ui'
+
+describe('isNavKey (Q-14/15)', () => {
+  const ev = (key: string, mods: Partial<Record<'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey', boolean>> = {}, target: unknown = null) =>
+    ({ key, metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, isComposing: false, defaultPrevented: false, target, ...mods }) as unknown as KeyboardEvent
+  it('maps only modified keys', () => {
+    expect(isNavKey(ev('[', { metaKey: true }))).toBe('back')
+    expect(isNavKey(ev('[', { ctrlKey: true }))).toBe('back')
+    expect(isNavKey(ev('ArrowLeft', { altKey: true }))).toBe('back')
+    expect(isNavKey(ev(']', { metaKey: true }))).toBe('forward')
+    expect(isNavKey(ev('ArrowRight', { altKey: true }))).toBe('forward')
+    for (const k of ['[', ']', 'ArrowLeft', 'ArrowRight', 'g', 'l', 'Backspace']) expect(isNavKey(ev(k))).toBeNull()
+    expect(isNavKey(ev('ArrowLeft', { metaKey: true }))).toBeNull()
+  })
+  it('never fires while typing', () => {
+    const input = { tagName: 'INPUT', isContentEditable: false, closest: () => null }
+    const cm = { tagName: 'DIV', isContentEditable: false, closest: (s: string) => (s.includes('.cm-editor') ? {} : null) }
+    const ce = { tagName: 'DIV', isContentEditable: true, closest: () => null }
+    for (const t of [input, cm, ce]) {
+      expect(isNavKey(ev('[', { metaKey: true }, t))).toBeNull()
+      expect(isNavKey(ev('ArrowLeft', { altKey: true }, t))).toBeNull()
+    }
+  })
+})
 
 describe('navigation history (CR-6)', () => {
   beforeEach(() => setActivePinia(createPinia()))

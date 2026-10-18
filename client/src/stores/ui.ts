@@ -183,3 +183,17 @@ export const useUi = defineStore('ui', {
     },
   },
 })
+
+type KeyLike = Pick<KeyboardEvent, 'key' | 'metaKey' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'isComposing' | 'defaultPrevented' | 'target'>
+/** Keystroke → history step. Only ⌘[ / Ctrl+[ / Alt+← (back) and ⌘] / Ctrl+] / Alt+→ (forward): never a bare key, and
+ *  never while typing (input, textarea, select, contenteditable, CodeMirror), so typing can never navigate (Q-14/15). */
+export function isNavKey(e: KeyLike): 'back' | 'forward' | null {
+  if (e.defaultPrevented || e.isComposing || e.shiftKey) return null
+  const el = e.target as (Partial<HTMLElement> & { closest?: (s: string) => Element | null }) | null
+  if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName ?? '') || el.closest?.('[contenteditable=""],[contenteditable="true"],.cm-editor'))) return null
+  const mod = (e.metaKey || e.ctrlKey) && !e.altKey
+  const alt = e.altKey && !e.metaKey && !e.ctrlKey
+  if ((mod && e.key === '[') || (alt && e.key === 'ArrowLeft')) return 'back'
+  if ((mod && e.key === ']') || (alt && e.key === 'ArrowRight')) return 'forward'
+  return null
+}
