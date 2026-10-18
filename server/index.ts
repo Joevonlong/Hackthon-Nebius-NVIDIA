@@ -6,11 +6,13 @@ import { existsSync } from 'node:fs'
 import { health } from './routes/health'
 import { runs } from './routes/runs'
 import { demo } from './routes/demo'
+import { library } from './routes/library'
 
 const app = new Hono()
 app.route('/api', health)
 app.route('/api', runs)
 app.route('/api', demo)
+app.route('/api', library)
 
 // Production: serve the built client from dist/client (Vite dev server proxies /api in development).
 if (existsSync('./dist/client')) {
