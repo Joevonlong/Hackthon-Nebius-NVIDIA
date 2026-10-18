@@ -434,3 +434,18 @@ Readers should get the score at a glance, not by reading text.
 
 ## 24. CR-12 · Graph node colour follows score (user, 18:05; clear, started immediately)
 Library nodes keep size ∝ total score and also get a blue colour ramp on the same score: biggest/highest = darkest blue → smallest/lowest = lightest blue (one sequential blue scale, readable in light and dark themes; legend shows the ramp with its score range). Vault notes / seeds keep their own styling.
+
+## 25. CR-13 · QA2 findings on the final build (18:10; bug fixes, behaviour as already specified)
+Clean start passes. Fixes:
+- Q2-1 (major) citations scored from a 0 count when OpenAlex data is missing (cited_by 0 · 100th pct) → "not assessed", like venue. Same for authors without data.
+- Q2-2 (major) chat filters of question 1 carry into question 2's library → filters/weights/pass rule are per library.
+- Q2-3 (major) graph has no edges → CR-10.
+- Q2-4 (major) BibTeX export includes other questions' papers and only downloads → scoped to the active question, also saved to <question>/exports/.
+- Q2-5 (major) Add to vault puts the note in Discovered/ (browser only) → <question>/notes/, written to disk (D-37).
+- Q2-6 seed resolve on OpenAlex 429 → DOI fallback via Crossref / Europe PMC, and a visible rate-limit notice.
+- Q2-7 paper file request with "pmid:…" ids returns 400 → server accepts both id forms.
+- Q2-8 PubMed-style names ("Yan M") show as "M et al." → surname first.
+- Q2-9 research article labelled editorial → only PubMed/OpenAlex editorial types count.
+- Q2-10 "Which papers are reviews?" lists 2 of 4 → kind questions answered from labels, complete.
+- Q2-11 switching question keeps the old library + chat in the centre → opens that question's latest library or its empty state.
+- Q2-12 Files "⋯" menu does not close on Escape/outside click. Q2-13 status bar count vs header mismatch. Q2-14 graph legend overlaps nodes. Q2-15 stray notes/Untitled.md at build start.
