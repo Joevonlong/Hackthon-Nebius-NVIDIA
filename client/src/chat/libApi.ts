@@ -4,6 +4,7 @@
 // Until U1's versions are merged this file falls back to the store fields that already exist (weights, threshold, top).
 import type { Filters, LibPaper, Proposal, Weights } from '@shared/library'
 import { DEFAULT_WEIGHTS } from '@shared/library'
+import { summarizeProposal } from './summary'
 
 export interface LibSettings { weights: Weights; topPercent: number; threshold: number; filters: Filters }
 export interface ApplyResult { before: string[]; after: string[] }
@@ -29,7 +30,9 @@ export function currentSettings(lib: LibLike): LibSettings {
   return { weights: { ...(lib.weights ?? DEFAULT_WEIGHTS) }, topPercent: lib.topPercent ?? 25, threshold: lib.threshold ?? 0.5, filters: { ...(lib.filters ?? {}) } }
 }
 
-export async function applyProposal(lib: LibLike, p: Proposal): Promise<ApplyResult> {
+export async function applyProposal(lib: LibLike, proposal: Proposal): Promise<ApplyResult> {
+  // Q-3b: the store shows `rationale` in its "Applied from chat" banner, so hand it the clean user-facing summary
+  const p: Proposal = { ...proposal, rationale: summarizeProposal(proposal, currentSettings(lib)) }
   if (typeof lib.applyProposal === 'function') return await lib.applyProposal(p)
   // Fallback until U1's applyProposal lands: merge + normalize weights, set the pass rule; filters are left to U1.
   const before = top10(lib)
