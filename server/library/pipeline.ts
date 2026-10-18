@@ -7,7 +7,7 @@ import { hasKey } from '../ai/http'
 import { env } from '../env'
 import { trace } from '../trace'
 import { deriveGoals } from './goals'
-import { labelRecord, pickSubtopics, subtopicsByKeywords } from './labels'
+import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
 import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
 import { writeLibraryFiles } from './store'
@@ -116,6 +116,9 @@ export async function embeddingRelevance(goals: Goals, recs: EnrichedRecord[], t
 }
 
 // ---------- pipeline ----------
+/** D-32 / J-2: the LLM reads at least every returned paper: max(llmReadTopK, topK), capped at 60; 0 keeps it off. */
+export const effectiveLlmReadK = (req: Pick<LibraryRequest, 'llmReadTopK' | 'topK'>) => (req.llmReadTopK === 0 ? 0 : Math.min(60, Math.max(req.llmReadTopK, req.topK)))
+
 export interface PipelineDeps { gather: SourcesApi['gather']; now?: () => Date }
 
 type Stage = 'goals' | 'search' | 'label' | 'score' | 'llm' | 'select'
@@ -173,27 +176,39 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   const pre = sc.out
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
-  // 5. LLM read of the best pre-scored papers
+  // 5. LLM read (D-32 / J-2): cover every paper returned to the UI — read the top max(llmReadTopK, topK) (cap 60),
+  //    then re-score and top up any newcomer in that top that was not read yet (at most 2 extra rounds).
   const byKey = new Map(items.map(i => [i.rec.paper.id, i]))
-  const eligible = pre.filter(p => !p.excluded && p.paper.abstract).slice(0, req.llmReadTopK).map(p => byKey.get(p.paper.id)!).filter(Boolean)
-  let reads = new Map<string, LlmReadT>()
-  if (!hasKey() || req.llmReadTopK === 0 || !eligible.length) {
-    emitLib(s, { type: 'stage', stage: 'llm', status: 'skipped', message: !hasKey() ? 'no TOKEN_FACTORY_API_KEY' : req.llmReadTopK === 0 ? 'llmReadTopK = 0' : 'no papers with an abstract' })
+  const readK = effectiveLlmReadK(req)
+  const attempted = new Set<string>()
+  const reads = new Map<string, LlmReadT>()
+  const pick = (ranked: LibPaper[]) => ranked.filter(p => !p.excluded && p.paper.abstract).slice(0, readK)
+    .map(p => byKey.get(p.paper.id)).filter((i): i is ScoreItem => !!i && !attempted.has(i.rec.key))
+  const first = readK > 0 ? pick(pre) : []
+  if (!hasKey() || readK === 0 || !first.length) {
+    emitLib(s, { type: 'stage', stage: 'llm', status: 'skipped', message: !hasKey() ? 'no TOKEN_FACTORY_API_KEY' : readK === 0 ? 'llmReadTopK = 0' : 'no papers with an abstract' })
   } else {
-    const lr = await timed(s, 'llm', () => llmReadAll(goals, eligible.map(i => i.rec), { concurrency: 8, timeoutMs: Number(env.raw.LIBRARY_LLM_TIMEOUT_MS || 30000) }))
-    reads = lr.out
+    const lr = await timed(s, 'llm', async () => {
+      let batch = first
+      for (let round = 0; round < 3 && batch.length; round++) {
+        batch.forEach(i => attempted.add(i.rec.key))
+        const out = await llmReadAll(goals, batch.map(i => i.rec), { concurrency: 8, timeoutMs: Number(env.raw.LIBRARY_LLM_TIMEOUT_MS || 30000) })
+        for (const [k, v] of out) reads.set(k, v)
+        for (const it of items) it.llm = reads.get(it.rec.key) ?? null
+        batch = pick(scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
+      }
+    })
     s.llmReads = reads.size
-    emitLib(s, { type: 'stage', stage: 'llm', status: 'done', count: reads.size, ms: lr.ms, message: `${env.models.judge} read ${reads.size}/${eligible.length} abstracts · ${[...reads.values()].filter(r => r.verified).length} quotes verified` })
+    emitLib(s, { type: 'stage', stage: 'llm', status: 'done', count: reads.size, ms: lr.ms, message: `${env.models.judge} read ${reads.size}/${attempted.size} abstracts (top ${readK}) · ${[...reads.values()].filter(r => r.verified).length} quotes verified` })
   }
-  const readKeys = new Set(eligible.map(i => i.rec.key))
   for (const it of items) {
     it.llm = reads.get(it.rec.key) ?? null
-    if (!it.llm) it.llmNote = !hasKey() ? 'no model key' : readKeys.has(it.rec.key) ? 'the model call failed or timed out' : !it.rec.paper.abstract ? 'no abstract to read' : `outside the top ${req.llmReadTopK} by the other components`
+    if (!it.llm) it.llmNote = !hasKey() ? 'no model key' : attempted.has(it.rec.key) ? 'the model call failed or timed out' : !it.rec.paper.abstract ? 'no abstract to read' : `outside the top ${readK} by the other components`
   }
 
   // 6. re-score + select
   const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
-  s.papers = se.out
+  s.papers = markFieldUncertain(se.out)
   const passed = s.papers.filter(p => p.passed).length
   const top = s.papers.slice(0, req.topK)
   emitLib(s, { type: 'papers', papers: top, total: s.papers.length, passed })

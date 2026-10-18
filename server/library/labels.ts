@@ -83,6 +83,20 @@ export function subtopicsByKeywords(rec: EnrichedRecord, goals: Goals): string[]
   }).map(s => s.name)
 }
 
+/**
+ * D-32 / J-5: labels.field comes from OpenAlex primary_topic. When a paper's field disagrees with the majority field of
+ * the library's top `topN` (non-excluded, in rank order), keep the field but tag the paper `field-uncertain`. Pure.
+ */
+export function markFieldUncertain<T extends { labels: Labels; excluded: string | null }>(ranked: T[], topN = 50): T[] {
+  const counts = new Map<string, number>()
+  for (const p of ranked.filter(x => !x.excluded).slice(0, topN)) if (p.labels.field) counts.set(p.labels.field, (counts.get(p.labels.field) ?? 0) + 1)
+  const major = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0]
+  if (!major) return ranked
+  return ranked.map(p => (p.labels.field && p.labels.field !== major && !p.labels.tags.includes('field-uncertain')
+    ? { ...p, labels: { ...p.labels, tags: [...p.labels.tags, 'field-uncertain'] } }
+    : p))
+}
+
 /** D-28 margin: a subtopic label must be within this cosine of the paper's best subtopic match. */
 export const SUBTOPIC_MARGIN = 0.05
 

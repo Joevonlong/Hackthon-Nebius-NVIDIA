@@ -74,9 +74,10 @@ describe('graph', () => {
     expect(graphComponent(items[1], ctx).value).toBe(0)
     const g2 = graphComponent(items[2], ctx)
     expect(g2.value).toBe(0.5)
-    expect(g2.evidence[0].text).toMatch(/^cites K1 "Known paper" \(OpenAlex referenced_works\)/)
+    expect(g2.evidence[0].text).toMatch(/^cites your paper "Known paper" \(OpenAlex referenced_works\)/)
+    expect(g2.evidence.map(e => e.text).join(' ')).not.toMatch(/\bK\d+\b/)
     expect(graphComponent(items[3], ctx).value).toBe(1)
-    expect(graphComponent(items[0], ctx).evidence[0].text).toMatch(/in your notes \(K1\)/)
+    expect(graphComponent(items[0], ctx).evidence[0].text).toMatch(/in your notes \("Known paper"\)/)
   })
   it('null when the notes name no papers', () => {
     const ctx0 = buildContext(items, testGoals(), NOW)
