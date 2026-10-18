@@ -19,7 +19,7 @@ const totalTip = computed(() => {
 <template>
   <div class="sb" :title="totalTip">
     <div class="track" role="img" :aria-label="totalTip">
-      <span v-for="c in segs" :key="c.key" class="seg" :style="{ width: (c.contribution * 100) + '%', background: COMPONENT_META[c.key].color }" :title="tipFor(c)" />
+      <div class="fill"><span v-for="c in segs" :key="c.key" class="seg" :style="{ width: (c.contribution * 100) + '%', background: COMPONENT_META[c.key].color }" :title="tipFor(c)" /></div>
       <i class="thr" :style="{ left: (threshold * 100) + '%' }" :title="`threshold ${f2(threshold)}: papers at or above it join the citation graph`" />
     </div>
     <b class="tot" :class="{ pass: paper.passed, fail: !paper.passed }">{{ f2(paper.total) }}</b>
@@ -27,13 +27,15 @@ const totalTip = computed(() => {
 </template>
 
 <style scoped>
-.sb{display:flex;align-items:center;gap:8px;min-width:0}
-.track{position:relative;flex:1;height:10px;border-radius:3px;background:var(--surface-2);border:1px solid var(--line);display:flex;overflow:visible}
+.sb{display:flex;align-items:center;gap:10px;min-width:0}
+.track{position:relative;flex:1;height:6px;border-radius:99px;background:var(--ink-8);display:flex;overflow:visible}
+.fill{display:flex;width:100%;height:100%;border-radius:99px;overflow:hidden;transform-origin:left;animation:fillIn .9s var(--reveal) both;animation-delay:.15s}
+@keyframes fillIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 .seg{height:100%;display:block}
-.seg:first-child{border-radius:2px 0 0 2px}
-.seg:hover{filter:brightness(1.15);outline:1px solid var(--fg)}
-.thr{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--fg);transform:translateX(-1px);cursor:help}
-.tot{font:600 12px var(--font-mono);font-variant-numeric:tabular-nums;min-width:34px;text-align:right;cursor:help}
-.tot.pass{color:var(--ok)}
-.tot.fail{color:var(--muted)}
+.seg:hover{filter:brightness(1.15)}
+.thr{position:absolute;top:-3px;bottom:-3px;width:1px;background:var(--ink);transform:translateX(-.5px);cursor:help}
+.tot{font:600 .72rem var(--font-mono);font-variant-numeric:tabular-nums;min-width:32px;text-align:right;cursor:help}
+.tot.pass{color:var(--accent)}
+.tot.fail{color:var(--ink-46)}
+@media (prefers-reduced-motion: reduce){.fill{animation:none}}
 </style>

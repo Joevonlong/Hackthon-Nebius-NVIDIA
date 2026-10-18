@@ -108,13 +108,35 @@ const counts = computed(() => {
   return k
 })
 
+// F-40 / D-24: IMS Dictionary look and motion. The d3 force simulation only lays out; a rAF loop owns what is drawn
+// (intro bloom, drift, hover star, ring, particles, label declutter). Colours are CSS variables, so the theme switch
+// recolours through CSS transitions (~0.4 s) without re-reading anything.
+interface NState { born: number; ox: number; oy: number; x: number; y: number; offx: number; offy: number; fz: number; dim: number; lbl: number; ph: number; hot: number }
 let sim: d3.Simulation<GNode, GLink> | null = null
 let zoomLayer: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
 let ro: ResizeObserver | null = null
 let zoomer: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
 let userZoomed = false
+let raf = 0, lastT = 0, frameNo = 0
+let cur: GNode[] = []
+let curLinks: GLink[] = []
+let nodeSel: d3.Selection<SVGGElement, GNode, SVGGElement, unknown> | null = null
+let linkSel: d3.Selection<SVGLineElement, GLink, SVGGElement, unknown> | null = null
+let ringEl: SVGCircleElement | null = null
+let partG: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
+let parts: { el: SVGCircleElement; a: string; b: string; ph: number }[] = []
+let adj = new Map<string, string[]>()
+let transform = d3.zoomIdentity
+let active: string | null = null
+let ringA = 0
 const pos = new Map<string, { x: number; y: number; vx?: number; vy?: number }>()
-const R: Record<Kind, number> = { seed: 9, lit: 7, note: 6, ghost: 5.5, bridge: 5.5, lib: 6 }
+const st = new Map<string, NState>()
+const R: Record<Kind, number> = { seed: 9, lit: 6.5, note: 5, ghost: 5.5, bridge: 5.5, lib: 6 }
+const BLOOM_MS = 900, BLOOM_TOTAL = 2400
+const easeOutExpo = (t: number) => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)
+const idOf = (e: string | GNode) => typeof e === 'string' ? e : e.id
+const linkKey = (l: GLink) => `${idOf(l.source)}|${idOf(l.target)}`
+const PRIORITY: Record<Kind, number> = { seed: 300, lit: 200, note: 150, lib: 100, ghost: 50, bridge: 40 }
 
 function openNode(d: GNode) {
   if (d.note) ui.openNote(d.note.path, noteName(d.note.path))
@@ -122,7 +144,34 @@ function openNode(d: GNode) {
   else if (d.lib) ui.openLibPaper(d.lib.paper.id, shortTitle(d.lib.paper))
 }
 
-function render(animate: boolean) {
+function focusOn(d: GNode) {
+  const s = st.get(d.id); if (!s || !svgEl.value || !zoomer) return
+  userZoomed = true
+  const k = Math.max(transform.k, 1.3)
+  const t = d3.zoomIdentity.scale(k).translate(-s.x, -s.y)
+  const sel = d3.select(svgEl.value)
+  if (reduce) sel.call(zoomer.transform, t)
+  else sel.transition().duration(700).ease(d3.easeCubicOut).call(zoomer.transform, t)
+}
+
+function setActive(id: string | null) {
+  if (active === id) return
+  active = id
+  // particles flow along the active node's edges
+  parts.forEach(p => p.el.remove()); parts = []
+  if (id && !reduce && partG) {
+    for (const l of curLinks) {
+      const a = idOf(l.source), b = idOf(l.target)
+      if (a !== id && b !== id) continue
+      for (let i = 0; i < 2 && parts.length < 40; i++) {
+        const el = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); el.setAttribute('r', '1.8'); el.setAttribute('class', 'particle')
+        partG.node()!.appendChild(el); parts.push({ el, a: id, b: a === id ? b : a, ph: i / 2 + Math.random() * 0.2 })
+      }
+    }
+  }
+}
+
+function render(animate: boolean, replay = false) {
   if (!svgEl.value || !zoomLayer) return
   const { nodes: rawNodes, links: rawLinks } = data.value
   // Deep copies (d3 mutates the objects), keeping positions of nodes that already exist.
@@ -136,26 +185,35 @@ function render(animate: boolean) {
     return { ...n, x: (other?.x ?? 0) + j(), y: (other?.y ?? 0) + j() }
   })
   const links: GLink[] = rawLinks.map(l => ({ ...l }))
-  const isNew = (id: string) => !pos.has(id)
-  // Stagger new nodes so candidates grow out of the seeds one by one (Core first, then Fresh, Linked, Bridges):
-  // each element animates <= 280 ms, the whole wave is capped at ~1 s and then the graph holds still.
-  const order = new Map<string, number>()
-  if (animate) nodes.filter(n => isNew(n.id)).forEach((n, i) => order.set(n.id, i))
-  const delay = (id: string) => Math.min((order.get(id) ?? 0) * 30, 750) + 'ms'
-  const idOf = (e: string | GNode) => typeof e === 'string' ? e : e.id
+  cur = nodes; curLinks = links
+  adj = new Map()
+  for (const l of links) {
+    const a = idOf(l.source), b = idOf(l.target)
+    ;(adj.get(a) ?? adj.set(a, []).get(a)!).push(b); (adj.get(b) ?? adj.set(b, []).get(b)!).push(a)
+  }
+  // Bloom: new nodes (all of them on mount / replay) emerge from the centre or their linked node, staggered over ~2.4 s.
+  const now = performance.now()
+  const fresh = nodes.filter(n => replay || !st.has(n.id))
+  const step = Math.min(30, (BLOOM_TOTAL - BLOOM_MS) / Math.max(1, fresh.length))
+  fresh.forEach((n, i) => {
+    const linked = adj.get(n.id)?.map(id => pos.get(id)).find(Boolean)
+    const prev = st.get(n.id)
+    st.set(n.id, { born: now + i * step, ox: linked?.x ?? 0, oy: linked?.y ?? 0, x: linked?.x ?? 0, y: linked?.y ?? 0, offx: 0, offy: 0, fz: prev?.fz ?? 0, dim: 1, lbl: 0, ph: prev?.ph ?? Math.random() * 6.28, hot: 0 })
+    void animate
+  })
+  for (const id of [...st.keys()]) if (!nodes.some(n => n.id === id)) st.delete(id)
+  if (active && !st.has(active)) setActive(null)
 
-  const linkSel = zoomLayer.select<SVGGElement>('g.edges').selectAll<SVGLineElement, GLink>('line')
-    .data(links, d => `${idOf(d.source)}|${idOf(d.target)}`)
-    .join(enter => enter.append('line').attr('class', d => 'ge ' + d.kind + (animate ? ' grow' : ''))
-      .style('animation-delay', d => animate ? delay(order.has(idOf(d.source)) ? idOf(d.source) : idOf(d.target)) : null))
+  linkSel = zoomLayer.select<SVGGElement>('g.edges').selectAll<SVGLineElement, GLink>('line')
+    .data(links, linkKey)
+    .join(enter => enter.append('line').attr('class', d => 'ge ' + d.kind))
 
-  const nodeSel = zoomLayer.select<SVGGElement>('g.nodes').selectAll<SVGGElement, GNode>('g.gn')
+  nodeSel = zoomLayer.select<SVGGElement>('g.nodes').selectAll<SVGGElement, GNode>('g.gn')
     .data(nodes, d => d.id)
     .join(
       enter => {
-        const g = enter.append('g').attr('class', d => 'gn' + (animate && isNew(d.id) ? ' grow' : '')).attr('tabindex', 0).attr('role', 'button')
-        g.append('circle').style('animation-delay', d => animate ? delay(d.id) : null)
-        g.append('text').attr('class', 'glbl')
+        const g = enter.append('g').attr('class', 'gn').attr('tabindex', 0).attr('role', 'button')
+        g.append('circle'); g.append('text').attr('class', 'glbl')
         return g
       },
       update => update,
@@ -163,30 +221,23 @@ function render(animate: boolean) {
     )
   nodeSel.attr('aria-label', d => d.label)
   nodeSel.select('circle').attr('r', d => R[d.kind]).attr('class', d => 'nd nd-' + d.kind)
-  nodeSel.select<SVGTextElement>('text').text(d => (d.kind === 'seed' || d.kind === 'lit' || d.kind === 'note') ? (d.label.length > 26 ? d.label.slice(0, 25) + '…' : d.label) : '')
-    .attr('class', d => 'glbl' + (d.kind === 'seed' ? ' glbl-seed' : ''))
+  nodeSel.select<SVGTextElement>('text').text(d => d.label.length > 28 ? d.label.slice(0, 27) + '…' : d.label)
   nodeSel
-    .on('click', (_e, d) => openNode(d))
+    .on('click', (_e, d) => { openNode(d); focusOn(d) })
     .on('keydown', (e: KeyboardEvent, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNode(d) } })
+    .on('focus', (_e, d) => setActive(d.id))
+    .on('blur', () => setActive(null))
     .on('mouseenter', (e: MouseEvent, d) => {
       const r = wrap.value!.getBoundingClientRect()
-      tip.value = { x: e.clientX - r.left + 12, y: e.clientY - r.top + 12, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} ≥ ${lib.threshold.toFixed(2)} · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
-      linkSel.classed('hot', l => (l.source as GNode).id === d.id || (l.target as GNode).id === d.id)
+      tip.value = { x: e.clientX - r.left + 14, y: e.clientY - r.top + 14, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} ≥ ${lib.threshold.toFixed(2)} · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
+      setActive(d.id)
     })
-    .on('mouseleave', () => { tip.value = null; linkSel.classed('hot', false) })
+    .on('mousemove', (e: MouseEvent) => { if (tip.value) { const r = wrap.value!.getBoundingClientRect(); tip.value = { ...tip.value, x: e.clientX - r.left + 14, y: e.clientY - r.top + 14 } } })
+    .on('mouseleave', () => { tip.value = null; setActive(null) })
     .call(d3.drag<SVGGElement, GNode>()
       .on('start', (e, d) => { if (!e.active && !reduce) sim?.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y })
-      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; if (reduce) { d.x = e.x; d.y = e.y; ticked() } })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; if (reduce) { d.x = e.x; d.y = e.y } })
       .on('end', (e, d) => { if (!e.active) sim?.alphaTarget(0); d.fx = null; d.fy = null }))
-
-  function ticked() {
-    linkSel
-      .attr('x1', d => (d.source as GNode).x!).attr('y1', d => (d.source as GNode).y!)
-      .attr('x2', d => (d.target as GNode).x!).attr('y2', d => (d.target as GNode).y!)
-    nodeSel.select('circle').attr('cx', d => d.x!).attr('cy', d => d.y!)
-    nodeSel.select('text').attr('x', d => d.x! + R[d.kind] + 3).attr('y', d => d.y! + 3.5)
-    for (const n of nodes) pos.set(n.id, { x: n.x!, y: n.y! })
-  }
 
   const forceLink = d3.forceLink<GNode, GLink>(links).id(d => d.id).distance(l => l.kind === 'wiki' ? 60 : 75).strength(l => l.kind === 'wiki' ? 0.6 : 0.25)
   if (!sim) {
@@ -201,9 +252,110 @@ function render(animate: boolean) {
   }
   // Fit once the layout is mostly settled (~1 s), not when the simulation fully stops several seconds later.
   let fitted = false
-  sim.on('tick', () => { ticked(); if (!fitted && sim!.alpha() < 0.12) { fitted = true; fit(nodes) } })
-  if (reduce) { sim.stop(); for (let i = 0; i < 300; i++) sim.tick(); ticked(); fit(nodes) }
+  sim.on('tick', () => { for (const n of nodes) pos.set(n.id, { x: n.x!, y: n.y! }); if (!fitted && sim!.alpha() < 0.12) { fitted = true; fit(nodes) } })
+  if (reduce) { sim.stop(); for (let i = 0; i < 300; i++) sim.tick(); for (const n of nodes) pos.set(n.id, { x: n.x!, y: n.y! }); fit(nodes) }
   else sim.alpha(animate ? 0.7 : 0.5).restart()
+  if (!raf) { lastT = performance.now(); raf = requestAnimationFrame(frame) }
+}
+
+const approx = (s: string) => s.length * 5.4 + 4
+
+function frame(nowT: number) {
+  raf = requestAnimationFrame(frame)
+  if (!nodeSel || !linkSel) return
+  const dt = Math.min(0.05, (nowT - lastT) / 1000); lastT = nowT; frameNo++
+  const k = (tau: number) => reduce ? 1 : 1 - Math.exp(-dt / tau)
+  const secs = nowT / 1000
+  const nb = new Set(active ? adj.get(active) ?? [] : [])
+  // pass 1: base position (bloom + drift)
+  const base = new Map<string, { x: number; y: number }>()
+  for (const n of cur) {
+    const s = st.get(n.id); if (!s) continue
+    const e = reduce ? 1 : easeOutExpo(Math.max(0, Math.min(1, (nowT - s.born) / BLOOM_MS)))
+    const frozen = active !== null && nb.has(n.id)
+    s.fz += ((frozen ? 1 : 0) - s.fz) * k(0.25)
+    const amp = reduce ? 0 : 3 * (1 - s.fz)
+    const dx = Math.sin(secs * 0.6 + s.ph) * amp, dy = Math.cos(secs * 0.5 + s.ph * 1.3) * amp
+    base.set(n.id, { x: s.ox + (n.x! - s.ox) * e + dx, y: s.oy + (n.y! - s.oy) * e + dy })
+    ;(s as NState & { e?: number }).e = e
+  }
+  // pass 2: star targets around the active node
+  const targets = new Map<string, { x: number; y: number }>()
+  const a = active ? base.get(active) : undefined
+  if (active && a && !reduce) {
+    const ids = [...nb].filter(id => base.has(id) && id !== active)
+    ids.sort((p, q) => Math.atan2(base.get(p)!.y - a.y, base.get(p)!.x - a.x) - Math.atan2(base.get(q)!.y - a.y, base.get(q)!.x - a.x))
+    const rr = Math.max(64, ids.length * 9)
+    const a0 = ids.length ? Math.atan2(base.get(ids[0])!.y - a.y, base.get(ids[0])!.x - a.x) : 0
+    ids.forEach((id, i) => { const ang = a0 + (i / ids.length) * Math.PI * 2; targets.set(id, { x: a.x + Math.cos(ang) * rr, y: a.y + Math.sin(ang) * rr }) })
+  }
+  for (const n of cur) {
+    const s = st.get(n.id), b = base.get(n.id); if (!s || !b) continue
+    const t = targets.get(n.id)
+    s.offx += ((t ? t.x - b.x : 0) - s.offx) * k(0.18); s.offy += ((t ? t.y - b.y : 0) - s.offy) * k(0.18)
+    s.x = b.x + s.offx; s.y = b.y + s.offy
+    s.dim += ((active && n.id !== active && !nb.has(n.id) ? 0.25 : 1) - s.dim) * k(0.2)
+  }
+  // edges: faint at rest, straight and strong for the active node
+  const kk = transform.k
+  linkSel.each(function (l) {
+    const a1 = idOf(l.source), b1 = idOf(l.target), sa = st.get(a1), sb = st.get(b1)
+    if (!sa || !sb) return
+    const hot = active !== null && (a1 === active || b1 === active)
+    const el = this as SVGLineElement
+    const prev = +(el.dataset.o ?? '0.1'), want = active ? (hot ? 0.75 : 0.03) : 0.1
+    const o = prev + (want - prev) * k(0.2); el.dataset.o = String(o)
+    el.setAttribute('x1', String(sa.x)); el.setAttribute('y1', String(sa.y)); el.setAttribute('x2', String(sb.x)); el.setAttribute('y2', String(sb.y))
+    el.style.opacity = String(o * Math.min(sa.dim, sb.dim, (sa as NState & { e?: number }).e ?? 1, (sb as NState & { e?: number }).e ?? 1) / (active && !hot ? 1 : 1))
+    el.classList.toggle('hot', hot)
+  })
+  // ring + particles
+  const as = active ? st.get(active) : undefined
+  ringA += ((as ? 1 : 0) - ringA) * k(0.2)
+  if (ringEl) {
+    if (as) { ringEl.setAttribute('cx', String(as.x)); ringEl.setAttribute('cy', String(as.y)); ringEl.setAttribute('r', String(Math.max(64, nb.size * 9) / 1 + 0)) }
+    ringEl.style.opacity = String(ringA * 0.9)
+  }
+  for (const p of parts) {
+    const sa = st.get(p.a), sb = st.get(p.b); if (!sa || !sb) continue
+    const u = (secs * 0.45 + p.ph) % 1
+    p.el.setAttribute('cx', String(sa.x + (sb.x - sa.x) * u)); p.el.setAttribute('cy', String(sa.y + (sb.y - sa.y) * u))
+    p.el.style.opacity = String(Math.sin(u * Math.PI))
+  }
+  // labels: priority declutter every few frames (screen space), eased visibility
+  if (frameNo % 6 === 0 || reduce) {
+    const sx = (x: number) => x * transform.k + transform.x, sy = (y: number) => y * transform.k + transform.y
+    const order = [...cur].sort((p, q) => score(q) - score(p))
+    function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
+    const placed: { x0: number; y0: number; x1: number; y1: number; id?: string }[] = cur.map(n => {
+      const s = st.get(n.id); const r = (R[n.kind] + 1) * transform.k
+      return s ? { x0: sx(s.x) - r, y0: sy(s.y) - r, x1: sx(s.x) + r, y1: sy(s.y) + r, id: n.id } : { x0: 0, y0: 0, x1: 0, y1: 0, id: n.id }
+    })
+    for (const n of order) {
+      const s = st.get(n.id); if (!s) continue
+      const lw = approx(n.label.length > 28 ? n.label.slice(0, 28) : n.label), lh = 13
+      const x0 = sx(s.x) + (R[n.kind] + 4) * transform.k, y0 = sy(s.y) - lh / 2
+      const box = { x0, y0, x1: x0 + lw, y1: y0 + lh }
+      const clash = placed.some(p => p.id !== n.id && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
+      const show = n.id === active || !clash
+      if (show) placed.push({ ...box, id: '#' + n.id })
+      ;(s as NState & { want?: number }).want = show ? 1 : 0
+    }
+  }
+  nodeSel.each(function (n) {
+    const s = st.get(n.id); if (!s) return
+    const e = (s as NState & { e?: number }).e ?? 1
+    const want = (s as NState & { want?: number }).want ?? 0
+    s.lbl += (want - s.lbl) * k(0.15)
+    const breathe = reduce ? 1 : 1 + 0.05 * Math.sin(nowT / 1000 * 0.9 + s.ph)
+    const g = this as SVGGElement
+    const c = g.firstChild as SVGCircleElement, t = g.lastChild as SVGTextElement
+    c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(R[n.kind] * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
+    c.style.opacity = String(Math.min(1, e * 1.5) * s.dim)
+    t.setAttribute('x', String(s.x + R[n.kind] + 4 / transform.k)); t.setAttribute('y', String(s.y + 3.6 / transform.k))
+    t.style.opacity = String(Math.min(1, e * 1.5) * s.dim * s.lbl)
+    t.classList.toggle('on', n.id === active)
+  })
 }
 
 /** Zooms so the whole graph fills the view once the layout settles (until the user zooms or pans themselves). */
@@ -212,12 +364,15 @@ function fit(nodes: GNode[]) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
   for (const n of nodes) { x0 = Math.min(x0, n.x!); y0 = Math.min(y0, n.y!); x1 = Math.max(x1, n.x! + 120 * (n.kind === 'seed' ? 1 : 0)); y1 = Math.max(y1, n.y!) }
   const { width, height } = wrap.value.getBoundingClientRect()
-  const k = Math.max(0.4, Math.min(1.8, (width - 80) / Math.max(1, x1 - x0), (height - 120) / Math.max(1, y1 - y0)))
-  const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2 + 10 / k)
+  const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - 160) / Math.max(1, y1 - y0)))
+  const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
   const sel = d3.select(svgEl.value)
   if (reduce) sel.call(zoomer.transform, t)
-  else sel.transition().duration(300).ease(d3.easeCubicOut).call(zoomer.transform, t)
+  else sel.transition().duration(900).ease(d3.easeCubicOut).call(zoomer.transform, t)
 }
+
+function fitNow() { userZoomed = false; fit(cur) }
+function replay() { userZoomed = false; render(true, true); fitNow() }
 
 function resize() {
   if (!svgEl.value || !wrap.value) return
@@ -230,20 +385,24 @@ onMounted(() => {
   const svg = d3.select(svgEl.value)
   zoomLayer = svg.append('g').attr('class', 'layer')
   zoomLayer.append('g').attr('class', 'edges')
+  partG = zoomLayer.append('g').attr('class', 'parts')
+  ringEl = zoomLayer.append('circle').attr('class', 'ring').node()
   zoomLayer.append('g').attr('class', 'nodes')
   zoomer = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 5]).on('zoom', e => {
     if (e.sourceEvent) userZoomed = true
+    transform = e.transform
+    svgEl.value!.style.setProperty('--fs', 10.5 / e.transform.k + 'px')
     zoomLayer!.attr('transform', e.transform.toString())
   })
-  svg.call(zoomer)
+  svg.call(zoomer).on('dblclick.zoom', null)
   resize()
   ro = new ResizeObserver(() => requestAnimationFrame(resize))
   if (wrap.value) ro.observe(wrap.value)
   render(false)
 })
-onBeforeUnmount(() => { sim?.stop(); sim = null; ro?.disconnect() })
+onBeforeUnmount(() => { sim?.stop(); sim = null; ro?.disconnect(); cancelAnimationFrame(raf); raf = 0 })
 
-// Re-render on structural change only (node ids + edges), animating while a run streams.
+// Re-render on structural change only (node ids + edges); new nodes bloom in from the centre or their linked node.
 const signature = computed(() => data.value.nodes.map(n => n.id + ':' + n.kind).join(',') + '#' + data.value.links.length)
 watch(signature, () => render(true))
 </script>
@@ -251,59 +410,75 @@ watch(signature, () => render(true))
 <template>
   <div ref="wrap" class="graphwrap">
     <svg ref="svgEl" role="img" aria-label="Vault graph: seeds, kept notes and candidates" />
+    <div class="grain" aria-hidden="true" />
+    <div class="eyebrow">Graph · {{ counts.seed + counts.lit + counts.note }} notes · {{ counts.lib }} library<template v-if="counts.ghost"> · {{ counts.ghost }} candidates</template></div>
     <div v-if="!data.nodes.length" class="empty">
       <template v-if="disc.status === 'running'"><b>Resolving seeds…</b> Seed notes appear here first, then candidates grow out of them.</template>
       <template v-else><b>The graph is empty.</b> Build a library from the Library tab: papers above the threshold appear here, linked to the notes they cite.</template>
     </div>
-    <div v-if="lib.status === 'running'" class="g-live" role="status"><i />Library building · passed papers appear when scoring finishes</div>
-    <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
-    <div class="g-legend">
-      <span><i style="background:var(--seed)" />Seed note · {{ counts.seed }}</span>
-      <span><i style="background:var(--cand)" />Kept note · {{ counts.lit }}</span>
-      <span><i style="background:var(--line-2)" />Note · {{ counts.note }}</span>
-      <span><i class="lib" />Library paper ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
-      <template v-if="counts.ghost"><span><i class="hollow" />Seed-run candidate · {{ counts.ghost }}</span>
-      <span><i class="hollow dashed" />Bridge (no citation link)</span></template>
+    <div class="g-status">
+      <div v-if="lib.status === 'running'" class="g-live" role="status"><i />Library building · passed papers appear when scoring finishes</div>
+      <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
     </div>
-    <div class="g-hint">scroll to zoom · drag to pan · click a node to open</div>
+    <div class="g-legend">
+      <span><i class="d seed" />Seed note · {{ counts.seed }}</span>
+      <span><i class="d note" />Note · {{ counts.lit + counts.note }}</span>
+      <span><i class="d lib" />Library ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
+      <span v-if="counts.ghost"><i class="d ghost" />Candidate · {{ counts.ghost }}</span>
+    </div>
+    <div class="corner">
+      <button class="icon-btn" type="button" title="Zoom to fit" aria-label="Zoom to fit" @click="fitNow">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 5.5v-4h4M10.5 1.5h4v4M14.5 10.5v4h-4M5.5 14.5h-4v-4" /></svg>
+      </button>
+      <button class="icon-btn" type="button" title="Replay bloom" aria-label="Replay bloom" @click="replay">
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M13.5 8a5.5 5.5 0 1 1-1.8-4.1M13 1.5v3h-3" /></svg>
+      </button>
+    </div>
     <div v-if="tip" class="tip" :style="{ left: tip.x + 'px', top: tip.y + 'px' }"><b>{{ tip.title }}</b><small>{{ tip.sub }}</small></div>
   </div>
 </template>
 
 <style scoped>
-.graphwrap{position:relative;height:100%;contain:size;min-height:440px;overflow:hidden;background:var(--surface)}
+.graphwrap{position:relative;height:100%;contain:size;min-height:440px;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--font-sans);transition:background .4s var(--reveal)}
 svg{width:100%;height:100%;display:block;cursor:grab}
 svg:active{cursor:grabbing}
-.empty{position:absolute;inset:40% 20% auto;text-align:center;color:var(--muted);font-size:13px}
-.g-legend{position:absolute;left:10px;bottom:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);background:color-mix(in srgb,var(--surface) 88%,transparent);padding:5px 8px;border-radius:6px}
-.g-legend span{display:inline-flex;gap:5px;align-items:center}
-.g-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
-.g-legend i.hollow{border:1.5px solid var(--cand);background:var(--surface)}
-.g-legend i.dashed{border-style:dashed}
-.g-legend i.lib{background:color-mix(in srgb,var(--warn) 35%,var(--surface));border:1.5px solid var(--warn)}
-.g-live{position:absolute;left:10px;top:8px;display:inline-flex;align-items:center;gap:6px;font:500 11px var(--font-mono);color:var(--fg);background:var(--cand-soft);border:1px solid var(--cand);border-radius:99px;padding:3px 9px}
-.g-live i{width:7px;height:7px;border-radius:50%;background:var(--cand);animation:blink 1s ease-in-out infinite}
+.grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:soft-light;opacity:.5;z-index:1;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.eyebrow,.g-legend,.g-live{font:500 10.5px/1.2 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-64)}
+.eyebrow{position:absolute;left:18px;top:16px;z-index:2;pointer-events:none}
+.empty{position:absolute;inset:42% 20% auto;text-align:center;color:var(--ink-64);font-size:13px;z-index:2}
+.empty b{color:var(--ink)}
+.g-status{position:absolute;left:18px;top:38px;z-index:2;display:flex;flex-direction:column;gap:6px}
+.g-live{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--hair);border-radius:99px;padding:4px 10px;background:var(--paper-2)}
+.g-live i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.3}}
 @media (prefers-reduced-motion: reduce){.g-live i{animation:none}}
-.g-hint{position:absolute;right:10px;top:8px;font:500 10.5px var(--font-mono);color:var(--muted)}
-.tip{position:absolute;pointer-events:none;max-width:320px;background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 4px 14px color-mix(in srgb,var(--fg) 12%,transparent);z-index:2}
-.tip small{color:var(--muted);font-family:var(--font-mono);font-size:10.5px}
-:deep(.ge){stroke:var(--line-2);stroke-width:1}
-:deep(.ge.cite){stroke-dasharray:2 2}
-:deep(.ge.hot){stroke:var(--cand);stroke-width:1.6}
+.g-legend{position:absolute;left:18px;bottom:16px;z-index:2;display:flex;flex-direction:column;gap:7px;pointer-events:none}
+.g-legend span{display:inline-flex;gap:9px;align-items:center}
+.g-legend .d{width:9px;height:9px;border-radius:50%;display:inline-block;box-sizing:border-box}
+.g-legend .d.seed{background:var(--ink)}
+.g-legend .d.note{background:var(--ink-64);width:7px;height:7px;margin:0 1px}
+.g-legend .d.lib{border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
+.g-legend .d.ghost{border:1.2px solid var(--ink-64);background:var(--paper)}
+.corner{position:absolute;right:18px;bottom:16px;z-index:2;display:flex;gap:8px}
+.icon-btn{width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--ink-26);background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:background .4s var(--reveal),border-color .4s var(--reveal),transform .4s var(--reveal)}
+.icon-btn:hover{background:var(--ink-8);border-color:var(--ink-46)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.tip{position:absolute;pointer-events:none;max-width:300px;background:var(--paper-2);border:1px solid var(--hair);border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.35;color:var(--ink);display:flex;flex-direction:column;gap:3px;z-index:3}
+.tip small{color:var(--ink-64);font:500 10px/1.3 var(--font-mono);letter-spacing:.04em}
+:deep(.ge){stroke:var(--ink);stroke-width:1;fill:none;transition:stroke .4s var(--reveal)}
+:deep(.ge.hot){stroke-width:1.2}
+:deep(.ring){fill:none;stroke:var(--ink-26);stroke-width:1;stroke-dasharray:2 4;pointer-events:none;opacity:0}
+:deep(.particle){fill:var(--ink);pointer-events:none}
 :deep(.gn){cursor:pointer;outline:none}
-:deep(.gn:focus-visible circle){stroke:var(--fg);stroke-width:2}
-:deep(.nd-seed){fill:var(--seed)}
-:deep(.nd-lit){fill:var(--cand)}
-:deep(.nd-note){fill:var(--line-2)}
-:deep(.nd-ghost){fill:var(--surface);stroke:var(--cand);stroke-width:1.6}
-:deep(.nd-lib){fill:color-mix(in srgb,var(--warn) 35%,var(--surface));stroke:var(--warn);stroke-width:1.6}
-:deep(.nd-bridge){fill:var(--surface);stroke:var(--cand);stroke-width:1.4;stroke-dasharray:3 2}
-:deep(.glbl){font:500 10px var(--font-mono);fill:var(--muted);pointer-events:none}
-:deep(.glbl-seed){font-weight:600;fill:var(--fg)}
-:deep(.gn.grow circle){transform-box:fill-box;transform-origin:center;animation:pop .28s cubic-bezier(.23,1,.32,1) both}
-:deep(.ge.grow){animation:fadein .28s ease-out both}
-@keyframes pop{from{opacity:0;transform:scale(.3)}}
-@keyframes fadein{from{opacity:0}}
-@media (prefers-reduced-motion: reduce){:deep(.gn.grow circle),:deep(.ge.grow){animation:none}}
+:deep(.gn:focus-visible circle){stroke:var(--ink);stroke-width:2}
+:deep(.nd){transition:fill .4s var(--reveal),stroke .4s var(--reveal)}
+:deep(.nd-seed){fill:var(--ink)}
+:deep(.nd-lit){fill:var(--ink-80)}
+:deep(.nd-note){fill:var(--ink-64)}
+:deep(.nd-ghost){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2}
+:deep(.nd-bridge){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2;stroke-dasharray:2.5 2}
+:deep(.nd-lib){fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.6}
+:deep(.glbl){font:400 var(--fs,10px) var(--font-sans);fill:var(--ink-64);pointer-events:none;transition:fill .4s var(--reveal)}
+:deep(.glbl.on){font-weight:700;fill:var(--ink)}
 </style>
