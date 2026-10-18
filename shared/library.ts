@@ -23,7 +23,8 @@ export const DEFAULT_WEIGHTS: Weights = { relevance: 0.3, graph: 0.15, citations
 export const LibraryRequest = z.object({
   notes: z.array(VaultNote).min(1),
   topK: z.number().int().min(5).max(200).default(30), // papers returned (UI parameter)
-  threshold: z.number().min(0).max(1).default(0.55), // total score needed to enter the citation graph
+  threshold: z.number().min(0).max(1).default(0.5), // absolute floor (D-27): never pass below this total
+  topPercent: z.number().min(1).max(100).default(25), // D-27: pass = top X% of this library AND total ≥ threshold
   sources: z.array(SourceName).default(['openalex', 'pubmed', 'arxiv', 'tavily', 'scholar']),
   weights: Weights.default(DEFAULT_WEIGHTS),
   maxCandidates: z.number().int().min(50).max(3000).default(600), // pile size cap before scoring
@@ -133,3 +134,38 @@ export type LibraryEvent = z.infer<typeof LibraryEvent>
 //   GET  /api/library/:id                   { goals, papers: LibPaper[] (all scored), request }
 //   GET  /api/library/:id/papers/:paperId   the per-paper JSON file (LibPaper)
 // Files: ${DATA_DIR}/library/<libraryId>/{goals.json, library.json, papers/<paperId>.json}; traces in logs/runs/<libraryId>/.
+
+// ---- Chat (D-26, D-29) -------------------------------------------------------------------------------
+export const ChatMessage = z.object({ role: z.enum(['user', 'assistant']), content: z.string() })
+export type ChatMessage = z.infer<typeof ChatMessage>
+export const Filters = z.object({
+  kinds: z.array(z.string()).optional(), // Labels.kind values to keep
+  minYear: z.number().optional(),
+  maxYear: z.number().optional(),
+  openAccessOnly: z.boolean().optional(),
+  peerReviewedOnly: z.boolean().optional(),
+})
+export type Filters = z.infer<typeof Filters>
+export const Proposal = z.object({ // never applied by the server; the user clicks Apply in the UI
+  weights: Weights.partial().optional(),
+  topPercent: z.number().min(1).max(100).optional(),
+  threshold: z.number().min(0).max(1).optional(),
+  filters: Filters.optional(),
+  rationale: z.string(),
+})
+export type Proposal = z.infer<typeof Proposal>
+export const ChatRequest = z.object({
+  messages: z.array(ChatMessage).min(1), // full history, last one is the user's
+  current: z.object({ weights: Weights, topPercent: z.number(), threshold: z.number(), filters: Filters }),
+})
+export type ChatRequest = z.infer<typeof ChatRequest>
+export const ChatResponse = z.object({
+  reply: z.string(), // markdown; cite papers as [#rank Title]
+  cited: z.array(z.object({ rank: z.number(), paperId: z.string(), title: z.string() })),
+  proposal: Proposal.nullable(),
+  model: z.string().nullable(),
+})
+export type ChatResponse = z.infer<typeof ChatResponse>
+//   POST /api/library/:id/chat     ChatRequest -> ChatResponse   (logged to logs/runs/<id>/chat.jsonl)
+//   POST /api/library/:id/applied  { prompt, proposal, before: string[], after: string[] } -> { ok }  (logs an applied change)
+

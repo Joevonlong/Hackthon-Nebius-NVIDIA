@@ -282,7 +282,7 @@ Open findings (need a decision before changing):
 
 ---
 
-## 14. Change request CR-2 · Feedback from 王星然 (proposed 16:10 — awaiting confirmation)
+## 14. Change request CR-2 · Feedback from 王星然 (confirmed 16:20)
 
 | # | Feedback (verbatim, shortened) | Proposed requirement | Card | Lane | Est |
 |---|---|---|---|---|---|
@@ -294,3 +294,18 @@ Open findings (need a decision before changing):
 | — | Pending from CR-1 | Threshold behaviour (0.55 passes ~85%) and the loose `subtopics` label | F-49 | core | 20m |
 
 Order if confirmed: F-47 (after design pick) ∥ F-45 ∥ F-49 → F-46 → F-48. F-45 builds on the IMS-style graph from D-24/F-40 (another session). Total ≈ 3 h of agent work; with three parallel agents ≈ 75 min.
+
+### CR-2 decisions (16:20; user accepted the recommended defaults)
+| # | Decision |
+|---|---|
+| D-25 | Score visualization: **D "verdict first"** in the result list (one plain sentence, top 2 strengths + main weakness chips, total) and **A "report card"** in "Why this score" (overall letter grade, one row per component: letter grade, one-line reason, weight; evidence folded under each row). Grades: A ≥ 0.85, B ≥ 0.70, C ≥ 0.55, D ≥ 0.40, else E. The six-colour stacked bar goes away. |
+| D-26 | Chat lives in **its own column on the far right**, collapsible; multi-round history per library, persisted in the browser. |
+| D-27 | Pass rule: **top X% of each library** (default 25%) with an absolute floor of 0.50; both adjustable in the UI and by the chat agent. `threshold` in the request becomes the floor. |
+| D-28 | `subtopics` label: only subtopics whose cosine is within 0.05 of the paper's best match and ≥ the library's 60th percentile (keyword fallback: ≥2 keyword hits). |
+| D-29 | Chat agent tools: answer questions from the library JSON (cite papers by rank and title); **propose** weight / pass-rule / filter changes as a diff with a rationale; the user clicks Apply; the list re-scores in the browser and shows rank moves; every applied change is logged (prompt, diff, before/after top 10) to `logs/runs/<libraryId>/chat.jsonl`. |
+
+| Card | Owner lane | Status |
+|---|---|---|
+| F-45 node radius ∝ score · F-47 score design A + D · F-49 pass-rule UI | U1 | building |
+| F-46 chat column · F-48 chat adjusts weights · F-49 server (pass rule, subtopics) | U2 | building |
+
