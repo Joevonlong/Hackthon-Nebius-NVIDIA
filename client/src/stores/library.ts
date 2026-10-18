@@ -1,11 +1,16 @@
-// Library mode state (lane L3). POST /api/library with every vault note, then the SSE stream of LibraryEvents.
-// Falls back to the dev mock (client/src/library/mock.ts) with ?mock=1 or when the server route is missing.
+// Library mode state (lanes L3, U1). POST /api/library with every vault note, then the SSE stream of LibraryEvents.
+// R-3.1 / F-50: no automatic mock fallback. A failed request shows an error with Retry. The dev mock
+// (client/src/library/mock.ts) loads only in dev builds with ?mock=1 (dynamic import, dropped from production builds).
+// ?demo=1 replays a recorded REAL run: GET /api/demo/library/stream + /api/demo/library (+ /papers/:paperId).
+// D-27: passed = rank within the top X% of the scored, non-excluded papers AND total ≥ the minimum score; re-computed
+// in the browser whenever weights, the pass rule or the filters change. Lane U2's chat uses applyProposal() / currentSettings().
 import { defineStore } from 'pinia'
-import { DEFAULT_WEIGHTS, LibPaper, LibraryEvent, LibraryRequest, SourceName, type Goals, type Weights } from '@shared/library'
+import { DEFAULT_WEIGHTS, LibPaper, LibraryEvent, LibraryRequest, SourceName, type Filters, type Goals, type Proposal, type Weights } from '@shared/library'
 import { Seed } from '@shared/contracts'
 import { useVault } from './vault'
-import { buildSeedNote } from '../discover/literatureNote'
-import { rescore, sameWeights } from '../library/score'
+import { noteName } from './vault-utils'
+import { buildSeedNote, firstAuthor, lastName } from '../discover/literatureNote'
+import { matchesFilters, passCut, rescore, sameWeights } from '../library/score'
 
 export type LibStageName = 'goals' | 'search' | 'expand' | 'normalize' | 'enrich' | 'label' | 'score' | 'llm' | 'select'
 export const LIB_STAGES: LibStageName[] = ['goals', 'search', 'expand', 'normalize', 'enrich', 'label', 'score', 'llm', 'select']
@@ -13,14 +18,21 @@ export const LIB_STAGE_LABEL: Record<LibStageName, string> = {
   goals: 'Goals', search: 'Search', expand: 'Expand', normalize: 'Dedupe', enrich: 'Enrich', label: 'Label', score: 'Score', llm: 'LLM read', select: 'Select',
 }
 export const SOURCE_LABEL: Record<SourceName, string> = { openalex: 'OpenAlex', pubmed: 'PubMed', arxiv: 'arXiv', tavily: 'Tavily', scholar: 'Google Scholar' }
-export type LibMode = 'live' | 'mock'
+/** Sources offered in the UI and sent with a build: Google Scholar is dropped (D-21, J-5). */
+export const UI_SOURCES: SourceName[] = SourceName.options.filter(s => s !== 'scholar')
+/** J-3: "Recent (≤ 3 years)" = published in or after this year. */
+export const RECENT_FROM = new Date().getFullYear() - 3
+export type LibMode = 'live' | 'demo' | 'mock'
 export interface LibStage { name: LibStageName; status: 'pending' | 'start' | 'done' | 'skipped' | 'error'; count?: number; ms?: number; message?: string }
 export interface SourceCall { source: SourceName; query: string; count: number; ms: number; error?: string }
+export interface LibSettings { weights: Weights; topPercent: number; threshold: number; filters: Filters }
 type RunReq = Extract<LibraryEvent, { type: 'library' }>['request']
 
 const freshStages = (): LibStage[] => LIB_STAGES.map(name => ({ name, status: 'pending' }))
-const isMockParam = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('mock') === '1'
+const param = (k: string) => typeof location !== 'undefined' && new URLSearchParams(location.search).get(k) === '1'
+const isDemoParam = () => param('demo')
 const EVENT_TYPES = ['library', 'stage', 'goals', 'source', 'papers', 'done', 'error']
+const DEMO_BASE = '/api/demo/library'
 
 let es: EventSource | null = null
 let stopMock: (() => void) | null = null
@@ -33,12 +45,18 @@ function parse(raw: string): LibraryEvent | null {
   if (!r.success) { console.warn('[library] skipped invalid LibraryEvent', r.error.issues.slice(0, 3)); return null }
   return r.data
 }
+const httpMessage = (what: string, status: number) =>
+  status === 404 ? `${what} → 404: the server has no such route or library.` : status >= 500 ? `${what} → ${status}: the server failed.` : `${what} → ${status}.`
+const netMessage = (what: string) => `${what}: the server is unreachable (network error). Is it running?`
 
 export const useLibrary = defineStore('library', {
   state: () => ({
     // controls
-    topK: 30, threshold: 0.55,
-    sources: [...SourceName.options] as SourceName[],
+    topK: 30,
+    threshold: 0.5, // D-27: minimum score (absolute floor)
+    topPercent: 25, // D-27: pass = top X% of this library
+    filters: {} as Filters,
+    sources: [...UI_SOURCES] as SourceName[],
     weights: { ...DEFAULT_WEIGHTS } as Weights,
     // run
     libraryId: null as string | null,
@@ -50,49 +68,108 @@ export const useLibrary = defineStore('library', {
     goals: null as Goals | null,
     calls: [] as SourceCall[],
     stages: freshStages(),
-    papers: [] as LibPaper[], // top topK as streamed
+    streamed: [] as LibPaper[], // top topK as streamed
     allPapers: [] as LibPaper[], // every scored paper (GET /api/library/:id), when available
     total: 0, passed: 0, ms: null as number | null, dir: null as string | null,
     runCount: 0,
-    // result filters
+    // rank moves after a chat proposal was applied (cleared by the next build)
+    rankBefore: null as Record<string, number> | null,
+    lastApplied: null as { rationale: string; at: number } | null,
+    // result-view-only filters
+    passedOnly: false, filterSource: '' as '' | SourceName,
     // seeds (D-23)
     seedBusy: false, seedAdded: [] as string[], seedErrors: [] as { input: string; message: string }[],
-    filterKind: '' as string, passedOnly: false, filterSource: '' as '' | SourceName,
   }),
   getters: {
     /** Scholar skipped for lack of SERPAPI_KEY (reported by a source call or the search stage message). */
     scholarSkipped: s => s.calls.some(c => c.source === 'scholar' && /SERPAPI/i.test(c.error || '')) || s.stages.some(st => /SERPAPI/i.test(st.message || '')),
-    /** True when the current weights or threshold differ from the ones the run used (scores are re-computed locally). */
-    reweighted: s => !!s.runRequest && (!sameWeights(s.weights, s.runRequest.weights) || Math.abs(s.threshold - s.runRequest.threshold) > 1e-9),
-    /** The whole scored pile with the current weights/threshold applied (server values untouched when unchanged). */
-    scored(): LibPaper[] {
-      const base = this.allPapers.length ? this.allPapers : this.papers
-      if (!this.reweighted) return [...base].sort((a, b) => a.rank - b.rank)
-      return rescore(base, this.weights, this.threshold)
+    /** True when the current weights differ from the ones the run used (totals are re-computed locally). */
+    reweighted: s => !!s.runRequest && !sameWeights(s.weights, s.runRequest.weights),
+    /** Every scored paper with the current weights and pass rule applied, ranked (excluded last). */
+    papers(): LibPaper[] {
+      const base = this.allPapers.length ? this.allPapers : this.streamed
+      return rescore(base, { topPercent: this.topPercent, threshold: this.threshold, weights: this.reweighted ? this.weights : undefined })
     },
-    /** Top topK of the scored pile (passed first). */
-    top(): LibPaper[] { return this.scored.slice(0, this.topK) },
+    /** Alias kept for older callers (App.vue status line). */
+    scored(): LibPaper[] { return this.papers },
+    /** Scored papers that match the result filters (kinds, years, OA, peer review). */
+    view(): LibPaper[] { return this.papers.filter(p => matchesFilters(p, this.filters)) },
+    /** Top topK of the filtered view. */
+    top(): LibPaper[] { return this.view.slice(0, this.topK) },
     filtered(): LibPaper[] {
-      return this.top.filter(p => (!this.filterKind || p.labels.kind === this.filterKind)
-        && (!this.passedOnly || p.passed) && (!this.filterSource || p.labels.sources.includes(this.filterSource)))
+      return this.top.filter(p => (!this.passedOnly || p.passed) && (!this.filterSource || p.labels.sources.includes(this.filterSource)))
     },
     passedTop(): LibPaper[] { return this.top.filter(p => p.passed && !p.excluded) },
+    /** Every passed paper in the filtered view (the graph layer). */
+    passedAll(): LibPaper[] { return this.view.filter(p => p.passed && !p.excluded) },
+    eligibleCount(): number { return this.papers.filter(p => !p.excluded).length },
+    passedCount(): number { return this.papers.filter(p => p.passed).length },
+    /** Number of papers inside the top X% (before the minimum score). */
+    cutCount(): number { return passCut(this.eligibleCount, this.topPercent) },
     /** Papers the pile has beyond what was streamed: true when topK exceeds what we hold. */
-    short(): boolean { return this.topK > this.scored.length && this.scored.length < this.total },
-    byId(): (id: string) => LibPaper | undefined { return (id: string) => this.scored.find(p => p.paper.id === id) },
+    short(): boolean { return this.topK > this.view.length && this.papers.length < this.total },
+    byId(): (id: string) => LibPaper | undefined { return (id: string) => this.papers.find(p => p.paper.id === id) },
+    /**
+     * J-5: readable name for a known-paper label "K<n>" (= goals.knownPapers[n-1]): the vault seed note's name
+     * ("S1 Tirosh 2016"), else "Author Year" of the library paper with that id, else the raw id.
+     */
+    knownName(): (k: string) => string {
+      const vault = useVault()
+      return (k: string) => {
+        const id = this.goals?.knownPapers[Number(k.replace(/^K/i, '')) - 1]?.replace(/[`'"]+$/, '').toLowerCase()
+        if (!id) return k
+        const bare = id.replace(/^pmid:/, '')
+        const note = vault.notes.find(n => n.paperId?.toLowerCase() === id)
+          || vault.notes.find(n => n.kind === 'seed' && n.content.toLowerCase().includes(bare))
+        if (note) return noteName(note.path)
+        const p = this.papers.find(x => x.paper.id.toLowerCase() === id || x.paper.doi?.toLowerCase() === id || (x.paper.pmid && 'pmid:' + x.paper.pmid === id))
+        return p ? `${lastName(firstAuthor(p.paper))} ${p.paper.year ?? ''}`.trim() : id
+      }
+    },
+    /** Replaces every K<n> label in an evidence text with the known paper's readable name. */
+    deK(): (text: string) => string { return (text: string) => text.replace(/\bK(\d{1,3})\b/g, m => this.knownName(m)) },
+    /** Rank change since the last applied proposal (positive = moved up), or null. */
+    rankMove(): (id: string, rank: number) => number | null {
+      return (id: string, rank: number) => {
+        const b = this.rankBefore?.[id]
+        return b == null || b === rank ? null : b - rank
+      }
+    },
   },
   actions: {
     reset() {
       es?.close(); es = null; stopMock?.(); stopMock = null; mockAll = []
       this.libraryId = null; this.status = 'idle'; this.mode = null; this.notice = null; this.error = null; this.runRequest = null
-      this.goals = null; this.calls = []; this.stages = freshStages(); this.papers = []; this.allPapers = []
-      this.total = 0; this.passed = 0; this.ms = null; this.dir = null
+      this.goals = null; this.calls = []; this.stages = freshStages(); this.streamed = []; this.allPapers = []
+      this.total = 0; this.passed = 0; this.ms = null; this.dir = null; this.rankBefore = null; this.lastApplied = null
     },
     resetWeights() { this.weights = { ...DEFAULT_WEIGHTS } },
 
+    /** The settings the chat agent sees (plain copies). */
+    currentSettings(): LibSettings {
+      return { weights: { ...this.weights }, topPercent: this.topPercent, threshold: this.threshold, filters: JSON.parse(JSON.stringify(this.filters)) }
+    },
+
+    /**
+     * D-29: applies a chat proposal (weights / pass rule / filters merged into the current settings), re-scores in the
+     * browser and returns the top-10 paper ids of the filtered view before and after. Rank moves show until the next build.
+     */
+    applyProposal(p: Proposal): { before: string[]; after: string[] } {
+      const before = this.view.slice(0, 10).map(x => x.paper.id)
+      this.rankBefore = Object.fromEntries(this.papers.map(x => [x.paper.id, x.rank]))
+      if (p.weights) this.weights = { ...this.weights, ...Object.fromEntries(Object.entries(p.weights).filter(([, v]) => typeof v === 'number')) }
+      if (p.topPercent != null) this.topPercent = Math.min(100, Math.max(1, Math.round(p.topPercent)))
+      if (p.threshold != null) this.threshold = Math.min(1, Math.max(0, p.threshold))
+      if (p.filters) this.filters = { ...this.filters, ...p.filters }
+      this.lastApplied = { rationale: p.rationale, at: Date.now() }
+      const after = this.view.slice(0, 10).map(x => x.paper.id)
+      return { before, after }
+    },
+    clearFilters() { this.filters = {} },
+
     request(): LibraryRequest {
       const notes = useVault().notes.map(n => ({ path: n.path, title: n.title, content: n.content }))
-      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, sources: this.sources, weights: { ...this.weights } })
+      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent, sources: this.sources, weights: { ...this.weights } })
     },
 
     async start() {
@@ -101,26 +178,28 @@ export const useLibrary = defineStore('library', {
       try { req = this.request() } catch { this.status = 'error'; this.error = 'The vault has no notes to read. Write at least one note first.'; return }
       this.status = 'running'
       const my = ++this.runCount
-      if (isMockParam()) return this.runMock(req, null)
+      if (import.meta.env.DEV && param('mock')) return this.runMock(req)
+      if (isDemoParam()) { this.mode = 'demo'; this.libraryId = 'demo-melanoma'; return this.openStream(`${DEMO_BASE}/stream`, my) }
       let libraryId: string
       try {
         const res = await fetch('/api/library', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(req) })
         if (my !== this.runCount) return
-        if (!res.ok) {
-          if ([404, 500, 502, 503, 504].includes(res.status)) return this.runMock(req, `POST /api/library → ${res.status}`)
-          throw new Error(`POST /api/library → ${res.status}: ${(await res.text()).slice(0, 200)}`)
-        }
+        if (!res.ok) throw new Error(httpMessage('POST /api/library', res.status))
         const body = await res.json() as { libraryId?: string }
-        if (!body.libraryId) return this.runMock(req, 'POST /api/library returned no libraryId')
+        if (!body.libraryId) throw new Error('POST /api/library returned no libraryId.')
         libraryId = body.libraryId
       } catch (e) {
         if (my !== this.runCount) return
-        if (e instanceof TypeError) return this.runMock(req, 'server unreachable')
-        this.status = 'error'; this.error = (e as Error).message; return
+        this.status = 'error'; this.error = e instanceof TypeError ? netMessage('POST /api/library') : (e as Error).message
+        return
       }
       this.mode = 'live'; this.libraryId = libraryId
+      this.openStream(`/api/library/${encodeURIComponent(libraryId)}/stream`, my)
+    },
+
+    openStream(url: string, my: number) {
       let got = false
-      const src = new EventSource(`/api/library/${encodeURIComponent(libraryId)}/stream`)
+      const src = new EventSource(url)
       es = src
       const onData = (e: MessageEvent) => {
         if (my !== this.runCount) return
@@ -132,17 +211,18 @@ export const useLibrary = defineStore('library', {
       src.addEventListener('message', onData)
       for (const t of EVENT_TYPES) src.addEventListener(t, onData as EventListener)
       src.onerror = () => {
-        if (my !== this.runCount || this.status !== 'running') { src.close(); return }
         src.close()
-        if (!got) void this.runMock(req, 'library stream unavailable')
-        else { this.status = 'error'; this.error = 'Connection to the library stream was lost.' }
+        if (my !== this.runCount || this.status !== 'running') return
+        this.status = 'error'
+        this.error = got ? 'Connection to the library stream was lost.' : `The library stream (${url}) is unavailable.`
       }
     },
 
-    async runMock(req: LibraryRequest, reason: string | null) {
+    async runMock(req: LibraryRequest) {
+      if (!import.meta.env.DEV) return
       const { playLibraryMock } = await import('../library/mock')
       this.mode = 'mock'
-      if (reason) { console.warn('[library] falling back to mock:', reason); this.notice = `Library server unavailable (${reason}); showing the dev mock.` }
+      this.notice = 'Dev mock (?mock=1): fixture data, not a real run.'
       const my = this.runCount
       const m = playLibraryMock(req, ev => { if (my === this.runCount) this.apply(ev) })
       stopMock = m.stop; mockAll = m.all
@@ -158,9 +238,10 @@ export const useLibrary = defineStore('library', {
         }
         case 'goals': this.goals = ev.goals; break
         case 'source': this.calls.push({ source: ev.source, query: ev.query, count: ev.count, ms: ev.ms, error: ev.error }); break
-        case 'papers': this.papers = ev.papers; this.total = ev.total; this.passed = ev.passed; break
+        case 'papers': this.streamed = ev.papers; this.total = ev.total; this.passed = ev.passed; break
         case 'done':
-          this.status = 'done'; this.total = ev.total; this.passed = ev.passed; this.ms = ev.ms; this.dir = ev.dir; this.libraryId = ev.libraryId
+          this.status = 'done'; this.total = ev.total; this.passed = ev.passed; this.ms = ev.ms; this.dir = ev.dir
+          if (this.mode !== 'demo') this.libraryId = ev.libraryId
           for (const st of this.stages) if (st.status === 'start') st.status = 'done'
           if (!this.runRequest) this.runRequest = { topK: this.topK, threshold: this.threshold, sources: [...this.sources], weights: { ...this.weights } }
           void this.loadAll()
@@ -169,18 +250,19 @@ export const useLibrary = defineStore('library', {
       }
     },
 
-    /** Every scored paper, so topK / weights / threshold can be explored without another run. */
+    /** Every scored paper, so topK / weights / pass rule can be explored without another run. */
     async loadAll() {
       if (this.mode === 'mock') { this.allPapers = mockAll; return }
       if (!this.libraryId) return
+      const url = this.mode === 'demo' ? DEMO_BASE : `/api/library/${encodeURIComponent(this.libraryId)}`
       try {
-        const res = await fetch(`/api/library/${encodeURIComponent(this.libraryId)}`)
-        if (!res.ok) return
+        const res = await fetch(url)
+        if (!res.ok) { this.notice = `${httpMessage('GET ' + url, res.status)} Showing the streamed top ${this.streamed.length} only.`; return }
         const body = await res.json() as { papers?: unknown[] }
         const ok: LibPaper[] = []
         for (const p of body.papers || []) { const r = LibPaper.safeParse(p); if (r.success) ok.push(r.data) }
         if (ok.length) this.allPapers = ok
-      } catch { /* keep the streamed top N */ }
+      } catch { this.notice = `${netMessage('GET ' + url)} Showing the streamed top ${this.streamed.length} only.` }
     },
 
     /**
@@ -194,18 +276,19 @@ export const useLibrary = defineStore('library', {
       this.seedBusy = true
       let out: { seeds: Seed[]; errors: { input: string; message: string }[] }
       try {
-        if (isMockParam()) throw new TypeError('mock')
-        const res = await fetch('/api/seeds/resolve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs }) })
-        if (!res.ok) {
-          if ([404, 500, 502, 503, 504].includes(res.status)) throw new TypeError(String(res.status))
-          throw new Error(`POST /api/seeds/resolve → ${res.status}`)
+        if (import.meta.env.DEV && param('mock')) {
+          const { mockResolveSeeds } = await import('../library/mock')
+          out = mockResolveSeeds(inputs)
+        } else {
+          const res = await fetch('/api/seeds/resolve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs }) })
+          if (!res.ok) throw new Error(httpMessage('POST /api/seeds/resolve', res.status))
+          const body = await res.json() as { seeds?: unknown[]; errors?: { input: string; message: string }[] }
+          out = { seeds: (body.seeds || []).map(s => Seed.safeParse(s)).filter(r => r.success).map(r => r.data!), errors: body.errors || [] }
         }
-        const body = await res.json() as { seeds?: unknown[]; errors?: { input: string; message: string }[] }
-        out = { seeds: (body.seeds || []).map(s => Seed.safeParse(s)).filter(r => r.success).map(r => r.data!), errors: body.errors || [] }
       } catch (e) {
-        if (!(e instanceof TypeError)) { this.seedBusy = false; this.seedErrors = [{ input: '', message: (e as Error).message }]; return }
-        const { mockResolveSeeds } = await import('../library/mock')
-        out = mockResolveSeeds(inputs)
+        this.seedBusy = false
+        this.seedErrors = [{ input: '', message: e instanceof TypeError ? netMessage('POST /api/seeds/resolve') : (e as Error).message }]
+        return
       }
       const vault = useVault()
       let n = vault.notes.filter(x => x.kind === 'seed').reduce((m, x) => Math.max(m, Number(x.path.match(/^Seeds\/S(\d+)/)?.[1] || 0)), 0)
@@ -221,15 +304,20 @@ export const useLibrary = defineStore('library', {
       this.seedBusy = false
     },
 
-    /** The per-paper JSON file (GET /api/library/:id/papers/:paperId); the mock serves it from memory. */
+    /** The per-paper JSON file (GET /api/library/:id/papers/:paperId); the dev mock serves it from memory. */
     async fetchPaperJson(paperId: string): Promise<unknown> {
-      if (this.mode === 'mock' || !this.libraryId) {
-        const p = mockAll.find(x => x.paper.id === paperId) || this.papers.find(x => x.paper.id === paperId)
+      if (this.mode === 'mock') {
+        const p = mockAll.find(x => x.paper.id === paperId) || this.streamed.find(x => x.paper.id === paperId)
         if (!p) throw new Error(`Paper ${paperId} is not in this library.`)
         return JSON.parse(JSON.stringify(p))
       }
-      const res = await fetch(`/api/library/${encodeURIComponent(this.libraryId)}/papers/${encodeURIComponent(paperId)}`)
-      if (!res.ok) throw new Error(`GET /api/library/${this.libraryId}/papers/${paperId} → ${res.status}`)
+      if (!this.libraryId) throw new Error('No library loaded.')
+      const url = this.mode === 'demo'
+        ? `${DEMO_BASE}/papers/${encodeURIComponent(paperId)}`
+        : `/api/library/${encodeURIComponent(this.libraryId)}/papers/${encodeURIComponent(paperId)}`
+      let res: Response
+      try { res = await fetch(url) } catch { throw new Error(netMessage('GET ' + url)) }
+      if (!res.ok) throw new Error(httpMessage('GET ' + url, res.status))
       return res.json()
     },
   },

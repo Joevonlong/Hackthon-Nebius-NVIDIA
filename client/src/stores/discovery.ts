@@ -101,7 +101,7 @@ export const useDiscovery = defineStore('discovery', {
     error: null as string | null,
     errorStage: null as StageName | null,
     mode: null as RunMode | null,
-    notice: null as string | null, // e.g. "server unavailable, showing the dev mock"
+    notice: null as string | null,
     ms: null as number | null,
     runCount: 0,
     feedback: {} as Record<string, Feedback>,
@@ -132,7 +132,6 @@ export const useDiscovery = defineStore('discovery', {
         handle = await runDiscovery({ question: this.question.trim(), seeds: seeds.slice(0, 20), preset: this.preset }, {
           onEvent: ev => { if (myRun === this.runCount) this.apply(ev) },
           onTransportError: msg => { if (myRun === this.runCount && this.status === 'running') { this.status = 'error'; this.error = msg } },
-          onFallback: reason => { if (myRun === this.runCount) this.notice = `Server unavailable (${reason}); showing the dev mock.` },
         })
         if (myRun === this.runCount) this.mode = handle.mode
       } catch (e) {

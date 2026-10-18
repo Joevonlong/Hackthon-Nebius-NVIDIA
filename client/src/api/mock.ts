@@ -1,7 +1,7 @@
 // Dev mock of the discovery stream. Owner: lane C.
 // Turns docs/data/melanoma-lanes-snapshot.json (a real R1–R3 run, 13:00) into contract-valid RunEvents with
 // realistic pacing. Abstracts, facet scores and judgements are NOT real: they are labeled "mock" so nobody
-// mistakes them for model output. Used with ?mock=1 or when the server is unavailable.
+// mistakes them for model output. Dev builds only, with ?mock=1 (never a fallback, R-3.1).
 import snapshot from '../../../docs/data/melanoma-lanes-snapshot.json'
 import { RunEvent, type Candidate, type Judgement, type Lane, type Paper, type RouteId, type RunRequest, type Seed, type Signal } from '@shared/contracts'
 import { PRESETS } from '@shared/config'

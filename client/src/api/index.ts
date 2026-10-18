@@ -1,6 +1,7 @@
 // Discovery API client. Owner: lane C.
 // startRun → POST /api/runs; stream → EventSource /api/runs/:id/stream (or /api/demo/stream with ?demo=1).
-// Falls back to the dev mock (./mock.ts) when the server is missing (404 / connection error) or with ?mock=1.
+// R-3.1 / F-50: no automatic mock fallback; failures throw and the caller shows an error with Retry.
+// The dev mock (./mock.ts) loads only in dev builds with ?mock=1 (dynamic import, dropped from production builds).
 import { RunEvent, type RunRequest } from '@shared/contracts'
 
 export type RunMode = 'live' | 'demo' | 'mock'
@@ -9,8 +10,6 @@ export interface RunHandlers {
   onEvent(ev: RunEvent): void
   /** Transport failure after the stream started (not a pipeline 'error' event). */
   onTransportError(message: string): void
-  /** Called when the client switches to the mock because the server is unavailable. */
-  onFallback?(reason: string): void
 }
 
 const params = () => new URLSearchParams(typeof location === 'undefined' ? '' : location.search)
@@ -39,8 +38,8 @@ export async function startRun(req: RunRequest): Promise<{ runId: string }> {
 }
 
 /**
- * Opens an SSE stream and forwards validated events. Resolves `opened` false if the stream
- * failed before any event arrived (so the caller can fall back to the mock).
+ * Opens an SSE stream and forwards validated events. Resolves `firstEvent` false if the stream
+ * failed before any event arrived (the caller reports an error).
  */
 export function stream(url: string, h: RunHandlers): { close(): void; firstEvent: Promise<boolean> } {
   const es = new EventSource(url)
@@ -64,31 +63,24 @@ export function stream(url: string, h: RunHandlers): { close(): void; firstEvent
   return { close: () => { finished = true; es.close() }, firstEvent }
 }
 
-async function runMock(req: RunRequest, h: RunHandlers): Promise<RunHandle> {
-  const { playMock } = await import('./mock')
-  const stop = playMock(req, h.onEvent)
-  return { mode: 'mock', close: stop }
-}
-
 /** Starts a discovery run in the right mode and streams its events into the handlers. */
 export async function runDiscovery(req: RunRequest, h: RunHandlers): Promise<RunHandle> {
-  if (isMock()) return runMock(req, h)
-  const fallback = (reason: string) => { console.warn('[api] falling back to mock:', reason); h.onFallback?.(reason); return runMock(req, h) }
-
+  if (import.meta.env.DEV && isMock()) {
+    const { playMock } = await import('./mock')
+    return { mode: 'mock', close: playMock(req, h.onEvent) }
+  }
   if (isDemo()) {
     const s = stream('/api/demo/stream', h)
-    if (!(await s.firstEvent)) return fallback('GET /api/demo/stream unavailable')
+    if (!(await s.firstEvent)) throw new Error('GET /api/demo/stream is unavailable.')
     return { mode: 'demo', close: s.close }
   }
-
   let runId: string
   try { runId = (await startRun(req)).runId }
   catch (e) {
-    const status = e instanceof HttpError ? e.status : 0
-    if (status === 0 || status === 404 || status === 500 || status === 502 || status === 503 || status === 504) return fallback(String((e as Error).message || e))
+    if (e instanceof TypeError) throw new Error('POST /api/runs: the server is unreachable (network error).')
     throw e
   }
   const s = stream(`/api/runs/${encodeURIComponent(runId)}/stream`, h)
-  if (!(await s.firstEvent)) return fallback(`stream for ${runId} unavailable`)
+  if (!(await s.firstEvent)) throw new Error(`The stream for run ${runId} is unavailable.`)
   return { mode: 'live', close: s.close }
 }
