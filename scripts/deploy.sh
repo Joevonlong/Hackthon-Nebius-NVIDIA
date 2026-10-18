@@ -21,14 +21,16 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 run() { if [[ $DRY_RUN == 1 ]]; then printf '[dry-run] %s\n' "$*"; else "$@"; fi; }
 
 # 1. Tools and login
+export PATH="$HOME/.nebius/bin:$PATH"
 command -v docker >/dev/null || die "docker not found"
 command -v jq >/dev/null || die "jq not found (brew install jq)"
 if ! command -v nebius >/dev/null; then
   [[ $DRY_RUN == 1 ]] || die "nebius CLI not found. Install: curl -sSL https://artifacts.nebius.cloud/cli/install.sh | bash ; then: nebius profile create"
   say "nebius CLI not installed (dry run continues)"
 else
-  nebius profile current >/dev/null 2>&1 || nebius profile list >/dev/null 2>&1 || {
-    [[ $DRY_RUN == 1 ]] || die "no Nebius profile; run: nebius profile create"
+  nebius iam whoami >/dev/null 2>&1 || {
+    [[ $DRY_RUN == 1 ]] || die "Nebius CLI not logged in; run: nebius profile create"
+    say "Nebius CLI not logged in (dry run continues)"
   }
 fi
 
