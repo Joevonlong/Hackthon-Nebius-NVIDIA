@@ -8,6 +8,7 @@ import { useVault } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName, resolveLink } from '../stores/vault-utils'
 import './zettlr/editor.css'
+import InlineTitle from './InlineTitle.vue'
 
 const props = defineProps<{ path: string }>()
 const emit = defineEmits<{ (e: 'saving', v: boolean): void }>()
@@ -67,14 +68,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="pt-editor" ref="host" />
+  <div class="pt-editor">
+    <InlineTitle :key="path" :path="path" />
+    <div ref="host" class="pt-host" />
+  </div>
 </template>
 
 <style>
 .pt-editor{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--surface)}
+.pt-editor .pt-host{flex:1;min-height:0;display:flex;flex-direction:column}
 .pt-editor .cm-editor{flex:1;min-height:0}
 .pt-editor .cm-scroller{overflow:auto;justify-content:center}
-.pt-editor .cm-content{flex-grow:0;width:100%;max-width:780px;padding:26px 36px 160px;caret-color:var(--seed)}
+.pt-editor .cm-content{flex-grow:0;width:100%;max-width:780px;padding:10px 36px 160px;caret-color:var(--seed)}
 .pt-editor .cm-line:has(.cm-header-1),.pt-editor .cm-line:has(.cm-header-2),.pt-editor .cm-line:has(.cm-header-3),.pt-editor .cm-line:has(.cm-header-4){font-family:var(--font-display)!important;letter-spacing:-.005em}
 .pt-editor .cm-line:has(.cm-header-1){padding-top:6px;padding-bottom:4px}
 .pt-editor .cm-line:has(.cm-header-2),.pt-editor .cm-line:has(.cm-header-3){padding-top:10px}

@@ -25,7 +25,7 @@ export const safeQuestionName = (s: string) => s.replace(/[\\/:*?"<>|#^[\]]/g, '
 /** A short default folder name from the question text ("Which single-cell methods help…" → "single-cell methods melanoma immune"). */
 export function nameFromQuestion(text: string): string {
   const stop = new Set('a an and are can do does for from how in is of on or the to what which who why with help helps study'.split(' '))
-  const w = text.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(x => x && !stop.has(x.toLowerCase())).slice(0, 4)
+  const w = text.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(x => x && !stop.has(x.toLowerCase())).slice(0, 6)
   return safeQuestionName(w.join(' ')) || 'Question'
 }
 
@@ -34,7 +34,7 @@ export function questionNote (question: string, name?: string): Omit<Note, 'upda
     path: name ? questionPath(name) : QUESTION_PATH,
     kind: 'note',
     title: 'Question',
-    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n# Question\n\n${question}\n\n## Seeds\n\nAdd trusted papers in the **Library** tab (paste ids or upload a .bib / .ris / CSL JSON / CSV / PDF). Their notes land in seeds/ next to this note, and only this question's builds read them.\n\n## Kept so far\n\n- [ ] Build the library from this question\n- [ ] Keep the papers worth reading\n`,
+    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n${question}\n\n## Seeds\n\nAdd trusted papers in the **Library** tab (paste ids or upload a .bib / .ris / CSL JSON / CSV / PDF). Their notes land in seeds/ next to this note, and only this question's builds read them.\n\n## Kept so far\n\n- [ ] Build the library from this question\n- [ ] Keep the papers worth reading\n`,
   }
 }
 
@@ -224,6 +224,32 @@ export const useVault = defineStore('vault', {
       this.persist()
       pushNote(newPath, n.content); dropNote(path)
       return true
+    },
+    /**
+     * CR-8 (F-64): the inline title renames the note. For Questions/<q>/Question.md the title is the question's subject =
+     * its folder name, so the folder is renamed. [[old name]] links in every note are rewritten. Returns the new path or null.
+     */
+    async retitle(path: string, rawTitle: string): Promise<string | null> {
+      const title = safeQuestionName(rawTitle)
+      if (!title) return null
+      const q = path.match(/^Questions\/([^/]+)\/Question\.md$/)?.[1]
+      let newPath: string
+      const oldName = q ?? path.split('/').pop()!.replace(/\.md$/, '')
+      if (oldName === title) return path
+      if (q) {
+        const next = this.renameQuestion(q, title)
+        if (!next) return null
+        newPath = questionPath(next)
+      } else {
+        const folder = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : ''
+        newPath = `${folder}${title}.md`
+        if (!(await this.rename(path, newPath))) return null
+      }
+      // [[old]] / [[old|alias]] / [[old#heading]] → new name
+      const esc = oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const re = new RegExp(`\\[\\[${esc}(?=[|#\\]])`, 'gi')
+      for (const n of this.notes) if (re.test(n.content)) { re.lastIndex = 0; await this.upsert({ ...n, content: n.content.replace(re, `[[${title}`) }) }
+      return newPath
     },
     /** Creates an empty note with a unique name (in the current question's notes/ folder by default) and returns its path. */
     async create(name = 'Untitled', folder?: string) {
