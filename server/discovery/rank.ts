@@ -150,7 +150,7 @@ export function whyRanked(c: Candidate, nSeeds: number, rerankPct?: number | nul
   parts.push(`${c.paper.citedByCount} citation${c.paper.citedByCount === 1 ? '' : 's'}`)
   if (c.paper.year) parts.push(String(c.paper.year))
   parts.push(`routes ${c.routes.join(', ')}`)
-  if (rerankPct != null) parts.push(`reranker ${ordinal(Math.round(rerankPct * 100))} pct`)
+  if (rerankPct != null) parts.push(`question match ${ordinal(Math.round(rerankPct * 100))} pct`)
   if (c.judgement) {
     const j = c.judgement
     const mean = (j.facets.topic + j.facets.method + j.facets.population) / 3

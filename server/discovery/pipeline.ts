@@ -191,9 +191,25 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
   const freshFrom = freshCutoff(cfg.freshMonths)
   // semantic features live per paper id so rebuilding candidates (after the Scout merge) keeps them
   const sem = new Map<string, Pick<Candidate['features'], 'eSeed' | 'eQuestion' | 'eFacets'>>()
+  // Near-duplicate records (same normalized title + year, e.g. two OpenAlex ids for one paper): keep the one
+  // with more seed links / an abstract, merge routes and signals into it.
+  const dedupe = (): Item[] => {
+    const byKey = new Map<string, Item>()
+    for (const it of pool.values()) {
+      const key = it.paper.title.toLowerCase().replace(/[^a-z0-9]+/g, '') + ':' + (it.paper.year ?? '')
+      const prev = byKey.get(key)
+      if (!prev) { byKey.set(key, it); continue }
+      const score = (x: Item) => (x.feat?.links ?? computeLinks(x, lite).links) * 10 + (x.paper.abstract ? 1 : 0) + x.paper.citedByCount / 1e6
+      const [keep, drop] = score(it) > score(prev) ? [it, prev] : [prev, it]
+      for (const r of drop.routes) keep.routes.add(r)
+      keep.signals.push(...drop.signals.filter(sg => !keep.signals.some(k => k.kind === sg.kind && k.route === sg.route && k.source?.url === sg.source?.url)))
+      byKey.set(key, keep)
+    }
+    return [...byKey.values()]
+  }
   const build = (): Candidate[] => {
     const out: Candidate[] = []
-    for (const it of pool.values()) {
+    for (const it of dedupe()) {
       if (!it.feat) it.feat = computeLinks(it, lite)
       const e = sem.get(it.paper.id)
       const features = { ...it.feat, coupling: null, eSeed: e?.eSeed ?? null, eQuestion: e?.eQuestion ?? null, eFacets: e?.eFacets ?? null, rerank: null, impact: it.paper.citationPct, pubmedRank: it.pubmedRank }

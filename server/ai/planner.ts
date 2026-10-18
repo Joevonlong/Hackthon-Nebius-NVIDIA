@@ -87,7 +87,8 @@ Combine the facets differently in each query; use the standard terminology and c
     if (!qs.success) return []
     const seen = new Set<string>()
     const out = qs.data.queries
-      .map(q => clip(q.replace(/["()]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' '), 120))
+      // Nemotron sometimes echoes the facet format ("topic=… method=…"): strip labels and stray markers.
+      .map(q => clip(q.replace(/\b(topic|method|population|outcome)\s*[=:]\s*/gi, ' ').replace(/[>"()=]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/\s+/g, ' ').trim(), 120))
       .filter(q => q.length >= 3 && !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase()))
       .slice(0, 4)
     // Measured: Nemotron sometimes returns a single query. Pad with deterministic facet pairs to reach ≥2.
