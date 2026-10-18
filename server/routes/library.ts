@@ -3,16 +3,19 @@
 //   GET  /api/library/:id/stream            SSE of LibraryEvent (replay then live)
 //   GET  /api/library/:id                   { goals, papers: LibPaper[] (all scored), request }
 //   GET  /api/library/:id/papers/:paperId   the per-paper JSON file (LibPaper)
+//   POST /api/library/:id/chat              ChatRequest -> ChatResponse (lane U2; logs/runs/<id>/chat.jsonl)
+//   POST /api/library/:id/applied           { prompt, proposal, before, after } -> { ok, movedIn }
 // LIBRARY_FIXTURE=1 swaps L1's gather() for the melanoma fixture source (server/library/fixtures.ts).
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { randomUUID } from 'node:crypto'
-import { LibraryRequest, type LibraryEvent } from '@shared/library'
+import { ChatRequest, LibraryRequest, type Goals, type LibPaper, type LibraryEvent } from '@shared/library'
 import { withRun } from '../trace'
 import { createLibraryState, emitLib, getLibraryState, runLibrary, subscribeLib } from '../library/pipeline'
 import { gather } from '../library/sources'
 import { fixtureGather } from '../library/fixtures'
 import { isSafeId, readLibrary, readPaperFile } from '../library/store'
+import { AppliedBody, logApplied, runChat } from '../library/chat'
 
 export const library = new Hono()
 
@@ -84,4 +87,39 @@ library.get('/library/:id/papers/:paperId', c => {
   if (r === 'bad') return c.json({ error: 'bad id' }, 400)
   if (!r) return c.json({ error: 'paper not found' }, 404)
   return c.json(r)
+})
+
+// ---- chat (lane U2, D-26 / D-29) ----
+const libCache = new Map<string, { goals: Goals | null; papers: LibPaper[] }>()
+function loadForChat(id: string): { goals: Goals | null; papers: LibPaper[] } | null {
+  const s = getLibraryState(id)
+  if (s && s.papers.length) return { goals: s.goals, papers: s.papers }
+  const hit = libCache.get(id)
+  if (hit) return hit
+  const stored = readLibrary(id)
+  if (!stored) return null
+  const lib = { goals: stored.goals, papers: stored.papers }
+  libCache.set(id, lib)
+  if (libCache.size > 4) libCache.delete(libCache.keys().next().value!)
+  return lib
+}
+
+library.post('/library/:id/chat', async c => {
+  const id = c.req.param('id')
+  if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
+  const body = ChatRequest.safeParse(await c.req.json().catch(() => null))
+  if (!body.success) return c.json({ error: 'Invalid ChatRequest', issues: body.error.issues.slice(0, 10) }, 400)
+  if (body.data.messages[body.data.messages.length - 1].role !== 'user') return c.json({ error: 'the last message must be from the user' }, 400)
+  const lib = loadForChat(id)
+  if (!lib) return c.json({ error: 'library not found' }, 404)
+  if (!lib.papers.length) return c.json({ error: 'library has no scored papers yet' }, 409)
+  return c.json(await withRun(id, () => runChat(id, lib, body.data)))
+})
+
+library.post('/library/:id/applied', async c => {
+  const id = c.req.param('id')
+  if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
+  const body = AppliedBody.safeParse(await c.req.json().catch(() => null))
+  if (!body.success) return c.json({ error: 'Invalid applied body', issues: body.error.issues.slice(0, 10) }, 400)
+  return c.json(logApplied(id, body.data))
 })

@@ -295,7 +295,50 @@ export function gateOf(rec: EnrichedRecord, dupOf: string | undefined): string |
 
 export const safeFileId = (id: string) => id.replace(/^https?:\/\/openalex\.org\//, '').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^\.+/, '_').slice(0, 120) || 'paper'
 
-export interface ScoreOptions { weights: Weights; threshold: number; now?: Date }
+// ---------- pass rule (D-27) ----------
+export interface PassRule { topPercent: number; threshold: number }
+export const DEFAULT_TOP_PERCENT = 25
+
+/**
+ * D-27: a paper passes when it is in the top `topPercent`% of the library's non-excluded papers by total
+ * AND its total is at least `threshold` (the absolute floor). Pure; returns one boolean per input, in input order.
+ * Top-k uses k = ceil(M × topPercent / 100) (at least 1 when M > 0); ties are broken by input order.
+ */
+export function passFlags(items: { total: number; excluded: string | null }[], rule: PassRule): boolean[] {
+  const idx = items.map((p, i) => ({ p, i })).filter(x => !x.p.excluded).sort((a, b) => b.p.total - a.p.total || a.i - b.i)
+  const pctl = Math.min(100, Math.max(0, rule.topPercent))
+  const k = idx.length ? Math.max(1, Math.ceil((idx.length * pctl) / 100)) : 0
+  const out = items.map(() => false)
+  idx.forEach((x, r) => { if (r < k && x.p.total >= rule.threshold) out[x.i] = true })
+  return out
+}
+
+/** "N of M pass (top X%, min Y)" — M counts non-excluded papers. */
+export function passSummary(papers: { passed: boolean; excluded: string | null }[], rule: PassRule): string {
+  const m = papers.filter(p => !p.excluded).length
+  const n = papers.filter(p => p.passed).length
+  return `${n} of ${m} pass (top ${rule.topPercent}%, min ${rule.threshold})`
+}
+
+/** Re-weights stored components (same rule as combine), re-applies the pass rule and re-ranks. Pure. */
+export function rescorePapers(papers: LibPaper[], weights: Weights, rule: PassRule): LibPaper[] {
+  const next = papers.map(p => {
+    const assessed = p.components.filter(c => c.value != null)
+    const sum = assessed.reduce((s, c) => s + (weights[c.key] ?? 0), 0)
+    const components = p.components.map(c => {
+      const weight = weights[c.key] ?? 0
+      return { ...c, weight, contribution: c.value == null || sum <= 0 ? 0 : (weight * c.value) / sum }
+    })
+    return { ...p, components, total: clamp01(components.reduce((s, c) => s + c.contribution, 0)) }
+  })
+  const flags = passFlags(next, rule)
+  next.forEach((p, i) => { p.passed = flags[i] })
+  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
+  next.forEach((p, i) => { p.rank = i + 1 })
+  return next
+}
+
+export interface ScoreOptions { weights: Weights; threshold: number; topPercent?: number; now?: Date }
 
 export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOptions): LibPaper[] {
   const ctx = buildContext(items, goals, opts.now)
@@ -315,10 +358,12 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
     const labels = ctx.knownKeys.has(item.rec.key) && !item.labels.tags.includes('in-vault') ? { ...item.labels, tags: [...item.labels.tags, 'in-vault'] } : item.labels
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,
-      components, total, passed: !excluded && total >= opts.threshold, excluded, rank: 0, llmRead: item.llm, file: fileFor(item.rec),
+      components, total, passed: false, excluded, rank: 0, llmRead: item.llm, file: fileFor(item.rec),
     }
     return p
   })
+  const flags = passFlags(scored, { topPercent: opts.topPercent ?? DEFAULT_TOP_PERCENT, threshold: opts.threshold })
+  scored.forEach((p, i) => { p.passed = flags[i] })
   scored.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
   scored.forEach((p, i) => { p.rank = i + 1 })
   return scored
