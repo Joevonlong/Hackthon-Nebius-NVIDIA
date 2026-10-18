@@ -49,6 +49,81 @@ function paperLine(p: LibPaper, withEvidence: boolean): string {
   return s
 }
 
+// ---------- Q2-10: kind questions ("Which papers are reviews?") answered completely from labels ----------
+interface KindSpec { label: string; kinds?: string[]; design?: RegExp; re: RegExp }
+/** Order matters: the more specific family first ("systematic reviews" before "reviews"). */
+const KIND_SPECS: KindSpec[] = [
+  { label: 'meta-analyses', kinds: ['meta-analysis'], re: /\bmeta-?analy[sz](?:is|es)\b/i },
+  { label: 'systematic reviews', kinds: ['systematic-review'], re: /\bsystematic reviews?\b/i },
+  { label: 'reviews', kinds: ['review', 'systematic-review', 'meta-analysis'], re: /\breviews\b|\breview (?:papers?|articles?)\b/i },
+  { label: 'preprints', kinds: ['preprint'], re: /\bpre-?prints?\b/i },
+  { label: 'randomized controlled trials', design: /^randomized-controlled-trial$/, re: /\b(rcts?|randomi[sz]ed(?: controlled)? trials?)\b/i },
+  { label: 'clinical trials', design: /trial/, re: /\b(clinical )?trials?\b/i },
+  { label: 'conference papers', kinds: ['conference-paper'], re: /\bconference(?: papers?| proceedings)?\b|\bproceedings\b/i },
+  { label: 'editorials', kinds: ['editorial'], re: /\beditorials?\b/i },
+  { label: 'books and chapters', kinds: ['book', 'book-chapter'], re: /\b(books?|book chapters?|chapters?)\b/i },
+  { label: 'datasets', kinds: ['dataset'], re: /\bdatasets?\b/i },
+  { label: 'theses', kinds: ['thesis'], re: /\b(thes[ie]s|dissertations?)\b/i },
+  { label: 'journal articles', kinds: ['journal-article'], re: /\b(journal articles?|research articles?|original research)\b/i },
+]
+const ASKS = /\b(which|what|list|show|name|tell me|give me|how many|are there|any|find)\b|\?\s*$/i
+const CHANGES_KIND = /\b(ignore|exclude|excluding|drop|remove|skip|hide|without|prioriti[sz]e|prefer|favou?r|boost|emphasi[sz]e|focus|weight|more|less|only show|keep only)\b/i
+const WHOLE_LIBRARY = /\b(all papers|whole library|entire library|in the library|including (?:the )?(?:non-?passing|failed|excluded)|not pass(?:ing)?|don'?t pass|below the cut|any paper)\b/i
+
+export interface KindAnswer { label: string; scope: 'passed' | 'library'; papers: LibPaper[]; otherCount: number; filtered: boolean }
+
+/** Same rule as the client's matchesFilters (client/src/library/score.ts). */
+export function matchesFilters(p: LibPaper, f: Filters | undefined): boolean {
+  if (!f) return true
+  if (f.kinds?.length && !f.kinds.includes(p.labels.kind)) return false
+  const y = p.paper.year
+  if (f.minYear != null && (y == null || y < f.minYear)) return false
+  if (f.maxYear != null && (y == null || y > f.maxYear)) return false
+  if (f.openAccessOnly && (!p.labels.openAccess || p.labels.openAccess === 'closed')) return false
+  if (f.peerReviewedOnly && p.labels.peerReviewed !== true) return false
+  return true
+}
+
+/** A question about which papers are of a kind/design → the kind; requests to change the ranking return null. */
+export function detectKindQuestion(text: string): KindSpec | null {
+  if (!ASKS.test(text) || CHANGES_KIND.test(text)) return null
+  return KIND_SPECS.find(k => k.re.test(text)) ?? null
+}
+
+const isKind = (spec: KindSpec, p: LibPaper) => (spec.kinds?.includes(p.labels.kind) ?? false) || (spec.design ? p.labels.studyDesign.some(d => spec.design!.test(d)) : false)
+
+/** Deterministic, complete list: the passing papers that match the current filters (or the whole library when asked). */
+export function kindAnswer(text: string, ranked: LibPaper[], filters: Filters | undefined): KindAnswer | null {
+  const spec = detectKindQuestion(text)
+  if (!spec) return null
+  const live = ranked.filter(p => !p.excluded && matchesFilters(p, filters))
+  const whole = WHOLE_LIBRARY.test(text)
+  const all = live.filter(p => isKind(spec, p))
+  const papers = whole ? all : all.filter(p => p.passed)
+  const filtered = !!filters && Object.values(filters).some(v => v != null && v !== false && (!Array.isArray(v) || v.length > 0))
+  return { label: spec.label, scope: whole ? 'library' : 'passed', papers, otherCount: all.length - papers.length, filtered }
+}
+
+const kindLine = (p: LibPaper) => `- [#${p.rank} ${one(p.paper.title, 110)}] (${p.paper.year ?? 'n.d.'}, ${p.labels.kind}${p.labels.studyDesign.length ? `, ${p.labels.studyDesign.slice(0, 2).join('/')}` : ''}, total ${p.total.toFixed(2)})`
+
+/** Markdown block listing every paper of the kind (used in the model context and appended when the reply misses any). */
+export function kindListText(a: KindAnswer): string {
+  const where = a.scope === 'passed' ? `passing${a.filtered ? ' (with the current filters)' : ''}` : `in this library${a.filtered ? ' (with the current filters)' : ''}`
+  if (!a.papers.length) return `No ${where} papers are ${a.label} (by their labels).${a.otherCount ? ` ${a.otherCount} more ${a.label} are in the library but do not pass.` : ''}`
+  const head = `All ${a.papers.length} ${a.scope === 'passed' ? where + ' ' + a.label : a.label + ' ' + where} (from the labels):`
+  const tail = a.scope === 'passed' && a.otherCount ? `\n${a.otherCount} more ${a.label} are in the library but do not pass.` : ''
+  return `${head}\n${a.papers.slice(0, 40).map(kindLine).join('\n')}${a.papers.length > 40 ? `\n- … and ${a.papers.length - 40} more` : ''}${tail}`
+}
+
+/** Adds the deterministic list after the model's text when the reply does not cite every paper of the kind. */
+export function completeKindReply(reply: string, a: KindAnswer): string {
+  const cited = new Set([...reply.matchAll(/\[#(\d{1,4})\b/g)].map(m => Number(m[1])))
+  const missing = a.papers.slice(0, 40).filter(p => !cited.has(p.rank))
+  if (a.papers.length && !missing.length) return reply
+  if (!a.papers.length && /\b(no|none)\b/i.test(reply)) return reply
+  return `${reply.trim()}\n\n${kindListText(a)}`
+}
+
 export interface ChatContext { text: string; ranked: LibPaper[] }
 
 /** ~12k-token cap: the top 60 by rank (evidence for the top 25) + aggregates for the whole library. */
@@ -277,6 +352,7 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
   const t0 = Date.now()
   const lastUser = [...req.messages].reverse().find(m => m.role === 'user')?.content ?? ''
   const ctx = buildChatContext(lib.goals, lib.papers, req.current)
+  const kinds = kindAnswer(lastUser, ctx.ranked, req.current.filters)
   const model = env.models.planner
   let res: ChatResponse | null = null
   let error: string | null = null
@@ -284,7 +360,8 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
   if (!hasKey() && !deps.call) {
     error = 'no TOKEN_FACTORY_API_KEY'
   } else {
-    const system = `${SYSTEM}\n\n=== LIBRARY ${libraryId} ===\n${ctx.text}`
+    const kindBlock = kinds ? `\n\n=== ANSWER LIST for this question (complete, from the labels; list EVERY paper below, do not drop any) ===\n${kindListText(kinds)}` : ''
+    const system = `${SYSTEM}\n\n=== LIBRARY ${libraryId} ===\n${ctx.text}${kindBlock}`
     const timeoutMs = Number(env.raw.LIBRARY_CHAT_TIMEOUT_MS || 60000)
     for (attempts = 1; attempts <= 2 && !res; attempts++) {
       const user = attempts === 1 ? transcript(req.messages) : `${transcript(req.messages)}\n\n(Your previous answer was not a valid JSON object of the required shape. Reply with exactly one JSON object: {"reply": string, "cited": number[], "proposal": object|null}.)`
@@ -293,17 +370,23 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
       const parsed = ModelOut.safeParse(out.data)
       if (!parsed.success) { error = `invalid model JSON: ${parsed.error.issues.slice(0, 2).map(i => `${i.path.join('.')} ${i.message}`).join('; ')}`; continue }
       const proposal = sanitizeProposal(parsed.data.proposal, req.current, lastUser)
-      const reply = percentify(normalizeCitations(parsed.data.reply.trim()), { ...req.current.weights, ...proposal?.weights }, req.current.weights)
+      let reply = percentify(normalizeCitations(parsed.data.reply.trim()), { ...req.current.weights, ...proposal?.weights }, req.current.weights)
+      if (kinds) reply = completeKindReply(reply, kinds)
       res = { reply, cited: resolveCited(reply, parsed.data.cited, ctx.ranked), proposal, model }
       error = null
     }
     attempts--
   }
+  if (!res && kinds) {
+    // no model (no key / failed): the kind list is deterministic, so answer it anyway
+    const reply = kindListText(kinds)
+    res = { reply, cited: resolveCited(reply, [], ctx.ranked), proposal: null, model: null }
+  }
   if (!res) {
     const why = error === 'no TOKEN_FACTORY_API_KEY' ? 'the server has no model key configured' : error ?? 'unknown error'
     res = { reply: `Sorry, I could not answer just now (${why}). Nothing was changed; please try again.`, cited: [], proposal: null, model: null }
   }
-  const turn = { type: 'turn', prompt: clip(lastUser, 2000), turns: req.messages.length, current: req.current, reply: clip(res.reply, 3000), cited: res.cited.map(c => c.rank), proposal: res.proposal, model: res.model, attempts, error, contextChars: ctx.text.length, ms: (deps.now?.() ?? Date.now()) - t0 }
+  const turn = { type: 'turn', kindQuestion: kinds ? { label: kinds.label, scope: kinds.scope, ranks: kinds.papers.map(p => p.rank) } : null, prompt: clip(lastUser, 2000), turns: req.messages.length, current: req.current, reply: clip(res.reply, 3000), cited: res.cited.map(c => c.rank), proposal: res.proposal, model: res.model, attempts, error, contextChars: ctx.text.length, ms: (deps.now?.() ?? Date.now()) - t0 }
   trace('chat', turn, libraryId)
   saveChatTurn(libraryId, turn)
   return res

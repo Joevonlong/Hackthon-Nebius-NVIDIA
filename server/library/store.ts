@@ -5,6 +5,7 @@ import { join, resolve, sep } from 'node:path'
 import type { Goals, LibPaper, LibraryRequest, LibrarySummary } from '@shared/library'
 import { env } from '../env'
 import type { LibraryState } from './pipeline'
+import { safeFileId } from './score'
 import { findQuestionLibrary, questionLibraryDir, questionLibraryIds, questionDir } from './workspace'
 
 const ID_RE = /^[A-Za-z0-9_-]{1,100}$/
@@ -99,11 +100,19 @@ export function readLibrary(id: string): StoredLibrary | null {
   } catch { return null }
 }
 
-/** Reads papers/<paperId>.json. Rejects anything that is not a plain file id inside this library's papers folder. */
+/**
+ * Reads papers/<file>.json for a paper id in either form: the file id ("pmid_38082384") or the paper id the client holds
+ * ("pmid:38082384", "W123", a DOI). Q2-7: the id is mapped with the writer's own safeFileId(); library.json's paper -> file
+ * list is checked first so de-duplicated names ("W1_2") resolve too. Rejects anything outside this library's papers folder.
+ */
 export function readPaperFile(id: string, paperId: string): LibPaper | null | 'bad' {
   const dir = libraryDir(id)
   if (!dir) return 'bad'
-  const name = paperId.replace(/\.json$/, '')
+  const raw = paperId.replace(/\.json$/, '').trim()
+  if (!raw || raw.length > 300 || raw.includes('..')) return 'bad'
+  const listed = ((readJson(join(dir, 'library.json')) as { papers?: { paperId?: string; file?: string }[] } | null)?.papers ?? [])
+    .find(p => p.paperId === raw)?.file?.replace(/^papers\//, '').replace(/\.json$/, '')
+  const name = listed ?? safeFileId(raw)
   if (!/^[A-Za-z0-9._-]{1,130}$/.test(name) || name.startsWith('.') || name.includes('..')) return 'bad'
   const papersDir = join(dir, 'papers')
   const file = resolve(papersDir, `${name}.json`)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ChatResponse, DEFAULT_WEIGHTS, type LibPaper } from '@shared/library'
-import { buildChatContext, CLINICAL_KINDS, normalizeCitations, percentify, resolveCited, runChat, sanitizeProposal, weightPct } from './chat'
+import { buildChatContext, CLINICAL_KINDS, completeKindReply, detectKindQuestion, kindAnswer, kindListText, normalizeCitations, percentify, resolveCited, runChat, sanitizeProposal, weightPct } from './chat'
 import { labelRecord } from './labels'
 import { scoreLibrary } from './score'
 import { mkRecord, testGoals } from './test-records'
@@ -114,5 +114,58 @@ describe('Q-3 intents + normalized weights', () => {
 describe('double-escaped replies', () => {
   it('turns a literal \\n into a line break before citations', () => {
     expect(normalizeCitations('Top picks:\\n#14 "Some paper" (2021)')).toBe('Top picks:\n[#14 Some paper] (2021)')
+  })
+})
+
+describe('Q2-10 kind questions are answered completely from labels', () => {
+  const papers = library(80)
+  const rankedOf = (ps: LibPaper[]) => buildChatContext(testGoals(), ps, current).ranked
+  const passingReviews = rankedOf(papers).filter(p => p.passed && !p.excluded && p.labels.kind === 'review')
+  it('detects kind questions, not change requests', () => {
+    expect(detectKindQuestion('Which papers are reviews?')?.label).toBe('reviews')
+    expect(detectKindQuestion('Any preprints?')?.label).toBe('preprints')
+    expect(detectKindQuestion('which ones are meta-analyses')?.label).toBe('meta-analyses')
+    expect(detectKindQuestion('List the clinical trials')?.label).toBe('clinical trials')
+    expect(detectKindQuestion('ignore preprints')).toBeNull()
+    expect(detectKindQuestion('prioritize reviews')).toBeNull()
+    expect(detectKindQuestion('Why is #3 above #4?')).toBeNull()
+  })
+  it('the list holds every passing review and respects the current filters', () => {
+    expect(passingReviews.length).toBeGreaterThanOrEqual(3)
+    const ranked = rankedOf(papers)
+    const a = kindAnswer('Which papers are reviews?', ranked, {})!
+    expect(a.papers.map(p => p.rank)).toEqual(passingReviews.map(p => p.rank))
+    const minYear = Math.max(...passingReviews.map(p => p.paper.year!))
+    const f = kindAnswer('Which papers are reviews?', ranked, { minYear })!
+    expect(f.papers.every(p => p.paper.year! >= minYear)).toBe(true)
+    expect(f.papers.length).toBeLessThan(a.papers.length)
+    expect(kindListText(f)).toMatch(/with the current filters/)
+    const whole = kindAnswer('Which reviews are in the library?', ranked, {})!
+    expect(whole.papers.length).toBeGreaterThan(a.papers.length)
+  })
+  it('the model gets the full list, and a reply that lists only 2 is completed', async () => {
+    let system = ''
+    const two = passingReviews.slice(0, 2)
+    const call = async (o: { system: string }) => {
+      system = o.system
+      return { data: { reply: `Two reviews: ${two.map(p => `[#${p.rank} ${p.paper.title}]`).join(', ')}.`, cited: two.map(p => p.rank), proposal: null }, raw: '' }
+    }
+    const res = await runChat('lib_test', { goals: testGoals(), papers }, { messages: [{ role: 'user', content: 'Which papers are reviews?' }], current }, { call: call as never })
+    expect(system).toMatch(/ANSWER LIST/)
+    for (const p of passingReviews) expect(system).toContain(`[#${p.rank} `)
+    expect(res.reply).toMatch(new RegExp(`All ${passingReviews.length} passing reviews`))
+    expect(res.cited.map(c => c.rank).sort((x, y) => x - y)).toEqual(passingReviews.map(p => p.rank).sort((x, y) => x - y))
+    expect(ChatResponse.safeParse(res).success).toBe(true)
+  })
+  it('a complete reply is left as is', () => {
+    const a = kindAnswer('Which papers are reviews?', rankedOf(papers), {})!
+    const full = a.papers.map(p => `[#${p.rank} x]`).join(' ')
+    expect(completeKindReply(full, a)).toBe(full)
+  })
+  it('without a model the deterministic list is the answer', async () => {
+    const res = await runChat('lib_test', { goals: testGoals(), papers }, { messages: [{ role: 'user', content: 'Which papers are reviews?' }], current }, { call: async () => null })
+    expect(res.model).toBeNull()
+    expect(res.reply).toMatch(/^All \d+ passing reviews/)
+    expect(res.cited).toHaveLength(passingReviews.length)
   })
 })
