@@ -26,13 +26,19 @@ export function libraryDir(id: string): string | null {
 
 /**
  * graph.json: what the graph view draws — the passed papers as nodes, the known papers (the question's seeds) they link to,
- * and the citation edges (source cites target).
+ * and the citation edges (source cites target). CR-10 E-1: paper→paper edges from referencedWorks (OpenAlex W ids, with or
+ * without the https://openalex.org/ prefix) among the passed papers, keyed by paper.id.
  */
-function graphOf(papers: LibPaper[], knownPapers: string[]) {
+export function graphOf(papers: LibPaper[], knownPapers: string[]) {
   const passed = papers.filter(p => p.passed && !p.excluded)
   const ids = new Set(passed.map(p => p.paper.id))
+  const byLower = new Map(passed.map(p => [p.paper.id.toLowerCase(), p.paper.id]))
   const known = new Map<string, number>()
   const edges: { source: string; target: string; type: 'cites' }[] = []
+  for (const p of passed) for (const w of p.paper.referencedWorks ?? []) {
+    const t = byLower.get(w.trim().replace(/^https?:\/\/openalex\.org\//i, '').toLowerCase())
+    if (t && t !== p.paper.id) edges.push({ source: p.paper.id, target: t, type: 'cites' })
+  }
   for (const p of passed) for (const r of p.relations) {
     if (r.type !== 'cites' && r.type !== 'cited_by') continue
     if (!ids.has(r.paperId)) known.set(r.paperId, (known.get(r.paperId) ?? 0) + 1)
