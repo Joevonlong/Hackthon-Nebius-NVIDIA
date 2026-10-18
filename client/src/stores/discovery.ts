@@ -36,13 +36,42 @@ export function lensScore(c: Candidate, lens: number): { score: number; source: 
   return null
 }
 
+// Stand-in facets while the judge has not graded anything: a title keyword rule (shown as "judge pending").
+const KW_TOPIC_HI = /melanoma/i
+const KW_TOPIC_MID = /cancer|tumou?r|neoantigen|immunotherap|checkpoint|pd-1|lymphocyte|t[- ]cell/i
+const KW_METHOD = /single[- ]cell|scrna|rna[- ]seq|sequencing|transcriptom|multiomic|-omics|spatial|profil|align|aligner|toolkit|package|format|algorithm|framework|cluster/i
+
+/** Title keyword facets in 0..1 (topic, method). */
+export function keywordFacets(title: string): { topic: number; method: number } {
+  return {
+    topic: KW_TOPIC_HI.test(title) ? 1 : KW_TOPIC_MID.test(title) ? 0.55 : 0.2,
+    method: KW_METHOD.test(title) ? 1 : 0.2,
+  }
+}
+export function keywordScore(c: Candidate, lens: number): number {
+  const f = keywordFacets(c.paper.title || '')
+  return (1 - lens) * f.topic + lens * f.method
+}
+
+export type LensSource = 'judge' | 'embed' | 'keywords'
+/** Which signal the Lens uses in a lane: judge facets, else embedding facets, else the title keyword stand-in. */
+export function laneLensSource(items: Candidate[]): LensSource {
+  if (items.some(c => c.judgement)) return 'judge'
+  if (items.some(c => c.features.eFacets)) return 'embed'
+  return 'keywords'
+}
+
 /**
  * Re-sorts one lane by the lens without moving papers across lanes. Slot-preserving per tier:
  * judged papers are re-ordered among the slots judged papers held; embed-only papers among theirs;
- * papers with neither keep their pre-judge position.
+ * papers with neither keep their pre-judge position. When no paper in the lane has judge or embedding
+ * facets, the whole lane is re-sorted by the title keyword stand-in (ties keep the pre-judge order).
  */
 export function sortLane(items: Candidate[], lens: number): Candidate[] {
   const base = [...items].sort((a, b) => a.rank - b.rank)
+  if (laneLensSource(base) === 'keywords') {
+    return base.map(c => ({ c, s: keywordScore(c, lens) })).sort((a, b) => b.s - a.s || a.c.rank - b.c.rank).map(x => x.c)
+  }
   const out = base.slice()
   for (const tier of ['judge', 'embed'] as const) {
     const slots: number[] = []

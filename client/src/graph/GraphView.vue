@@ -85,6 +85,8 @@ const counts = computed(() => {
 let sim: d3.Simulation<GNode, GLink> | null = null
 let zoomLayer: d3.Selection<SVGGElement, unknown, null, undefined> | null = null
 let ro: ResizeObserver | null = null
+let zoomer: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
+let userZoomed = false
 const pos = new Map<string, { x: number; y: number; vx?: number; vy?: number }>()
 const R: Record<Kind, number> = { seed: 9, lit: 7, note: 6, ghost: 5.5, bridge: 5.5 }
 
@@ -108,17 +110,24 @@ function render(animate: boolean) {
   })
   const links: GLink[] = rawLinks.map(l => ({ ...l }))
   const isNew = (id: string) => !pos.has(id)
+  // Stagger new nodes so candidates grow out of the seeds one by one (Core first, then Fresh, Linked, Bridges):
+  // each element animates <= 280 ms, the whole wave is capped at ~1 s and then the graph holds still.
+  const order = new Map<string, number>()
+  if (animate) nodes.filter(n => isNew(n.id)).forEach((n, i) => order.set(n.id, i))
+  const delay = (id: string) => Math.min((order.get(id) ?? 0) * 30, 750) + 'ms'
+  const idOf = (e: string | GNode) => typeof e === 'string' ? e : e.id
 
   const linkSel = zoomLayer.select<SVGGElement>('g.edges').selectAll<SVGLineElement, GLink>('line')
-    .data(links, d => `${typeof d.source === 'string' ? d.source : d.source.id}|${typeof d.target === 'string' ? d.target : d.target.id}`)
-    .join(enter => enter.append('line').attr('class', d => 'ge ' + d.kind + (animate ? ' grow' : '')))
+    .data(links, d => `${idOf(d.source)}|${idOf(d.target)}`)
+    .join(enter => enter.append('line').attr('class', d => 'ge ' + d.kind + (animate ? ' grow' : ''))
+      .style('animation-delay', d => animate ? delay(order.has(idOf(d.source)) ? idOf(d.source) : idOf(d.target)) : null))
 
   const nodeSel = zoomLayer.select<SVGGElement>('g.nodes').selectAll<SVGGElement, GNode>('g.gn')
     .data(nodes, d => d.id)
     .join(
       enter => {
         const g = enter.append('g').attr('class', d => 'gn' + (animate && isNew(d.id) ? ' grow' : '')).attr('tabindex', 0).attr('role', 'button')
-        g.append('circle')
+        g.append('circle').style('animation-delay', d => animate ? delay(d.id) : null)
         g.append('text').attr('class', 'glbl')
         return g
       },
@@ -163,9 +172,24 @@ function render(animate: boolean) {
   } else {
     sim.nodes(nodes).force('link', forceLink)
   }
-  sim.on('tick', ticked)
-  if (reduce) { sim.stop(); for (let i = 0; i < 300; i++) sim.tick(); ticked() }
+  // Fit once the layout is mostly settled (~1 s), not when the simulation fully stops several seconds later.
+  let fitted = false
+  sim.on('tick', () => { ticked(); if (!fitted && sim!.alpha() < 0.12) { fitted = true; fit(nodes) } })
+  if (reduce) { sim.stop(); for (let i = 0; i < 300; i++) sim.tick(); ticked(); fit(nodes) }
   else sim.alpha(animate ? 0.7 : 0.5).restart()
+}
+
+/** Zooms so the whole graph fills the view once the layout settles (until the user zooms or pans themselves). */
+function fit(nodes: GNode[]) {
+  if (!svgEl.value || !wrap.value || !zoomer || userZoomed || nodes.length < 2) return
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+  for (const n of nodes) { x0 = Math.min(x0, n.x!); y0 = Math.min(y0, n.y!); x1 = Math.max(x1, n.x! + 120 * (n.kind === 'seed' ? 1 : 0)); y1 = Math.max(y1, n.y!) }
+  const { width, height } = wrap.value.getBoundingClientRect()
+  const k = Math.max(0.4, Math.min(1.8, (width - 80) / Math.max(1, x1 - x0), (height - 120) / Math.max(1, y1 - y0)))
+  const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2 + 10 / k)
+  const sel = d3.select(svgEl.value)
+  if (reduce) sel.call(zoomer.transform, t)
+  else sel.transition().duration(300).ease(d3.easeCubicOut).call(zoomer.transform, t)
 }
 
 function resize() {
@@ -180,7 +204,11 @@ onMounted(() => {
   zoomLayer = svg.append('g').attr('class', 'layer')
   zoomLayer.append('g').attr('class', 'edges')
   zoomLayer.append('g').attr('class', 'nodes')
-  svg.call(d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 5]).on('zoom', e => zoomLayer!.attr('transform', e.transform.toString())))
+  zoomer = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 5]).on('zoom', e => {
+    if (e.sourceEvent) userZoomed = true
+    zoomLayer!.attr('transform', e.transform.toString())
+  })
+  svg.call(zoomer)
   resize()
   ro = new ResizeObserver(() => requestAnimationFrame(resize))
   if (wrap.value) ro.observe(wrap.value)
@@ -197,8 +225,10 @@ watch(signature, () => render(true))
   <div ref="wrap" class="graphwrap">
     <svg ref="svgEl" role="img" aria-label="Vault graph: seeds, kept notes and candidates" />
     <div v-if="!data.nodes.length" class="empty">
-      <b>The graph is empty.</b> Run discovery: seed notes appear first, then candidates grow out of them as ghost nodes.
+      <template v-if="disc.status === 'running'"><b>Resolving seeds…</b> Seed notes appear here first, then candidates grow out of them.</template>
+      <template v-else><b>The graph is empty.</b> Run discovery: seed notes appear first, then candidates grow out of them as ghost nodes.</template>
     </div>
+    <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
     <div class="g-legend">
       <span><i style="background:var(--seed)" />Seed note · {{ counts.seed }}</span>
       <span><i style="background:var(--cand)" />Kept note · {{ counts.lit }}</span>
@@ -221,6 +251,10 @@ svg:active{cursor:grabbing}
 .g-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
 .g-legend i.hollow{border:1.5px solid var(--cand);background:var(--surface)}
 .g-legend i.dashed{border-style:dashed}
+.g-live{position:absolute;left:10px;top:8px;display:inline-flex;align-items:center;gap:6px;font:500 11px var(--font-mono);color:var(--fg);background:var(--cand-soft);border:1px solid var(--cand);border-radius:99px;padding:3px 9px}
+.g-live i{width:7px;height:7px;border-radius:50%;background:var(--cand);animation:blink 1s ease-in-out infinite}
+@keyframes blink{50%{opacity:.3}}
+@media (prefers-reduced-motion: reduce){.g-live i{animation:none}}
 .g-hint{position:absolute;right:10px;top:8px;font:500 10.5px var(--font-mono);color:var(--muted)}
 .tip{position:absolute;pointer-events:none;max-width:320px;background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:2px;box-shadow:0 4px 14px color-mix(in srgb,var(--fg) 12%,transparent);z-index:2}
 .tip small{color:var(--muted);font-family:var(--font-mono);font-size:10.5px}
@@ -236,8 +270,8 @@ svg:active{cursor:grabbing}
 :deep(.nd-bridge){fill:var(--surface);stroke:var(--cand);stroke-width:1.4;stroke-dasharray:3 2}
 :deep(.glbl){font:500 10px var(--font-mono);fill:var(--muted);pointer-events:none}
 :deep(.glbl-seed){font-weight:600;fill:var(--fg)}
-:deep(.gn.grow circle){transform-box:fill-box;transform-origin:center;animation:pop .32s cubic-bezier(.23,1,.32,1) both}
-:deep(.ge.grow){animation:fadein .4s ease-out both}
+:deep(.gn.grow circle){transform-box:fill-box;transform-origin:center;animation:pop .28s cubic-bezier(.23,1,.32,1) both}
+:deep(.ge.grow){animation:fadein .28s ease-out both}
 @keyframes pop{from{opacity:0;transform:scale(.3)}}
 @keyframes fadein{from{opacity:0}}
 @media (prefers-reduced-motion: reduce){:deep(.gn.grow circle),:deep(.ge.grow){animation:none}}
