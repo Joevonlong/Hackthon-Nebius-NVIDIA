@@ -14,7 +14,7 @@ export interface WebIds { kind: UrlKind; doi: string | null; pmid: string | null
 /** HTTP status of the last Tavily call (smoke script / diagnostics). */
 export let lastTavilyStatus = 0
 
-export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number } = {}): Promise<TavilyHit[]> {
+export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number; searchDepth?: 'basic' | 'advanced' } = {}): Promise<TavilyHit[]> {
   if (!env.tavilyKey || !query.trim()) return []
   try {
     const call = () => fetch('https://api.tavily.com/search', {
@@ -22,7 +22,7 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       headers: { Authorization: `Bearer ${env.tavilyKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: query.slice(0, 380),
-        search_depth: 'basic',
+        search_depth: opts.searchDepth ?? 'basic',
         max_results: opts.maxResults ?? 5,
         ...(opts.includeDomains?.length ? { include_domains: opts.includeDomains } : {}),
       }),
@@ -41,7 +41,7 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
     const hits: TavilyHit[] = (Array.isArray(data?.results) ? data.results : [])
       .filter((r: any) => typeof r?.url === 'string')
       .map((r: any) => ({ url: r.url, title: String(r.title ?? ''), content: String(r.content ?? ''), score: Number(r.score ?? 0) }))
-    trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
+    trace('tavily', { query, includeDomains: opts.includeDomains, searchDepth: opts.searchDepth ?? 'basic', status: res.status, ms: Date.now() - t0, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
     return hits
   } catch {
     return []
