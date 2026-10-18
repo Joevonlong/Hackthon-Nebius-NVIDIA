@@ -379,3 +379,33 @@ workspace/<question-slug>/
   exports/                    BibTeX / CSL JSON / zip exports of this question
 ```
 The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browser vault is a write-through cache of it, so notes, seeds and libraries survive reloads and restarts and can be opened in Finder, Zettlr or Obsidian. Builds write into `libraries/` of their question only; History lists that folder. Trace logs stay in `logs/runs/<libraryId>/` with a link file in the library folder.
+
+---
+
+## 19. CR-7 · QA findings (17:05; bug fixes, no behaviour change except Q-6)
+| # | Finding | Owner |
+|---|---|---|
+| Q-1 | Reload loses the built library (must reopen the last library of the question) | W2 |
+| Q-2 | Chat does not scroll to the proposal card; Apply hidden | F1 |
+| Q-3 | "Prioritize recent clinical studies" ignores "recent"/"clinical"; banner shows raw model reasoning; weight shown as 0.4 vs 36% | F1 |
+| Q-4 | "149 of 594 pass" but only 30 shown; 594 vs 599 denominators | F2 |
+| Q-5 | 0.85 shown but "BELOW" at min 0.85 (rounding) | F2 |
+| Q-6 | Off-topic papers (judge relevance ≤ 1) still in the top 30 — **policy change, needs user decision** | — |
+| Q-7/Q-8 | Rank arrows tiny; no arrows after slider changes | F2 |
+| Q-9 | Seed DOIs parsed twice (trailing backtick) → 20 known papers for 5 seeds | captain |
+| Q-10 | Saved note shows raw weight 0.40 instead of normalized 36% | F1 |
+| Q-11 | Graph legend overlaps fit/reset; labels clipped at 1100 px | G1 |
+| Q-12 | BibTeX authors capped at 10 without "and others" | captain |
+| Q-13 | Raw OpenAlex ids in paper relations | G1 |
+| Q-14/15 | Keyboard shortcuts fire while typing / without focus | G1 |
+
+**D-38 (17:15, user choice for Q-6):** LLM off-topic gate — when the LLM read rates relevance 0–1 of 3, the paper cannot pass (no backfill of its slot), stays listed with the tag "off-topic (LLM read)" and the model's evidence; weights unchanged. Same rule in server/library/score.ts and client/src/library/score.ts.
+
+---
+
+## 20. CR-8 · Obsidian-style note titles (user, 17:25)
+| # | Requirement | Card | Owner |
+|---|---|---|---|
+| R-8.1 | Every note page shows an **inline title = the note's name** (Obsidian / Apple Notes style), above the body; no separate generic "# Question" heading | F-64 | W2 |
+| R-8.2 | For a question note the title is the question's **subject** — the same name as its folder `workspace/<subject>/` and its row in the file tree; a new question's name defaults to a short subject derived from the typed question (first ~6 meaningful words) | F-64 | W2 |
+| R-8.3 | Editing the inline title renames the note (question: renames the folder and the switcher entry); file tree, tabs and History update live; links `[[old name]]` are updated | F-64 | W2 |

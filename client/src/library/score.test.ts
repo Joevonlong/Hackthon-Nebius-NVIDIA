@@ -25,13 +25,18 @@ describe('library score', () => {
     for (const p of papers.slice(0, 50)) expect(LibPaper.safeParse(p).success).toBe(true)
     const n = papers.filter(p => !p.excluded).length
     const r = rescore(papers, { topPercent: 25, threshold: 0 })
-    expect(r.filter(p => p.passed).length).toBe(passCut(n, 25))
+    // D-38: papers the LLM read rated 0–1 of 3 inside the cut do not pass (no backfill).
+    const cut = passCut(n, 25)
+    const offTopicInCut = r.filter(p => !p.excluded).slice(0, cut).filter(p => p.llmRead && p.llmRead.relevance <= 1).length
+    expect(r.filter(p => p.passed).length).toBe(cut - offTopicInCut)
+    expect(r.every(p => !(p.passed && p.llmRead && p.llmRead.relevance <= 1))).toBe(true)
     expect(r[0].rank).toBe(1)
     expect(r.every(p => !p.excluded || !p.passed)).toBe(true)
     const strict = rescore(papers, { topPercent: 25, threshold: 0.95 })
     expect(strict.filter(p => p.passed).length).toBeLessThan(r.filter(p => p.passed).length)
     expect(strict.filter(p => p.passed).every(p => p.total >= 0.95)).toBe(true)
-    expect(rescore(papers, { topPercent: 100, threshold: 0 }).filter(p => p.passed).length).toBe(n)
+    const offTopicAll = papers.filter(p => !p.excluded && p.llmRead && p.llmRead.relevance <= 1).length
+    expect(rescore(papers, { topPercent: 100, threshold: 0 }).filter(p => p.passed).length).toBe(n - offTopicAll)
     const reweighted = rescore(papers, { topPercent: 25, threshold: 0.5, weights: { ...DEFAULT_WEIGHTS, citations: 0.5 } })
     expect(reweighted.map(p => p.paper.id)).not.toEqual(r.map(p => p.paper.id))
   })

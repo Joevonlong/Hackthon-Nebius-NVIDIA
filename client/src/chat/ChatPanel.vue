@@ -25,8 +25,21 @@ const turns = computed(() => chat.turns)
 const ready = computed(() => !!libId.value && library.status === 'done')
 const settings = computed(() => currentSettings(lib))
 
-async function scrollEnd() { await nextTick(); list.value?.scrollTo({ top: list.value.scrollHeight, behavior: 'smooth' }) }
-watch(() => turns.value.length + (chat.busy ? 1 : 0), scrollEnd)
+/**
+ * Q-2: keep the newest turn in view. The reply arriving adds a turn AND clears busy in the same tick, so watch both
+ * separately (their sum did not change before). Wait for layout, then bring the end of the list (the proposal card's
+ * Apply / Dismiss row) into view above the input.
+ */
+async function scrollEnd() {
+  await nextTick()
+  requestAnimationFrame(() => {
+    const el = list.value
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    el.querySelector('.msg:last-of-type .btns')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  })
+}
+watch(() => [turns.value.length, chat.busy, libId.value], scrollEnd)
 
 async function send(text = draft.value) {
   if (!text.trim() || chat.busy || !ready.value) return
@@ -46,9 +59,21 @@ function onClick(e: MouseEvent, t: ChatTurn) {
   const p = c ? pool.find(x => x.paper.id === c.paperId) : pool.find(x => x.rank === rank)
   const id = c?.paperId ?? p?.paper.id
   if (!id) return
-  ui.selectedPaperId = id
-  ui.openLibPaper(id, (c?.title ?? p?.paper.title ?? `#${rank}`).slice(0, 60))
+  // CR-6: remember where in the chat the citation was, so Back returns to this exact spot (scroll + citation focus).
+  ui.saveView('chat', { scrollTop: list.value?.scrollTop ?? 0, cite: { turn: t.id, rank } })
+  ui.openLibPaper(id, (c?.title ?? p?.paper.title ?? `#${rank}`).slice(0, 60), { from: 'chat' })
 }
+function onListScroll() { if (list.value) ui.saveView('chat', { scrollTop: list.value.scrollTop }) }
+// Back to a place left through a chat citation: restore the chat's scroll and refocus that citation.
+watch(() => ui.restoreSeq, async () => {
+  if (ui.restoring?.via !== 'chat' || !list.value) return
+  const v = ui.viewState.chat
+  await nextTick()
+  const el = list.value; if (!el) return
+  if (v?.scrollTop != null) el.scrollTop = v.scrollTop
+  const a = v?.cite ? el.querySelector<HTMLAnchorElement>(`[data-turn="${CSS.escape(v.cite.turn)}"] a.cite[data-rank="${v.cite.rank}"]`) : null
+  if (a) { a.focus({ preventScroll: true }); a.classList.add('nav-return'); setTimeout(() => a.classList.remove('nav-return'), 1600) }
+})
 </script>
 
 <template>
@@ -63,7 +88,7 @@ function onClick(e: MouseEvent, t: ChatTurn) {
         <button v-if="turns.length" type="button" class="ghost" title="Clear this library's chat" @click="chat.clear()">Clear</button>
         <button type="button" class="ghost" title="Collapse the chat" aria-label="Collapse the chat" @click="emit('toggle')">⟩</button>
       </header>
-      <div ref="list" class="list">
+      <div ref="list" class="list" @scroll.passive="onListScroll">
         <div v-if="!ready" class="empty">
           <p>Build a library first. Then ask about its papers, scores and evidence, or tell it what to prioritize.</p>
         </div>
@@ -73,7 +98,7 @@ function onClick(e: MouseEvent, t: ChatTurn) {
             <button v-for="s in SUGGESTED" :key="s" type="button" class="chip" @click="send(s)">{{ s }}</button>
           </div>
         </div>
-        <div v-for="t in turns" :key="t.id" class="msg" :class="[t.role, { err: t.error }]">
+        <div v-for="t in turns" :key="t.id" class="msg" :data-turn="t.id" :class="[t.role, { err: t.error }]">
           <div v-if="t.role === 'user'" class="bubble">{{ t.content }}</div>
           <template v-else>
             <!-- eslint-disable-next-line vue/no-v-html -- renderMarkdown escapes everything first -->
@@ -118,6 +143,7 @@ function onClick(e: MouseEvent, t: ChatTurn) {
 .md :deep(code){font:12px var(--font-mono);background:var(--surface);padding:0 3px;border-radius:3px}
 .md :deep(a.cite){color:var(--seed);font-weight:600;text-decoration:none;border-bottom:1px dotted var(--seed)}
 .md :deep(a.cite:hover){background:var(--seed-soft)}
+.md :deep(a.cite.nav-return){outline:2px solid var(--seed);outline-offset:2px;border-radius:3px}
 .meta{margin-top:4px;font:500 10.5px var(--font-mono);color:var(--muted)}
 .thinking{display:flex;align-items:center;gap:4px;color:var(--muted);font-size:12.5px}
 .thinking span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:b 1s infinite ease-in-out}

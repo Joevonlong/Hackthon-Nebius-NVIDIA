@@ -20,13 +20,19 @@ export function buildLibraryNote(lp: LibPaper, ctx: { libraryId: string | null; 
     `library: ${ctx.libraryId ?? ''}`, `library_file: ${lp.file}`, `retracted: ${p.isRetracted}`, `role: literature`,
   ].join('\n')
   const top = [...lp.components].sort((a, b) => b.contribution - a.contribution)
+  // Q-10: the same effective weight the UI shows (share of the assessed weights), so share × value = contribution
+  const assessed = lp.components.filter(c => c.value != null).reduce((s, c) => s + c.weight, 0)
+  const share = (c: LibPaper['components'][number]) => c.value == null || assessed <= 0 ? 0 : c.weight / assessed
+  const pc = (x: number) => `${Math.round(x * 100)}%`
   const body = [
     `# ${p.title}`, '',
     `${p.authors.slice(0, 3).join(', ')}${p.authors.length > 3 ? ' et al.' : ''} · ${p.year ?? ''} · ${p.venue ?? ''} · ${p.citedByCount.toLocaleString('en')} citations`, '',
     `**Library score:** ${f2(lp.total)} (${lp.passed ? 'passed' : 'below'} threshold ${f2(ctx.threshold)}) · rank #${lp.rank}`, '',
     '## Why this score', '',
     ...top.map(c => [
-      `- **${COMPONENT_META[c.key].label}** · weight ${f2(c.weight)} × value ${c.value == null ? 'not assessed' : f2(c.value)} = ${f2(c.contribution)} — ${c.how}`,
+      c.value == null
+        ? `- **${COMPONENT_META[c.key].label}** · weight 0% (not assessed; its share moved to the assessed components) = 0.00 — ${c.how}`
+        : `- **${COMPONENT_META[c.key].label}** · weight ${pc(share(c))} × value ${f2(c.value)} = ${f2(c.contribution)} — ${c.how}`,
       ...c.evidence.slice(0, 3).map(e => `  - ${e.text}${e.source ? ` · [${e.source.name}](${e.source.url})` : ''}`),
     ].join('\n')), '',
     ...(lp.llmRead ? [`**LLM read (${lp.llmRead.model}):** ${lp.llmRead.why}`, ...(lp.llmRead.quote ? ['', `> ${lp.llmRead.quote}`, '', lp.llmRead.verified ? '✓ verified quote' : '⚠ unverified quote'] : []), ''] : []),

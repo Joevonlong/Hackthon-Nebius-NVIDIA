@@ -18,6 +18,7 @@ import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, ren
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
 import { createQuestion, deleteNote, listNotes, listQuestions, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
 
@@ -189,6 +190,7 @@ library.get('/library/:id/papers/:paperId', c => {
 // ---- chat (lane U2, D-26 / D-29) ----
 const libCache = new Map<string, { goals: Goals | null; papers: LibPaper[] }>()
 function loadForChat(id: string): { goals: Goals | null; papers: LibPaper[] } | null {
+  if (id === DEMO_LIBRARY_ID) return demoLibraryForChat()
   const s = getLibraryState(id)
   if (s && s.papers.length) return { goals: s.goals, papers: s.papers }
   const hit = libCache.get(id)

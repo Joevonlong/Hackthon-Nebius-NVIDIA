@@ -58,7 +58,7 @@ export function buildChatContext(goals: Goals | null, papers: LibPaper[], curren
       `SUBTOPICS: ${goals.subtopics.map(s => s.name).join('; ')}`, `KEYWORDS: ${goals.keywords.join(', ')}`)
   }
   const w = current.weights
-  L.push('', `CURRENT SETTINGS: weights ${KEYS.map(k => `${k} ${w[k]}`).join(', ')} (normalized to sum 1 in the UI) · pass rule: top ${current.topPercent}% AND total ≥ ${current.threshold} · filters: ${JSON.stringify(current.filters ?? {})}`)
+  L.push('', `CURRENT SETTINGS: weights ${KEYS.map(k => `${k} ${w[k]} (=${weightPct(w, k)}%)`).join(', ')} (raw values; the UI shows each as its normalized % share) · pass rule: top ${current.topPercent}% AND total ≥ ${current.threshold} · filters: ${JSON.stringify(current.filters ?? {})}`)
   L.push('', `AGGREGATES (all ${ranked.length} scored papers; ${live.length} not excluded; ${live.filter(p => p.passed).length} pass):`,
     `- kind: ${dist(live.map(p => p.labels.kind))}`,
     `- year: ${dist(live.map(p => yearBucket(p.paper.year)), 14)}`,
@@ -98,17 +98,79 @@ const num = (x: unknown): number | null => (typeof x === 'number' && Number.isFi
 const r2 = (x: number) => Math.round(x * 100) / 100
 const EXPLICIT_LLM = /\b(llm|language model|model read|ai read|llm read|the model'?s (read|opinion|judg(e)?ment))\b/i
 
-/** Validates and repairs a model proposal: weights in 0..1, LLM read stays lowest unless asked, kinds from the contract. */
-export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], lastUser: string): z.infer<typeof Proposal> | null {
-  if (!raw || typeof raw !== 'object') return null
-  const r = raw as Record<string, any>
+// ---------- user intents the model often misses (Q-3) ----------
+const CHANGE = /\b(prioriti[sz]e|focus|prefer|favou?r|care (more|less)|only|ignore|exclude|drop|remove|skip|boost|emphasi[sz]e|weight|stricter|looser|rank)\b/i
+const RECENT = /\b(recent|recently|latest|newer|newest|new|up[- ]to[- ]date|modern)\b/i
+const LAST_N = /\b(?:last|past|previous)\s+(\d{1,2}|two|three|four|five|six|seven|eight|nine|ten)\s+years?\b/i
+const WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
+const CLINICAL = /\b(clinical|clinic|trials?|patients?|rcts?|randomi[sz]ed|cohorts?|therap(?:y|ies|eutic))\b/i
+const NO_PREPRINT = /\b(ignore|exclude|excluding|no|without|drop|skip|remove|not|hide)\b[^.]{0,30}\bpre-?prints?\b|\bpre-?prints?\b[^.]{0,20}\b(out|excluded|hidden)\b/i
+/** Kinds kept for a clinical focus (the contract has no study-design filter). */
+export const CLINICAL_KINDS = ['journal-article', 'review', 'systematic-review', 'meta-analysis']
+export const RECENT_YEARS = 3
+
+export interface Intents { recentFrom: number | null; lastN: boolean; clinical: boolean; noPreprints: boolean; change: boolean }
+export function detectIntents(text: string, year = new Date().getFullYear()): Intents {
+  const n = text.match(LAST_N)
+  const years = n ? (WORDS[n[1].toLowerCase()] ?? Number(n[1])) : RECENT_YEARS
+  const recent = !!n || RECENT.test(text)
+  return { recentFrom: recent ? year - years : null, lastN: !!n, clinical: CLINICAL.test(text), noPreprints: NO_PREPRINT.test(text), change: CHANGE.test(text) || !!n }
+}
+
+/** Normalized share of the total in % (the UI shows weights as these shares). */
+export const weightPct = (w: Weights, k: Key) => { const s = KEYS.reduce((a, x) => a + (w[x] ?? 0), 0) || 1; return Math.round(((w[k] ?? 0) / s) * 100) }
+const KW: Record<Key, string> = { relevance: 'relevance', graph: 'graph|links? to (?:your|the vault|vault)(?: papers)?', citations: 'citations?(?: impact)?', venue: 'venues?', authors: 'authors?(?: track record| record)?', llm: 'llm(?: read)?' }
+const keyOf = (word: string): Key => KEYS.find(k => new RegExp(`^(?:${KW[k]})$`, 'i').test(word)) ?? 'relevance'
+
+/**
+ * Q-3c: rewrites raw weight numbers next to a component name ("relevance to 0.4", "venue 40%") into the normalized
+ * share the UI shows. Numbers that match neither the proposed nor the current raw weight (component values) are kept.
+ */
+export function percentify(text: string, next: Weights, cur: Weights): string {
+  const re = new RegExp(`\\b(${KEYS.map(k => KW[k]).join('|')})\\b`, 'gi')
+  const hits = [...text.matchAll(re)]
+  if (!hits.length) return text
+  const changed = KEYS.some(k => Math.abs(next[k] - cur[k]) > 0.004)
+  const near = (a: number, b: number) => Math.abs(a - b) < 0.006
+  let out = '', pos = 0
+  hits.forEach((m, i) => {
+    const key = keyOf(m[1]), start = m.index! + m[0].length
+    if (start < pos) return
+    const stop = text.slice(start).search(/[;:]|\.(\s|$)|\n/)
+    const end = Math.min(hits[i + 1]?.index ?? text.length, start + 50, stop < 0 ? text.length : start + stop)
+    const weightWord = /weight|share/i.test(text.slice(Math.max(0, m.index! - 30), end))
+    out += text.slice(pos, start)
+    out += text.slice(start, end).replace(/(?<![\d.])(\d{1,3}(?:\.\d+)?)\s*%|(?<![\d.])(0?\.\d{1,3}|1\.0+)(?![\d%])/g, (s, pc: string | undefined, dec: string | undefined) => {
+      const v = pc != null ? Number(pc) / 100 : Number(dec)
+      if (changed && near(v, next[key])) return `${weightPct(next, key)}%`
+      if ((weightWord || changed) && near(v, cur[key])) return `${weightPct(cur, key)}%`
+      return s
+    })
+    pos = end
+  })
+  return out + text.slice(pos)
+}
+
+/**
+ * Validates and repairs a model proposal: weights in 0..1, LLM read stays lowest unless asked, kinds from the contract,
+ * plus the common intents the model misses (Q-3): "recent / last N years / new" → minYear, "clinical / trials /
+ * patients" → article + review kinds and more relevance, "ignore preprints" → kinds without preprint.
+ */
+export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], lastUser: string, year = new Date().getFullYear()): z.infer<typeof Proposal> | null {
+  const intent = detectIntents(lastUser, year)
+  const wants = intent.change && (intent.recentFrom != null || intent.clinical || intent.noPreprints)
+  if ((!raw || typeof raw !== 'object') && !wants) return null
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, any>
   const notes: string[] = []
   const out: z.infer<typeof Proposal> = { rationale: typeof r.rationale === 'string' ? r.rationale.trim() : '' }
+  const w: Partial<Weights> = {}
   if (r.weights && typeof r.weights === 'object') {
     const vals = KEYS.map(k => num(r.weights[k]))
     const scale = vals.some(v => v != null && v > 1) && vals.every(v => v == null || v <= 100) ? 100 : 1 // percentages → fractions
-    const w: Partial<Weights> = {}
     KEYS.forEach((k, i) => { const v = vals[i]; if (v != null) { const c = r2(Math.min(1, Math.max(0, v / scale))); if (Math.abs(c - current.weights[k]) > 0.004) w[k] = c } })
+  }
+  if (wants && intent.clinical && !((w.relevance ?? current.weights.relevance) > current.weights.relevance)) w.relevance = r2(Math.min(1, current.weights.relevance + 0.1))
+  if (Object.keys(w).length) {
     const merged = { ...current.weights, ...w }
     const minOthers = Math.min(...KEYS.filter(k => k !== 'llm').map(k => merged[k]))
     if (merged.llm >= minOthers) {
@@ -123,23 +185,39 @@ export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], 
     if (Object.keys(w).length) out.weights = w
   }
   const tp = num(r.topPercent)
-  if (tp != null) { const c = Math.round(Math.min(100, Math.max(1, tp <= 1 && tp > 0 ? tp * 100 : tp))); if (c !== current.topPercent) out.topPercent = c }
+  if (tp != null) { const c = Math.round(Math.min(100, Math.max(1, tp < 1 && tp > 0 ? tp * 100 : tp))); if (c !== current.topPercent) out.topPercent = c }
   const th = num(r.threshold)
   if (th != null) { const c = r2(Math.min(1, Math.max(0, th > 1 && th <= 100 ? th / 100 : th))); if (Math.abs(c - current.threshold) > 0.004) out.threshold = c }
-  if (r.filters && typeof r.filters === 'object') {
-    const f: Filters = {}
-    if (Array.isArray(r.filters.kinds)) { const ks = r.filters.kinds.map(String).filter((k: string) => (KINDS as readonly string[]).includes(k)); if (ks.length) f.kinds = [...new Set<string>(ks)] }
-    const minY = num(r.filters.minYear), maxY = num(r.filters.maxYear)
-    if (minY != null && minY > 1800 && minY < 2100) f.minYear = Math.round(minY)
-    if (maxY != null && maxY > 1800 && maxY < 2100) f.maxYear = Math.round(maxY)
-    // false is the no-filter default: keep it only when it switches off a filter that is on now
-    if (r.filters.openAccessOnly === true || (r.filters.openAccessOnly === false && current.filters?.openAccessOnly)) f.openAccessOnly = r.filters.openAccessOnly
-    if (r.filters.peerReviewedOnly === true || (r.filters.peerReviewedOnly === false && current.filters?.peerReviewedOnly)) f.peerReviewedOnly = r.filters.peerReviewedOnly
-    if (Object.keys(f).length && JSON.stringify(f) !== JSON.stringify(current.filters ?? {})) out.filters = f
+  const rf = (r.filters && typeof r.filters === 'object' ? r.filters : {}) as Record<string, any>
+  const f: Filters = {}
+  if (Array.isArray(rf.kinds)) { const ks = rf.kinds.map(String).filter((k: string) => (KINDS as readonly string[]).includes(k)); if (ks.length) f.kinds = [...new Set<string>(ks)] }
+  const minY = num(rf.minYear), maxY = num(rf.maxYear)
+  if (minY != null && minY > 1800 && minY < 2100) f.minYear = Math.round(minY)
+  if (maxY != null && maxY > 1800 && maxY < 2100) f.maxYear = Math.round(maxY)
+  // false is the no-filter default: keep it only when it switches off a filter that is on now
+  if (rf.openAccessOnly === true || (rf.openAccessOnly === false && current.filters?.openAccessOnly)) f.openAccessOnly = rf.openAccessOnly
+  if (rf.peerReviewedOnly === true || (rf.peerReviewedOnly === false && current.filters?.peerReviewedOnly)) f.peerReviewedOnly = rf.peerReviewedOnly
+  if (wants) {
+    if (intent.recentFrom != null && (f.minYear == null || intent.lastN)) f.minYear = intent.recentFrom
+    if (intent.clinical) {
+      if (!f.kinds) {
+        const keep = (current.filters?.kinds ?? []).filter(k => CLINICAL_KINDS.includes(k))
+        f.kinds = keep.length ? keep : [...CLINICAL_KINDS]
+      }
+      notes.push('There is no study-design filter, so "clinical" is expressed as journal articles and reviews only, with more weight on relevance.')
+    }
+    if (intent.noPreprints) f.kinds = (f.kinds ?? current.filters?.kinds ?? [...KINDS]).filter(k => k !== 'preprint')
   }
+  // an open-ended upper bound (this year or later) is no filter at all
+  if (f.maxYear != null && f.maxYear >= year && current.filters?.maxYear == null) delete f.maxYear
+  // the UI merges filters into the current ones, so only send the fields that change
+  const same = (k: keyof Filters) => JSON.stringify(f[k]) === JSON.stringify(current.filters?.[k])
+  for (const k of Object.keys(f) as (keyof Filters)[]) if (same(k)) delete f[k]
+  if (Object.keys(f).length) out.filters = f
   if (!out.weights && out.topPercent == null && out.threshold == null && !out.filters) return null
   if (notes.length) out.rationale = [out.rationale, ...notes].filter(Boolean).join(' ')
   if (!out.rationale) out.rationale = 'Adjusted to match your request.'
+  out.rationale = percentify(out.rationale, { ...current.weights, ...out.weights }, current.weights)
   const ok = Proposal.safeParse(out)
   return ok.success ? ok.data : null
 }
@@ -170,8 +248,12 @@ When asked "why is #a above #b", compare their component values and weights.
 Score = Σ weight·value over assessed components / Σ assessed weights. Components: relevance (embedding similarity to the goals), graph (citation links to the user's own papers), citations (field/year-normalized impact), venue (journal standing), authors (track record), llm (an LLM's read of the abstract; lowest weight by design).
 PROPOSALS: only when the user asks to change priorities, filters or the pass rule (e.g. "care more about recent clinical papers", "ignore preprints", "venue matters more than citations", "be stricter"), add a proposal; otherwise proposal is null.
 A proposal never applies itself: the user clicks Apply. Weights are each in 0..1 (they are normalized to sum 1 in the UI); only include weights you change. Keep "llm" the lowest weight unless the user explicitly asks about the LLM read, and say so in the rationale.
-There is no "recency" weight: express recency with filters.minYear. There is no study-design filter: express a clinical focus by raising relevance (and venue) and say which clinical papers would rise. Only set filters.kinds when the user asks to include or exclude a kind; "ignore preprints" = filters.kinds listing every kind to KEEP (valid kinds: ${KINDS.join(', ')}). Omit filter fields you do not change.
-topPercent (1..100) and threshold (0..1, the absolute floor) form the pass rule. In the reply, summarize the proposed change in one or two sentences.
+Map common intents to fields (current year ${new Date().getFullYear()}):
+- "recent", "new", "latest" → filters.minYear = ${new Date().getFullYear() - RECENT_YEARS}; "last N years" → filters.minYear = ${new Date().getFullYear()} − N. There is no recency weight.
+- "clinical", "trials", "patients" → filters.kinds = ${JSON.stringify(CLINICAL_KINDS)} and raise relevance. There is no study-design filter: say so in the reply and name which clinical papers would rise.
+- "ignore/no preprints" → filters.kinds listing every kind to KEEP, without "preprint" (valid kinds: ${KINDS.join(', ')}).
+- Anything these fields cannot express: say so plainly in the reply. Never invent fields. Omit filter fields you do not change.
+topPercent (1..100) and threshold (0..1, the absolute floor) form the pass rule. In the reply, summarize the proposed change in one or two sentences in words ("raises relevance, keeps only papers from 2023 on, drops preprints"); do NOT write raw weight numbers like 0.4 in the reply or rationale (the UI shows weights as normalized % shares and the card shows the exact numbers).
 Respond with ONE JSON object and nothing else:
 {"reply": "markdown answer", "cited": [rank numbers], "proposal": null | {"weights": {"venue": 0.3}, "topPercent": 25, "threshold": 0.5, "filters": {"kinds": ["journal-article"], "minYear": 2020, "maxYear": 2026, "openAccessOnly": false, "peerReviewedOnly": false}, "rationale": "one or two sentences"}}`
 
@@ -205,8 +287,9 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
       if (!out) { error = lastError ? `model call failed (${lastError.status || ''} ${lastError.body.slice(0, 120)})`.trim() : 'model call failed'; if (lastError?.body === 'timeout') error = 'the model timed out'; continue }
       const parsed = ModelOut.safeParse(out.data)
       if (!parsed.success) { error = `invalid model JSON: ${parsed.error.issues.slice(0, 2).map(i => `${i.path.join('.')} ${i.message}`).join('; ')}`; continue }
-      const reply = normalizeCitations(parsed.data.reply.trim())
-      res = { reply, cited: resolveCited(reply, parsed.data.cited, ctx.ranked), proposal: sanitizeProposal(parsed.data.proposal, req.current, lastUser), model }
+      const proposal = sanitizeProposal(parsed.data.proposal, req.current, lastUser)
+      const reply = percentify(normalizeCitations(parsed.data.reply.trim()), { ...req.current.weights, ...proposal?.weights }, req.current.weights)
+      res = { reply, cited: resolveCited(reply, parsed.data.cited, ctx.ranked), proposal, model }
       error = null
     }
     attempts--

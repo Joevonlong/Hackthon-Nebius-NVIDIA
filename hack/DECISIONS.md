@@ -10,3 +10,4 @@ D-25..D-29 (16:20): CR-2 confirmed with recommended defaults — see PRODUCT_PLA
 D-30 (16:28): CR-3 confirmed — no mock in production, question box, real run recorded as demo; topic melanoma single-cell.
 D-31/D-32 (16:15): no Nebius deploy (local only); judge fixes J-2..J-5 confirmed.
 D-33..D-36 (16:30): CR-5 confirmed — question folders with own seeds, empty vault, tiles+table, history per question, uploads incl. PDF.
+D-38 (17:15): LLM off-topic gate (relevance ≤1/3 cannot pass).
