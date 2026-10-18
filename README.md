@@ -89,7 +89,7 @@ PORT=3030 pnpm start
 <table>
 <tr>
 <td width="50%" valign="top"><b>Question folders and seeds.</b> One research question is one folder with its notes and seed papers. Paste DOIs, PMIDs, arXiv or OpenAlex ids, or upload .bib, .ris, CSL JSON or PDF.<br><br><img src="docs/media/question-seeds.png" width="100%" alt="Research question folder with the seed paper table and the paste and upload box"></td>
-<td width="50%" valign="top"><b>Vault and BibTeX export.</b> Add to vault writes a literature note with front matter, the verified quote and <code>[[seed]]</code> links. Export the vault's references as BibTeX for Zotero.<br><br><img src="docs/media/vault-export.png" width="100%" alt="Literature note in the vault with seed wikilinks, next to the BibTeX export"></td>
+<td width="50%" valign="top"><b>Vault and BibTeX export.</b> Add to vault writes a Markdown literature note with front matter, the verified quote and its citation relations into the question's <code>notes/</code> folder; the paper joins the graph. Export the question's references as BibTeX, CSL JSON or a Markdown .zip.<br><br><img src="docs/media/vault-export.png" width="100%" alt="Literature note in the vault with front matter, next to the References tab with BibTeX, CSL JSON and Markdown export"></td>
 </tr>
 </table>
 
@@ -118,7 +118,7 @@ Papers already in the vault and retracted papers are excluded. Every paper is sa
 | Citation graph | Score-ramped nodes, citation edges, seed links | 60 papers, 287 links (demo); 1,296 edges (real library) |
 | Chat | Proposal diff, Apply, re-rank with arrows | 8 in, 8 out of the top 10 |
 | Fallbacks | Europe PMC references, Europe PMC / Crossref cited-by, OpenAlex entity cache | 227 links added without OpenAlex |
-| Vault and export | Markdown notes with `[[seed]]` links, BibTeX | not measured as a count |
+| Vault and export | Markdown notes with front matter and citation relations; BibTeX, CSL JSON, .zip | not measured as a count |
 
 ## Measured results
 
