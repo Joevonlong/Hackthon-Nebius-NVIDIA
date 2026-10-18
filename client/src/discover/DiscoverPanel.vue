@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // Discover sidebar: question, seeds, preset, run, step trail, lens, lanes. Owner: lane C.
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import type { Lane } from '@shared/contracts'
 import { PRESETS } from '@shared/config'
-import { useDiscovery, sortLane, STAGE_LABEL } from '../stores/discovery'
+import { useDiscovery, sortLane, laneLensSource, STAGE_LABEL, type LensSource } from '../stores/discovery'
 import { useUi } from '../stores/ui'
 import { isDemo, isMock } from '../api'
 import CandidateCard from './CandidateCard.vue'
+import CountUp from './CountUp.vue'
+import Icon from '../workspace/Icon.vue'
 
 const disc = useDiscovery()
 const ui = useUi()
@@ -37,7 +39,21 @@ const running = computed(() => disc.status === 'running')
 const haveCands = computed(() => disc.candidates.length > 0)
 const retracted = computed(() => disc.inLane('Retracted'))
 const anyJudged = computed(() => disc.judgedCount > 0)
-const lensSource = computed(() => anyJudged.value ? 'judge facet grades' : disc.candidates.some(c => c.features.eFacets) ? 'embedding facet scores' : 'pre-judge order')
+const LENS_LABEL: Record<LensSource, string> = { judge: 'judge facets', embed: 'embedding facets', keywords: 'title keywords (judge pending)' }
+const lensSrc = computed<LensSource>(() => anyJudged.value ? 'judge' : disc.candidates.some(c => c.features.eFacets) ? 'embed' : 'keywords')
+const laneSrc = (lane: Lane) => laneLensSource(disc.inLane(lane))
+
+// AI stages need TOKEN_FACTORY_API_KEY on the server; /api/health says whether it is set.
+const AI_STAGES = new Set(['r4', 'scout', 'embed', 'rerank', 'judge', 'verify'])
+const aiKey = ref<boolean | null>(null)
+onMounted(async () => {
+  try { const h = await (await fetch('/api/health')).json() as { keys?: { tokenFactory?: boolean } }; aiKey.value = !!h?.keys?.tokenFactory }
+  catch { aiKey.value = null }
+})
+const aiSkipped = computed(() => disc.stages.filter(s => AI_STAGES.has(s.name) && s.status === 'skipped'))
+const aiSkippedNames = computed(() => aiSkipped.value.map(st => STAGE_LABEL[st.name]).join(', '))
+const aiSkippedWhy = computed(() => aiSkipped.value.map(st => STAGE_LABEL[st.name] + (st.message ? ' (' + st.message + ')' : '')).join(', '))
+const routeCounts = computed(() => disc.stages.filter(s => s.name === 'r1' || s.name === 'r2' || s.name === 'r3'))
 const traceOpen = ref(false)
 const modeLabel = computed(() => disc.mode === 'mock' || (!disc.mode && isMock()) ? 'dev mock' : disc.mode === 'demo' || (!disc.mode && isDemo()) ? 'demo replay' : disc.mode === 'live' ? 'live' : '')
 const fresh = computed(() => disc.inLane('Fresh').length === 0)
@@ -48,6 +64,9 @@ function run() { void disc.start() }
 
 <template>
   <div class="side">
+    <section v-if="disc.status === 'idle'" class="proof" aria-label="Why PubMed alone is not enough">
+      <b>PubMed:</b><span><b>15</b> results for this question</span><i>·</i><span><b>999</b> for keywords</span>
+    </section>
     <section class="block">
       <h4><label for="q">Question</label></h4>
       <textarea id="q" v-model="disc.question" class="qbox" rows="2" :disabled="running" />
@@ -64,7 +83,7 @@ function run() { void disc.start() }
       <div class="runrow">
         <button class="btn primary" type="button" :disabled="running" @click="run">{{ running ? 'Running…' : disc.status === 'idle' ? 'Run discovery' : 'Run again' }}</button>
         <button v-if="disc.kept.length" class="btn" type="button" :disabled="running" :title="'Adds ' + disc.kept.length + ' kept papers as seeds'" @click="disc.growAgain()">Grow again · +{{ disc.kept.length }} seeds</button>
-        <button class="btn ghost" type="button" @click="ui.openGraph()">Graph</button>
+        <button class="btn" :class="running ? 'live' : 'ghost'" type="button" :aria-pressed="ui.activeTab?.kind === 'graph'" :title="running ? 'Watch candidates grow out of the seeds' : 'Open the graph view'" @click="ui.openGraph()"><Icon name="graph" />Graph</button>
         <span v-if="modeLabel" class="muted small">{{ modeLabel }}</span>
       </div>
       <p v-if="disc.notice" class="notice">{{ disc.notice }}</p>
@@ -74,9 +93,13 @@ function run() { void disc.start() }
       <h4>Steps <small v-if="disc.ms">{{ (disc.ms / 1000).toFixed(1) }} s</small></h4>
       <div class="steps">
         <span v-for="s in disc.stages" :key="s.name" class="step" :class="{ done: s.status === 'done', live: s.status === 'start', pend: s.status === 'pending' || s.status === 'skipped', err: s.status === 'error', skip: s.status === 'skipped' }" :title="s.message || s.status">
-          <i />{{ STAGE_LABEL[s.name] }}<b v-if="s.count != null">{{ fmt(s.count) }}</b><small v-if="s.ms != null">{{ s.ms < 1000 ? s.ms + 'ms' : (s.ms / 1000).toFixed(1) + 's' }}</small>
+          <i />{{ STAGE_LABEL[s.name] }}<b v-if="s.count != null && s.status !== 'skipped'"><CountUp :value="s.count" /></b><small v-if="s.status === 'skipped'">skipped</small><small v-else-if="s.ms != null">{{ s.ms < 1000 ? s.ms + 'ms' : (s.ms / 1000).toFixed(1) + 's' }}</small>
         </span>
       </div>
+      <p v-if="aiSkipped.length" class="ai-note">
+        <template v-if="aiKey === false">AI stages skipped — add <span class="mono">TOKEN_FACTORY_API_KEY</span> on the server to enable {{ aiSkippedNames }}. Lanes and order come from citation routes.</template>
+        <template v-else>AI stages skipped this run: {{ aiSkippedWhy }}.</template>
+      </p>
     </section>
 
     <section v-if="disc.status === 'error'" class="err" role="alert">
@@ -86,17 +109,23 @@ function run() { void disc.start() }
 
     <section v-if="disc.status === 'idle'" class="empty">
       Paste seed DOIs and press <b>Run discovery</b>. Each seed becomes a note in <span class="mono">Seeds/</span>; candidates arrive in four lanes ordered by seed links.
+      <span v-if="aiKey === false" class="ai-off">AI stages off — add <span class="mono">TOKEN_FACTORY_API_KEY</span> for embed, rerank, judge and verified quotes. Citation routes run without it.</span>
     </section>
 
-    <section v-if="haveCands || running" class="block">
+    <section v-if="haveCands" class="block">
       <div class="lens">
-        <h4><label for="lens">Lens</label> <small>re-sorts within each lane by {{ lensSource }}</small></h4>
+        <h4><label for="lens">Lens</label> <small class="lens-src" :class="lensSrc">Lens: {{ LENS_LABEL[lensSrc] }}</small></h4>
         <input id="lens" v-model.number="lens" type="range" min="0" max="100" aria-label="Lens from Evidence to Method">
         <div class="ends"><span>Evidence</span><span class="mono">{{ lens }}%</span><span>Method</span></div>
+        <p class="muted small lens-help">Re-sorts within each lane; papers never change lanes.<template v-if="lensSrc === 'keywords'"> Title keywords stand in until the judge grades topic and method.</template></p>
       </div>
     </section>
 
     <section v-if="running && !haveCands" class="block" aria-busy="true">
+      <p class="live-ct muted small">
+        <span class="pulse" />Found so far:
+        <template v-for="(r, i) in routeCounts" :key="r.name"><template v-if="i"> · </template>{{ STAGE_LABEL[r.name].split(' ')[0] }} <b class="mono"><CountUp v-if="r.count != null" :value="r.count" /><template v-else>…</template></b></template>
+      </p>
       <div v-for="l in LANES" :key="l.key" class="lane">
         <div class="lane-h"><i class="sw" :style="{ background: l.sw }" />{{ l.key }} <small>{{ l.sub }}</small><span class="ct">…</span></div>
         <div v-for="k in 2" :key="k" class="skel" />
@@ -105,7 +134,7 @@ function run() { void disc.start() }
 
     <template v-if="haveCands">
       <section v-for="l in LANES" :key="l.key" class="lane">
-        <div class="lane-h"><i class="sw" :style="{ background: l.sw }" />{{ l.key }} <small>{{ l.sub }}</small><span class="ct">{{ fmt(countOf(l.key)) }}</span></div>
+        <div class="lane-h"><i class="sw" :style="{ background: l.sw }" />{{ l.key }} <small>{{ l.sub }}</small><small v-if="laneSrc(l.key) !== lensSrc && disc.inLane(l.key).length" class="lane-src" :title="'Lens uses ' + LENS_LABEL[laneSrc(l.key)] + ' in this lane'">{{ laneSrc(l.key) === 'keywords' ? 'kw' : laneSrc(l.key) }}</small><span class="ct"><CountUp :value="countOf(l.key)" /></span></div>
         <div v-if="l.key === 'Fresh' && fresh" class="lane-empty">
           0 in this run. Fresh papers come from query expansion (R4) and the Scout (R5){{ r45ran ? '' : ', which found nothing new this run' }}.
         </div>
@@ -162,7 +191,7 @@ h4 small{letter-spacing:0;text-transform:none;font-size:10.5px;margin-left:4px}
 .notice{margin:0;font-size:11.5px;color:var(--warn);border:1px dashed var(--warn);border-radius:6px;padding:6px 8px}
 .empty{font-size:12.5px;color:var(--muted);border:1px dashed var(--line-2);border-radius:7px;padding:10px}
 .steps{display:flex;flex-wrap:wrap;gap:4px}
-.step{display:inline-flex;gap:5px;align-items:center;font:500 10.5px/1 var(--font-mono);padding:5px 7px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface)}
+.step{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;font:500 10.5px/1 var(--font-mono);padding:5px 7px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface)}
 .step i{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
 .step b{color:var(--fg)}
 .step small{font-size:9.5px;color:var(--muted)}
@@ -196,5 +225,20 @@ h4 small{letter-spacing:0;text-transform:none;font-size:10.5px;margin-left:4px}
 .trace-h small{color:var(--muted)}
 .trace{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:11.5px}
 .trace li{display:flex;flex-direction:column;gap:1px;border-left:2px solid var(--line-2);padding-left:8px}
-@media (prefers-reduced-motion: reduce){.skel,.step.live i{animation:none}}
+.proof{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;font:500 11.5px/1.45 var(--font-mono);color:var(--muted);border:1px solid var(--line);border-left:3px solid var(--gap);border-radius:6px;padding:7px 10px;background:var(--surface-2)}
+.proof b{color:var(--fg);font-weight:600}
+.proof i{font-style:normal;color:var(--line-2)}
+.btn.live{border-color:var(--cand);color:var(--cand);background:var(--cand-soft)}
+.btn .ic{width:13px;height:13px}
+.ai-note{margin:2px 0 0;font-size:11.5px;line-height:1.45;color:var(--muted);border-left:2px solid var(--warn);padding:2px 0 2px 8px}
+.ai-off{display:block;margin-top:6px;font-size:11.5px;color:var(--warn)}
+.lens-src{font-family:var(--font-mono)}
+.lens-src.keywords{color:var(--warn)}
+.lens-src.judge{color:var(--ok)}
+.lens-help{margin:0}
+.lane-src{font:500 10px var(--font-mono);color:var(--warn);border:1px solid currentColor;border-radius:4px;padding:0 4px}
+.live-ct{margin:0;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.live-ct b{color:var(--fg)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--cand);animation:blink 1s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){.skel,.step.live i,.pulse{animation:none}}
 </style>
