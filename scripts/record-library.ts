@@ -4,6 +4,8 @@
 import { mkdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { LibPaper, LibraryEvent, LibraryRequest, Goals, type VaultNote } from '../shared/library'
+import { Seed as SeedSchema } from '../shared/contracts'
+import { buildSeedNote } from '../client/src/discover/literatureNote'
 
 const base = (process.argv[2] || 'http://localhost:3023').replace(/\/$/, '')
 const OUT = process.argv[3] || 'server/demo/recordings/library-melanoma.json'
@@ -11,29 +13,41 @@ const MAX_BYTES = 5 * 1024 * 1024
 const KEEP_TOP = 150
 
 const QUESTION = 'Which single-cell methods help study melanoma immune cells?'
-const SEEDS: { id: string; doi: string; title: string; venue: string; year: number }[] = [
-  { id: 'S1', doi: '10.1126/science.aad0501', title: 'Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq', venue: 'Science', year: 2016 },
-  { id: 'S2', doi: '10.1016/j.cell.2018.10.038', title: 'Defining T Cell States Associated with Response to Checkpoint Immunotherapy in Melanoma', venue: 'Cell', year: 2018 },
-  { id: 'S3', doi: '10.1038/s41586-021-03704-y', title: 'Phenotype, specificity and avidity of antitumour CD8+ T cells in melanoma', venue: 'Nature', year: 2021 },
-  { id: 'S4', doi: '10.1038/s41586-022-04682-5', title: 'Landscape of helper and regulatory antitumour CD4+ T cells in melanoma', venue: 'Nature', year: 2022 },
-  { id: 'S5', doi: '10.1158/1078-0432.CCR-21-1694', title: 'Single-Cell Characterization of the Immune Microenvironment of Melanoma Brain and Leptomeningeal Metastases', venue: 'Clinical Cancer Research', year: 2021 },
-]
+const SEED_DOIS = ['10.1126/science.aad0501', '10.1016/j.cell.2018.10.038', '10.1038/s41586-021-03704-y', '10.1038/s41586-022-04682-5', '10.1158/1078-0432.CCR-21-1694']
 
-const NOTES: VaultNote[] = [
-  {
-    path: 'Notes/Question.md',
-    title: 'Question',
-    content: `# Question\n\n${QUESTION}\n\nI am reading about T cell states in melanoma and why some patients respond to checkpoint blockade while others do not. Single-cell RNA-seq of tumour-infiltrating lymphocytes (TIL profiling) seems to separate exhausted from memory-like T cells, and the balance of these states appears to predict checkpoint response. I want the methods that let me study these immune cells at single-cell resolution.\n`,
-  },
-  ...SEEDS.map(s => ({
-    path: `Seeds/${s.id}.md`,
-    title: s.title,
-    content: `# ${s.title}\n\n${s.venue}, ${s.year}. DOI: ${s.doi}\n\nSeed paper for the melanoma immune-cell question; cite-chase from here.\n`,
-  })),
-]
+// Mirrors client/src/stores/vault.ts (nameFromQuestion / questionNote) so the notes match what the shipped UI sends.
+const safeQuestionName = (s: string) => s.replace(/[\\/:*?"<>|#^[\]]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60)
+function nameFromQuestion(text: string): string {
+  const stop = new Set('a an and are can do does for from how in is of on or the to what which who why with help helps study'.split(' '))
+  const w = text.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(x => x && !stop.has(x.toLowerCase())).slice(0, 6)
+  return safeQuestionName(w.join(' ')) || 'Question'
+}
+const questionContent = (question: string) =>
+  `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n${question}\n\n## Seeds\n\nAdd trusted papers in the **Library** tab (paste ids or upload a .bib / .ris / CSL JSON / CSV / PDF). Their notes land in seeds/ next to this note, and only this question's builds read them.\n\n## Kept so far\n\n- [ ] Build the library from this question\n- [ ] Keep the papers worth reading\n`
+
+// Same note layout the shipped client writes (D-33): Questions/<name>/Question.md + Questions/<name>/seeds/S<n> <short>.md,
+// seeds resolved through POST /api/seeds/resolve exactly like the Library tab's "Add seed papers".
+async function buildNotes(): Promise<{ notes: VaultNote[]; questionName: string }> {
+  const questionName = nameFromQuestion(QUESTION)
+  const res = await fetch(`${base}/api/seeds/resolve`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs: SEED_DOIS }) })
+  if (!res.ok) throw new Error(`POST /api/seeds/resolve -> ${res.status} ${await res.text()}`)
+  const out = (await res.json()) as { seeds: unknown[]; errors: { input: string; message: string }[] }
+  if (out.errors.length) throw new Error(`seed resolve errors: ${JSON.stringify(out.errors)}`)
+  const resolved = out.seeds.map(x => SeedSchema.parse(x))
+  const seeds = SEED_DOIS.map((doi, i) => {
+    const raw = resolved.find(x => x.input.toLowerCase().includes(doi.toLowerCase()) || x.doi?.toLowerCase() === doi.toLowerCase())
+    if (!raw) throw new Error(`seed ${doi} not resolved`)
+    return { ...raw, n: i + 1, label: `S${i + 1}` }
+  })
+  const dir = `Questions/${questionName}`
+  const notes: VaultNote[] = [{ path: `${dir}/Question.md`, title: 'Question', content: questionContent(QUESTION) }]
+  for (const s of seeds) { const n = buildSeedNote(s); notes.push({ path: `${dir}/seeds/${n.path.split('/').pop()}`, title: n.title, content: n.content }) }
+  return { notes, questionName }
+}
 
 async function main() {
-  const request = LibraryRequest.parse({ notes: NOTES, topK: 200, threshold: 0.5, topPercent: 25 })
+  const { notes: NOTES, questionName } = await buildNotes()
+  const request = LibraryRequest.parse({ notes: NOTES, topK: 30, threshold: 0.5, topPercent: 25, questionId: questionName, questionName })
   const res = await fetch(`${base}/api/library`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(request) })
   if (!res.ok) throw new Error(`POST /api/library -> ${res.status} ${await res.text()}`)
   const { libraryId, fixture } = (await res.json()) as { libraryId: string; fixture?: boolean }
@@ -76,14 +90,11 @@ async function main() {
   const all = body.papers.map(p => LibPaper.parse(p)).sort((a, b) => a.rank - b.rank)
   if (all.length === 0) throw new Error('library has no papers')
 
-  // D-27 pass rule: passed = top X% of this library AND total >= floor AND not excluded. Applied here so the recording is
-  // correct even when the server build still uses the floor-only rule (idempotent when the server already applies it).
+  // D-27/D-38: the server applies the pass rule (top X% of non-excluded AND floor AND not LLM-off-topic); the recording keeps its flags as returned.
   const topPercent = request.topPercent, floor = request.threshold
-  const cutoff = Math.ceil((all.length * topPercent) / 100)
-  const passRule = { topPercent, threshold: floor, cutoff }
-  const applyRule = (p: LibPaper): LibPaper => ({ ...p, passed: !p.excluded && p.rank <= cutoff && p.total >= floor })
-  const rescored = all.map(applyRule)
-
+  const nonExcluded = all.filter(p => !p.excluded).length
+  const passRule = { topPercent, threshold: floor, cutoff: Math.max(1, Math.ceil((nonExcluded * topPercent) / 100)) }
+  const rescored = all
   const build = (ps: LibPaper[]) => {
     const keep = new Map(ps.map(p => [p.paper.id, p]))
     const nPassed = rescored.filter(p => p.passed).length
