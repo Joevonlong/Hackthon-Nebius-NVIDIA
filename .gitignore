@@ -11,3 +11,4 @@ dist/
 !.env.example
 *.sqlite
 *.sqlite-*
+.docker-deploy/

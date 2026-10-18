@@ -22,6 +22,15 @@ die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 redact() { local out=() a; for a in "$@"; do if [[ "$a" == *=* && "$a" =~ ^[A-Z0-9_]+= ]]; then out+=("${a%%=*}=***"); else out+=("$a"); fi; done; printf '%s ' "${out[@]}"; }
 run() { if [[ $DRY_RUN == 1 ]]; then printf '[dry-run] %s\n' "$(redact "$@")"; else "$@"; fi; }
 
+# 0. Private Docker config: Docker Desktop's "desktop" credential store hangs on this Mac,
+#    so deploys use their own config dir (contexts and CLI plugins linked from ~/.docker).
+if [[ -z "${PT_KEEP_DOCKER_CONFIG:-}" ]]; then
+  export DOCKER_CONFIG="$ROOT/.docker-deploy"
+  mkdir -p "$DOCKER_CONFIG"
+  [[ -f "$DOCKER_CONFIG/config.json" ]] || printf '{"auths":{},"currentContext":"%s"}\n' "$(docker context show 2>/dev/null || echo default)" > "$DOCKER_CONFIG/config.json"
+  for d in contexts cli-plugins buildx; do [[ -e "$HOME/.docker/$d" && ! -e "$DOCKER_CONFIG/$d" ]] && ln -s "$HOME/.docker/$d" "$DOCKER_CONFIG/$d"; done
+fi
+
 # 1. Tools and login
 export PATH="$HOME/.nebius/bin:$PATH"
 command -v docker >/dev/null || die "docker not found"
