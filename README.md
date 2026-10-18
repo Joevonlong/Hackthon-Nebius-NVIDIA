@@ -183,4 +183,4 @@ Checks: `pnpm gate` (typecheck + tests + build). Nebius Serverless deploy: `scri
 
 ## License
 
-GPL-3.0-or-later. Includes code and styles adapted from [Zettlr](https://github.com/Zettlr/Zettlr) (GPL-3.0); credit to the Zettlr authors and contributors.
+GPL-3.0-or-later (see [LICENSE](LICENSE)).
