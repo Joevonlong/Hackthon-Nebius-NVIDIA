@@ -367,3 +367,15 @@ Decisions (16:30): **D-33** one folder per research question (`Questions/<name>/
 | R-6.1 | The graph view has a visible **Back** button that returns to exactly where the user came from (previous tab, with its scroll position and selection) | F-63 |
 | R-6.2 | Navigation history across tabs: an in-app back/forward stack in the UI store; Back buttons in the graph and in the paper view; ⌘[ / Alt+← also go back; browser Back does not leave the app | F-63 |
 | R-6.3 | Every jump lands on the right target, verified in the browser: list tile/row → paper view → Back → list (same scroll, same item focused); graph node → paper view or note → Back → graph (same zoom/selection); chat citation [#rank] → paper → Back → chat context; History → library → Back; file tree → note → Back; Add to vault → note → Back → paper | F-63 |
+
+**D-37 (16:55, user clarification of CR-5):** everything for one research question lives in **one parent folder on disk**, and a second topic gets its own folder:
+```
+workspace/<question-slug>/
+  Question.md                 the question (front matter: id, created)
+  seeds/S1 Tirosh 2016.md …   seed notes (uploaded / pasted / resolved)
+  notes/*.md                  the user's own notes for this question
+  libraries/<libraryId>/      one folder per build: goals.json, library.json, papers/<paperId>.json,
+                              graph.json (nodes + edges as shown), chat.jsonl, summary.md
+  exports/                    BibTeX / CSL JSON / zip exports of this question
+```
+The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browser vault is a write-through cache of it, so notes, seeds and libraries survive reloads and restarts and can be opened in Finder, Zettlr or Obsidian. Builds write into `libraries/` of their question only; History lists that folder. Trace logs stay in `logs/runs/<libraryId>/` with a link file in the library folder.
