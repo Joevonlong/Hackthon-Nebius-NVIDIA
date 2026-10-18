@@ -4,7 +4,7 @@ WORKDIR /app
 # better-sqlite3 compiles a native module when no prebuilt binary matches
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/* \
-    && corepack enable
+    && corepack enable && corepack prepare pnpm@9.12.3 --activate
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
