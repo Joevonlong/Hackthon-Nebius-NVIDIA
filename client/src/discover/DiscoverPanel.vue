@@ -81,7 +81,7 @@ function run() { void disc.start() }
         </button>
       </div>
       <div class="runrow">
-        <button class="btn primary" type="button" :disabled="running" @click="run">{{ running ? 'Running…' : disc.status === 'idle' ? 'Run discovery' : 'Run again' }}</button>
+        <button class="btn primary" :class="{ busy: running }" type="button" :disabled="running" :aria-busy="running" @click="run"><span v-if="running" class="pulse on-dark" />{{ running ? 'Running…' : disc.status === 'idle' ? 'Run discovery' : 'Run again' }}</button>
         <button v-if="disc.kept.length" class="btn" type="button" :disabled="running" :title="'Adds ' + disc.kept.length + ' kept papers as seeds'" @click="disc.growAgain()">Grow again · +{{ disc.kept.length }} seeds</button>
         <button class="btn" :class="running ? 'live' : 'ghost'" type="button" :aria-pressed="ui.activeTab?.kind === 'graph'" :title="running ? 'Watch candidates grow out of the seeds' : 'Open the graph view'" @click="ui.openGraph()"><Icon name="graph" />Graph</button>
         <span v-if="modeLabel" class="muted small">{{ modeLabel }}</span>
@@ -186,6 +186,8 @@ h4 small{letter-spacing:0;text-transform:none;font-size:10.5px;margin-left:4px}
 .btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
 .btn.ghost{border-color:transparent;color:var(--muted)}
 .btn:disabled{opacity:.55;cursor:default}
+.btn.primary.busy{opacity:1;cursor:progress}
+.pulse.on-dark{background:var(--bg)}
 .small{font-size:11.5px}
 .muted{color:var(--muted)}
 .notice{margin:0;font-size:11.5px;color:var(--warn);border:1px dashed var(--warn);border-radius:6px;padding:6px 8px}
