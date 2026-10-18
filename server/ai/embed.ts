@@ -65,8 +65,13 @@ export async function embed(texts: string[], kind: 'query' | 'document', cfg: Ru
 const RERANK_CHUNK = 50
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x))
 
+// Measured 14:15: Token Factory lists no reranker (Qwen3-Reranker-8B → 404). Skip further calls once seen.
+let rerankUnavailable = false
+
 async function rerankChunk(query: string, docs: string[], timeoutMs: number): Promise<number[] | null> {
-  const res = await tfFetch<any>('rerank', { model: env.models.rerank, query, documents: docs, top_n: docs.length }, timeoutMs)
+  const err: TfError = { status: 0, body: '' }
+  const res = await tfFetch<any>('rerank', { model: env.models.rerank, query, documents: docs, top_n: docs.length }, timeoutMs, { err })
+  if (!res && (err.status === 404 || err.status === 400)) rerankUnavailable = true
   const results: any[] = res?.results ?? res?.data
   if (!Array.isArray(results)) return null
   const scores: (number | null)[] = docs.map(() => null)
@@ -80,7 +85,7 @@ async function rerankChunk(query: string, docs: string[], timeoutMs: number): Pr
 
 export async function rerank(query: string, docs: string[], cfg: RunConfig): Promise<number[] | null> {
   try {
-    if (!hasKey()) return null
+    if (!hasKey() || rerankUnavailable) return null
     if (!docs.length) return []
     const prepared = docs.map(d => (d || '').trim().slice(0, MAX_CHARS) || '(empty)')
     const chunks: string[][] = []

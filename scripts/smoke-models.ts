@@ -7,7 +7,7 @@ import { resolveConfig } from '../shared/config'
 import { env } from '../server/env'
 import { embed, rerank, judge, facets, expandQueries } from '../server/ai/index'
 import { baseUrl, lastError, tfFetch } from '../server/ai/http'
-import { tavilySearch } from '../server/sources/tavily'
+import { tavilySearch, lastTavilyStatus } from '../server/sources/tavily'
 
 const cfg = resolveConfig('demo', env.raw)
 const rows: [string, string, string, string][] = []
@@ -121,7 +121,7 @@ async function main() {
   if (env.tavilyKey) {
     t = t0()
     const hits = await tavilySearch('melanoma MITF AXL single-cell preprint', { includeDomains: ['biorxiv.org', 'nature.com'] })
-    row('tavily', '-', hits.length > 0, `${hits.length} hits (${ms(t)})`)
+    row('tavily', '-', hits.length > 0, `${hits.length} hits, HTTP ${lastTavilyStatus} (${ms(t)})`)
   }
 
   console.log('\n| check | model | ok | detail |\n|---|---|---|---|')

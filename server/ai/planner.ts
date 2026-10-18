@@ -86,10 +86,18 @@ Combine the facets differently in each query; use the standard terminology and c
     const qs = z.object({ queries: z.array(z.string()) }).safeParse(res?.data)
     if (!qs.success) return []
     const seen = new Set<string>()
-    return qs.data.queries
+    const out = qs.data.queries
       .map(q => clip(q.replace(/["()]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' '), 120))
       .filter(q => q.length >= 3 && !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase()))
       .slice(0, 4)
+    // Measured: Nemotron sometimes returns a single query. Pad with deterministic facet pairs to reach ≥2.
+    const by = (k: string) => fs.find(f => f.key === k)?.query ?? ''
+    for (const pad of [`${by('topic')} ${by('method')}`, `${by('topic')} ${by('population')}`]) {
+      const p = clip(pad, 120)
+      if (out.length >= 2) break
+      if (p.length >= 3 && !seen.has(p.toLowerCase())) { seen.add(p.toLowerCase()); out.push(p) }
+    }
+    return out
   } catch {
     return []
   }
