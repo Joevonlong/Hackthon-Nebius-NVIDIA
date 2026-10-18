@@ -85,14 +85,22 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const t0 = Date.now()
-      const res = await gate.run(() => fetch(url, { signal: AbortSignal.timeout(opts.timeoutMs ?? 30000), headers: { 'user-agent': 'PaperTrail/0.1 (hackathon)' } }))
+      // re-checked inside the gate: requests queued before the breaker opened must not go out either
+      const res = await gate.run(() => {
+        if (isBlocked(api)) throw new HttpError(429, key, `${api} budget exhausted — circuit open until ${new Date(blockedUntil[api]).toISOString()}`)
+        return fetch(url, { signal: AbortSignal.timeout(opts.timeoutMs ?? 30000), headers: { 'user-agent': 'PaperTrail/0.1 (hackathon)' } })
+      })
       const body = await res.text()
       trace('api', { api, url: key, cached: false, status: res.status, ms: Date.now() - t0, bytes: body.length, attempt, raw: res.ok ? `data/raw/${api}/${hash}.json.gz` : undefined, error: res.ok ? undefined : body.slice(0, 200) })
       if (res.status === 429 || res.status >= 500) {
         lastErr = new HttpError(res.status, key, body)
         const ra = Number(res.headers.get('retry-after'))
         if (res.status === 429 && ((Number.isFinite(ra) && ra > 60) || /insufficient budget/i.test(body))) {
-          blockedUntil[api] = Date.now() + Math.min(Number.isFinite(ra) && ra > 0 ? ra : 3600, 3600) * 1000
+          // daily budget ("Resets at midnight UTC"): closed until then; otherwise Retry-After, capped at 1 h
+          const midnight = /midnight utc/i.test(body) ? (() => { const d = new Date(); d.setUTCHours(24, 0, 0, 0); return d.getTime() })() : 0
+          const was = isBlocked(api)
+          blockedUntil[api] = Math.max(blockedUntil[api] ?? 0, midnight || Date.now() + Math.min(Number.isFinite(ra) && ra > 0 ? ra : 3600, 3600) * 1000)
+          if (!was) trace('api', { api, breaker: 'opened', until: new Date(blockedUntil[api]).toISOString(), url: key, reason: body.slice(0, 200) })
           throw lastErr
         }
         if (res.status === 429) gate.cool(1000)
