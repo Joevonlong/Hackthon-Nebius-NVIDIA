@@ -88,3 +88,21 @@ describe('Q2-2: weights, pass rule and filters are per library', () => {
     expect(lib.topPercent).toBe(25)
   })
 })
+
+describe('Q2-6: seed resolve warning and source', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+  afterEach(() => vi.unstubAllGlobals())
+  it('keeps the server warning and marks seeds resolved without OpenAlex', async () => {
+    const lib = useLibrary(), vault = useVault()
+    vault.notes.push({ ...questionNote('x', 'Q one'), updatedAt: 0 })
+    vault.current = 'Q one'
+    const seed = { id: 'doi:10.1/x', doi: '10.1/x', pmid: null, pmcid: null, title: 'A paper', authors: ['Yan M'], year: 2021, publicationDate: null, venue: null, type: 'article', citedByCount: 0, citationPct: null, isRetracted: false, isOa: null, oaUrl: null, abstract: null, abstractSource: null, referencedWorks: [], url: 'https://doi.org/10.1/x', n: 1, label: 'S1', shortName: 'Yan 2021', input: '10.1/x' }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('/seeds/resolve')
+      ? new Response(JSON.stringify({ seeds: [seed], errors: [], warning: 'OpenAlex rate-limited — resolved via Crossref', resolvedVia: [{ input: '10.1/x', paperId: 'doi:10.1/x', source: 'Crossref', reason: 'rate-limited' }] }))
+      : new Response('{}')))
+    await lib.addSeeds('10.1/x', 'Q one')
+    expect(lib.seedWarning).toBe('OpenAlex rate-limited — resolved via Crossref')
+    expect(lib.seedRows[0]).toMatchObject({ status: 'resolved', via: 'Crossref' })
+    expect(vault.seedsIn('Q one')[0].path).toBe('Questions/Q one/seeds/S1 Yan 2021.md')
+  })
+})

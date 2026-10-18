@@ -51,7 +51,9 @@ const httpMessage = (what: string, status: number) =>
   status === 404 ? `${what} → 404: the server has no such route or library.` : status >= 500 ? `${what} → ${status}: the server failed.` : `${what} → ${status}.`
 const netMessage = (what: string) => `${what}: the server is unreachable (network error). Is it running?`
 /** D-36: one row of the seed table (status of the last add / import attempt for that input). */
-export interface SeedRow { input: string; status: 'resolved' | 'not found' | 'duplicate'; path?: string; message?: string }
+export interface SeedRow { input: string; status: 'resolved' | 'not found' | 'duplicate'; path?: string; message?: string; via?: string }
+/** Q2-6: a seed resolved without OpenAlex (POST /api/seeds/resolve `resolvedVia`). */
+export interface SeedVia { input: string; paperId?: string; source: string; reason?: string }
 /** D-35: the last opened library per question (localStorage; '' = no question). */
 const LAST_KEY = (q: string | null) => `papertrail:lastLibrary:${q ?? ''}`
 export const lastOpened = (q: string | null) => { try { return localStorage.getItem(LAST_KEY(q)) } catch { return null } }
@@ -94,6 +96,7 @@ export const useLibrary = defineStore('library', {
     passedOnly: false, filterSource: '' as '' | SourceName,
     // seeds (D-23)
     seedBusy: false, seedAdded: [] as string[], seedErrors: [] as { input: string; message: string }[],
+    seedWarning: null as string | null, // Q2-6: e.g. "OpenAlex rate-limited — resolved via Crossref"
     seedRows: [] as SeedRow[], seedQuestion: null as string | null, importNote: null as string | null,
     // D-33 / D-35: the question this library belongs to + saved history
     questionId: null as string | null,
@@ -334,11 +337,11 @@ export const useLibrary = defineStore('library', {
       const q = question ?? vault.current
       if (!q) { this.seedErrors = [{ input: '', message: 'Create a research question first: seeds belong to one question.' }]; return }
       const inputs = [...new Set(text.split(/[\n,;\s]+/).map(s => s.trim()).filter(s => s.length >= 3))].slice(0, 50)
-      this.seedErrors = []; this.seedAdded = []
+      this.seedErrors = []; this.seedAdded = []; this.seedWarning = null
       if (this.seedQuestion !== q) { this.seedRows = []; this.seedQuestion = q }
       if (!inputs.length) { this.seedErrors = [{ input: '', message: 'Paste at least one DOI, PMID, arXiv or OpenAlex id.' }]; return }
       this.seedBusy = true
-      let out: { seeds: Seed[]; errors: { input: string; message: string }[] }
+      let out: { seeds: Seed[]; errors: { input: string; message: string }[]; warning?: string | null; resolvedVia?: SeedVia[] }
       try {
         if (import.meta.env.DEV && param('mock')) {
           const { mockResolveSeeds } = await import('../library/mock')
@@ -346,8 +349,12 @@ export const useLibrary = defineStore('library', {
         } else {
           const res = await fetch('/api/seeds/resolve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ inputs }) })
           if (!res.ok) throw new Error(httpMessage('POST /api/seeds/resolve', res.status))
-          const body = await res.json() as { seeds?: unknown[]; errors?: { input: string; message: string }[] }
-          out = { seeds: (body.seeds || []).map(s => Seed.safeParse(s)).filter(r => r.success).map(r => r.data!), errors: body.errors || [] }
+          const body = await res.json() as { seeds?: unknown[]; errors?: { input: string; message: string }[]; warning?: unknown; resolvedVia?: unknown }
+          out = {
+            seeds: (body.seeds || []).map(s => Seed.safeParse(s)).filter(r => r.success).map(r => r.data!), errors: body.errors || [],
+            warning: typeof body.warning === 'string' && body.warning.trim() ? body.warning.trim() : null,
+            resolvedVia: Array.isArray(body.resolvedVia) ? (body.resolvedVia as SeedVia[]).filter(v => v && typeof v.input === 'string' && typeof v.source === 'string') : [],
+          }
         }
       } catch (e) {
         this.seedBusy = false
@@ -367,11 +374,12 @@ export const useLibrary = defineStore('library', {
         const path = `${dir}/${note.path.split('/').pop()}`
         await vault.upsert({ ...note, path, kind: 'seed', paperId: s.id })
         this.seedAdded.push(path)
-        rows.push({ input: s.input, status: 'resolved', path })
+        rows.push({ input: s.input, status: 'resolved', path, via: out.resolvedVia?.find(v => v.input === s.input)?.source })
       }
       for (const e of out.errors) rows.push({ input: e.input, status: 'not found', message: e.message })
       this.seedRows = [...rows, ...this.seedRows.filter(r => !rows.some(x => x.input === r.input))].slice(0, 60)
       this.seedErrors = out.errors
+      this.seedWarning = out.warning ?? null
       this.seedBusy = false
     },
 

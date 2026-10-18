@@ -20,9 +20,11 @@ const table = computed(() => {
   const out = seeds.value.map(n => {
     const info = seedInfo(n.content)
     const dup = rowsHere.value.find(r => r.path === n.path && r.status === 'duplicate')
-    return { key: n.path, path: n.path as string | undefined, label: info.label || noteName(n.path).split(' ')[0], title: info.title || noteName(n.path), year: info.year, id: info.id, status: dup ? 'duplicate' : 'resolved', msg: dup?.message }
+    // Q2-6: a seed resolved without OpenAlex shows its source ("via Crossref")
+    const via = rowsHere.value.find(r => r.path === n.path && r.status === 'resolved')?.via
+    return { key: n.path, path: n.path as string | undefined, label: info.label || noteName(n.path).split(' ')[0], title: info.title || noteName(n.path), year: info.year, id: info.id, status: dup ? 'duplicate' : 'resolved', msg: dup?.message ?? (via ? `resolved via ${via} (OpenAlex unavailable)` : undefined), via }
   })
-  for (const r of rowsHere.value) if (r.status === 'not found') out.push({ key: 'nf:' + r.input, path: undefined, label: '', title: r.message || 'not resolved', year: '', id: r.input, status: 'not found', msg: r.message })
+  for (const r of rowsHere.value) if (r.status === 'not found') out.push({ key: 'nf:' + r.input, path: undefined, label: '', title: r.message || 'not resolved', year: '', id: r.input, status: 'not found', msg: r.message, via: undefined })
   return out
 })
 
@@ -48,7 +50,7 @@ function dropRow(id: string) { lib.seedRows = lib.seedRows.filter(r => r.input !
           <td class="tt" :title="r.title">{{ r.title }}</td>
           <td class="n">{{ r.year }}</td>
           <td class="id" :title="r.id">{{ r.id }}</td>
-          <td><span class="st" :title="r.msg">{{ r.status }}</span></td>
+          <td><span class="st" :title="r.msg">{{ r.status }}</span><small v-if="r.via" class="via" :title="r.msg">via {{ r.via }}</small></td>
           <td class="acts">
             <template v-if="r.path && removing === r.path">
               <button type="button" class="lnk bad" @click="remove(r.path)">remove?</button>
@@ -64,6 +66,7 @@ function dropRow(id: string) { lib.seedRows = lib.seedRows.filter(r => r.input !
       </tbody>
     </table>
     <p v-else class="faint small">No seeds for this question yet.</p>
+    <p v-if="lib.seedWarning && lib.seedQuestion === question" class="small note" role="status">{{ lib.seedWarning }}</p>
 
     <textarea v-model="text" class="qbox mono" rows="3" spellcheck="false" placeholder="Paste DOIs, PMIDs, arXiv or OpenAlex ids (one per line)" :disabled="lib.seedBusy" aria-label="Seed ids" />
     <div class="runrow">
@@ -106,6 +109,7 @@ tr.not-found .tt{color:var(--ink-55);font-style:italic}
 .small{font-size:.72rem;margin:0}
 small{font-size:.64rem;line-height:1.4}
 .note{color:var(--ink-64)}
+.via{display:block;margin-top:2px;font:.56rem var(--font-mono);color:var(--ink-46);white-space:nowrap}
 .errs{margin:0;padding-left:16px;font-size:.7rem;color:var(--accent)}
 .mono{font-family:var(--font-mono)}
 </style>
