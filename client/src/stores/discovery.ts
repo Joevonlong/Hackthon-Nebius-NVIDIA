@@ -37,19 +37,19 @@ export function lensScore(c: Candidate, lens: number): { score: number; source: 
 }
 
 // Stand-in facets while the judge has not graded anything: a title keyword rule (shown as "judge pending").
-const KW_TOPIC_HI = /melanoma/i
-const KW_TOPIC_MID = /cancer|tumou?r|neoantigen|immunotherap|checkpoint|pd-1|lymphocyte|t[- ]cell/i
+// CR-9: no topic-specific words — the topic facet comes from the user's own question.
 const KW_METHOD = /single[- ]cell|scrna|rna[- ]seq|sequencing|transcriptom|multiomic|-omics|spatial|profil|align|aligner|toolkit|package|format|algorithm|framework|cluster/i
+const STOP = new Set('which what how does do the and for with from into that this are was were their its our using use via between among about help study studies methods method'.split(' '))
+const words = (s: string) => (s.toLowerCase().match(/[a-z0-9][a-z0-9+-]{2,}/g) ?? []).filter(w => !STOP.has(w))
 
-/** Title keyword facets in 0..1 (topic, method). */
-export function keywordFacets(title: string): { topic: number; method: number } {
-  return {
-    topic: KW_TOPIC_HI.test(title) ? 1 : KW_TOPIC_MID.test(title) ? 0.55 : 0.2,
-    method: KW_METHOD.test(title) ? 1 : 0.2,
-  }
+/** Title keyword facets in 0..1 (topic = overlap with the question's words, method = method vocabulary). */
+export function keywordFacets(title: string, question = ''): { topic: number; method: number } {
+  const q = new Set(words(question).map(w => w.replace(/s$/, '')))
+  const hits = q.size ? words(title).filter(w => q.has(w.replace(/s$/, ''))).length : 0
+  return { topic: hits >= 2 ? 1 : hits === 1 ? 0.55 : 0.2, method: KW_METHOD.test(title) ? 1 : 0.2 }
 }
-export function keywordScore(c: Candidate, lens: number): number {
-  const f = keywordFacets(c.paper.title || '')
+export function keywordScore(c: Candidate, lens: number, question = ''): number {
+  const f = keywordFacets(c.paper.title || '', question)
   return (1 - lens) * f.topic + lens * f.method
 }
 
@@ -67,10 +67,10 @@ export function laneLensSource(items: Candidate[]): LensSource {
  * papers with neither keep their pre-judge position. When no paper in the lane has judge or embedding
  * facets, the whole lane is re-sorted by the title keyword stand-in (ties keep the pre-judge order).
  */
-export function sortLane(items: Candidate[], lens: number): Candidate[] {
+export function sortLane(items: Candidate[], lens: number, question = ''): Candidate[] {
   const base = [...items].sort((a, b) => a.rank - b.rank)
   if (laneLensSource(base) === 'keywords') {
-    return base.map(c => ({ c, s: keywordScore(c, lens) })).sort((a, b) => b.s - a.s || a.c.rank - b.c.rank).map(x => x.c)
+    return base.map(c => ({ c, s: keywordScore(c, lens, question) })).sort((a, b) => b.s - a.s || a.c.rank - b.c.rank).map(x => x.c)
   }
   const out = base.slice()
   for (const tier of ['judge', 'embed'] as const) {
@@ -86,8 +86,8 @@ export function sortLane(items: Candidate[], lens: number): Candidate[] {
 export const useDiscovery = defineStore('discovery', {
   state: () => ({
     runId: null as string | null,
-    question: 'Which single-cell methods help study melanoma immune cells?',
-    seedInputs: ['10.1126/science.aad0501', '10.1016/j.cell.2018.10.038', '10.1038/s41586-021-03704-y', '10.1038/s41586-022-04682-5', '10.1158/1078-0432.CCR-21-1694'],
+    question: '',
+    seedInputs: [] as string[],
     preset: 'demo' as RunPreset,
     seeds: [] as Seed[],
     facets: [] as Facet[],

@@ -30,7 +30,7 @@ const LANES: { key: Lane; sub: string; sw: string }[] = [
 ]
 const PAGE = 6
 const shown = reactive<Record<string, number>>({})
-const laneItems = (lane: Lane) => sortLane(disc.inLane(lane), ui.lens)
+const laneItems = (lane: Lane) => sortLane(disc.inLane(lane), ui.lens, disc.question)
 const visible = (lane: Lane) => laneItems(lane).slice(0, shown[lane] ?? PAGE)
 const countOf = (lane: string) => disc.counts[lane] ?? disc.inLane(lane as Lane).length
 const fmt = (n: number) => n.toLocaleString('en')

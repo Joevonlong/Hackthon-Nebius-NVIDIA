@@ -11,16 +11,17 @@ const cand = (rank: number, title: string, extra: Partial<Candidate> = {}): Cand
 
 describe('title keyword lens (judge pending)', () => {
   it('scores topic and method from the title', () => {
-    expect(keywordFacets('Acral melanoma immune map')).toEqual({ topic: 1, method: 0.2 })
-    expect(keywordFacets('Tumour-infiltrating T cells')).toEqual({ topic: 0.55, method: 0.2 })
+    expect(keywordFacets('Acral melanoma immune map', 'melanoma immune cells')).toEqual({ topic: 1, method: 0.2 })
+    expect(keywordFacets('Tumour-infiltrating T cells', 'melanoma immune cells')).toEqual({ topic: 0.55, method: 0.2 })
+    expect(keywordFacets('Acral melanoma immune map')).toEqual({ topic: 0.2, method: 0.2 })
     expect(keywordFacets('Fast gapped-read alignment with Bowtie 2').method).toBe(1)
   })
 
   it('re-sorts a lane with no judge or embedding facets and keeps every paper', () => {
     const lane = [cand(1, 'Ipilimumab in melanoma'), cand(2, 'The SAM format and SAMtools'), cand(3, 'Single-cell RNA-seq of melanoma')]
     expect(laneLensSource(lane)).toBe('keywords')
-    expect(sortLane(lane, 0).map(c => c.rank)).toEqual([1, 3, 2])
-    expect(sortLane(lane, 1).map(c => c.rank)).toEqual([2, 3, 1])
+    expect(sortLane(lane, 0, 'melanoma immune cells').map(c => c.rank)).toEqual([1, 3, 2])
+    expect(sortLane(lane, 1, 'melanoma immune cells').map(c => c.rank)).toEqual([2, 3, 1])
     expect(sortLane(lane, 1)).toHaveLength(3)
   })
 
