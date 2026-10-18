@@ -338,7 +338,7 @@ Decisions (16:15): **D-31** J-1 rejected by the user — the app stays local (la
 
 ---
 
-## 17. Change request CR-5 · Visual library list + saved library history (proposed 16:20)
+## 17. Change request CR-5 · Visual library list, saved history, question-scoped seeds (proposed 16:25)
 | # | Requirement (user, 16:18) | Proposal | Card | Est |
 |---|---|---|---|---|
 | R-5.1 | The Library list is too text-heavy; redesign it to be visual without losing information; still show the score basis | Replace the text rows with the layout chosen from the candidates below. Every field stays reachable (hover / expand), scores keep their evidence | F-60 | 60m |
@@ -349,3 +349,6 @@ Layout candidates for R-5.1 (pick one or two):
 - **V2 Bubble map** — x = year, y = total score, size = citations, colour = kind; click a bubble → report card side panel.
 - **V3 Compact table + sparkbars** — one dense row per paper: rank, title, 6 tiny bars (one per component), grade, chips; sortable columns.
 - **V4 Ranked lanes** — columns by grade A/B/C/D with small cards, drag-free; counts on top.
+
+| R-5.3 | Seeds must be easy to upload and manage; the vault starts **empty**; seeds belong to a question; each build reads only one question and its own seeds, never another question's seeds (user, 16:24) | **Research question = a folder** `Questions/<short name>/` holding `Question.md` + `seeds/*.md` (+ the user's own notes for that question). A **Questions** switcher at the top of the Library panel: New question, rename, delete-with-confirm. Seeds per question: paste DOIs/PMIDs/arXiv/OpenAlex ids, **upload** `.bib`, `.ris`, CSL JSON or a text/CSV list of ids; a seed table with title, year, status (resolved / not found), remove, and "open note". A build sends **only that question's folder** (goals agent + known papers come from it); libraries are stored with their question id, and History is grouped by question. Default vault: empty with an empty state "Create your first research question". Supersedes D-20's "whole vault is one topic" (a question folder is now the topic). | F-62 | 60m |
+
