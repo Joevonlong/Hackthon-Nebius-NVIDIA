@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="170" viewBox="0 0 900 170" role="img" aria-labelledby="t">
+  <title id="t">Hackathon winner: Nebius &amp; NVIDIA Hackathon, 18 October 2026, track Healthcare &amp; Life Sciences, Research Paper Discovery</title>
+  <rect x="0.75" y="0.75" width="898.5" height="168.5" rx="14" fill="#FFFBEF" stroke="#E6C66A" stroke-width="1.5"/>
+  <g transform="translate(95 85) scale(1.25)">
+  <g fill="#C9971C">
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(-150) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(-128) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(-106) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(-84) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(-62) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4" ry="9" transform="rotate(-40) rotate(-28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(150) rotate(28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(128) rotate(28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(106) rotate(28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(84) rotate(28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4.5" ry="10" transform="rotate(62) rotate(28 0 -40)"/>
+  <ellipse cx="0" cy="-40" rx="4" ry="9" transform="rotate(40) rotate(28 0 -40)"/>
+  </g>
+  <g fill="#B07D10"><path d="M-14-22h28v10a14 14 0 0 1-28 0z"/><rect x="-3" y="1" width="6" height="8"/><rect x="-10" y="9" width="20" height="5" rx="1"/></g>
+  <path d="M-14-19h-6a6 6 0 0 0 6 10z M14-19h6a6 6 0 0 1-6 10z" fill="none" stroke="#B07D10" stroke-width="2.5"/>
+  <path d="M0-18l2 4 4.4.6-3.2 3 .8 4.4-4-2.1-4 2.1.8-4.4-3.2-3 4.4-.6z" fill="#FFF3C4"/>
+  </g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="185" y="52" font-size="14" font-weight="600" letter-spacing="3" fill="#A87A12">NEBIUS &amp; NVIDIA HACKATHON · 18 October 2026</text>
+    <text x="183" y="104" font-size="48" font-weight="800" letter-spacing="1" fill="#2B2208">HACKATHON <tspan fill="#B07D10">WINNER</tspan></text>
+    <text x="185" y="138" font-size="17" fill="#6B5A2E">Track: HEALTHCARE &amp; LIFE SCIENCES · Research Paper Discovery</text>
+  </g>
+</svg>

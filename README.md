@@ -3,6 +3,20 @@
 <p align="center"><b>Start from the papers you trust. Find the ones you missed, with receipts.</b></p>
 
 <p align="center">
+  <a href="#awards">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/media/award-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="docs/media/award-light.svg">
+      <img src="docs/media/award-light.svg" width="900" alt="Hackathon winner: Nebius & NVIDIA Hackathon, 18 October 2026, track Healthcare & Life Sciences, Research Paper Discovery">
+    </picture>
+  </a>
+</p>
+
+<p align="center">
+  <a href="#awards"><img alt="Hackathon winner: Nebius & NVIDIA 2026" src="https://img.shields.io/badge/%F0%9F%8F%86%20Hackathon%20winner-Nebius%20%26%20NVIDIA%202026-C9971C?style=for-the-badge&labelColor=2B2208"></a>
+</p>
+
+<p align="center">
   <img alt="Vue 3" src="https://img.shields.io/badge/Vue-3-42b883?logo=vuedotjs&logoColor=white">
   <img alt="Hono" src="https://img.shields.io/badge/Hono-Node%2022-E36002?logo=hono&logoColor=white">
   <img alt="Nebius Token Factory" src="https://img.shields.io/badge/Nebius-Token%20Factory-0b1f3a">
@@ -17,7 +31,7 @@
 </p>
 <p align="center"><sub>Real app, demo mode (replay of a recorded real run, sped up 2x).</sub></p>
 
-Type a research question, add the papers you already trust, and PaperTrail builds a graded library of new papers, with the evidence behind every score. Built for the Nebius Healthcare / Life Sciences "Research Paper Discovery" track.
+Type a research question, add the papers you already trust, and PaperTrail builds a graded library of new papers, with the evidence behind every score. Winner of the Healthcare & Life Sciences "Research Paper Discovery" track at the Nebius & NVIDIA Hackathon (18 October 2026).
 
 ## Quick start
 
@@ -150,6 +164,12 @@ scripts/docker-local.sh              # Docker: http://localhost:3040
 ```
 
 Checks: `pnpm gate` (typecheck + tests + build). Nebius Serverless deploy: `scripts/deploy.sh` (ready, not run).
+
+## Awards
+
+| Award | Event | Track | Date |
+|---|---|---|---|
+| 🏆 **Hackathon winner** | Nebius & NVIDIA Hackathon | Healthcare & Life Sciences · Research Paper Discovery | 2026-10-18 |
 
 ## Team
 
