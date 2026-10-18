@@ -310,7 +310,8 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
   }
   const scored = items.map(item => {
     const { components, total } = combine(rawComponents(item, ctx), opts.weights)
-    const excluded = gateOf(item.rec, dups.get(item.rec.key))
+    // Track brief: "new" means absent from the starting collection — papers already in the vault are never recommended.
+    const excluded = gateOf(item.rec, dups.get(item.rec.key)) ?? (ctx.knownKeys.has(item.rec.key) ? 'already in your vault' : null)
     const labels = ctx.knownKeys.has(item.rec.key) && !item.labels.tags.includes('in-vault') ? { ...item.labels, tags: [...item.labels.tags, 'in-vault'] } : item.labels
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,

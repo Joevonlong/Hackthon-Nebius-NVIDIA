@@ -41,7 +41,7 @@ Default weights (UI-adjustable; LLM read is the lowest by design):
 | llm | 0.10 | only for top `llmReadTopK` by the other components: judge reads the abstract (full text if OA later) → (relevance + quality)/6 × (quote verified ? 1 : 0.6) | model, grades, verified quote, concerns |
 
 - `null` value (could not assess) → that weight is redistributed proportionally over the assessed components; the paper shows "not assessed: <component>".
-- Hard gates (excluded, never in the graph): retracted; duplicate; no title. Flags (shown, not excluded): no abstract, non-English.
+- Hard gates (excluded, never in the graph): retracted; duplicate; no title; **already in the vault** (track brief: new papers only). Flags (shown, not excluded): no abstract, non-English.
 - `total` = Σ contribution; `passed` = total ≥ threshold. Return the top `topK` by total (passed first). Passed papers are added to the citation graph with their edges to vault papers and to each other.
 - Every percentile is computed within the current library and says so ("of 600").
 
