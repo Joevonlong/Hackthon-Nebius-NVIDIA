@@ -77,7 +77,7 @@ runs.get('/runs/:id', c => {
   return s ? c.json(s) : c.json({ error: 'run not found' }, 404)
 })
 
-runs.get('/papers/:id', async c => {
+runs.get('/papers/:id{.+}', async c => {
   const id = c.req.param('id')
   const local = repo.getPaper(id) ?? (() => { const ref = parseSeedInput(id); return ref ? repo.getPaper(`${ref.kind === 'openalex' ? '' : ref.kind + ':'}${ref.value}`) : null })()
   if (local) return c.json(local)

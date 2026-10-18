@@ -188,11 +188,14 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
 
   // ---- lanes ----------------------------------------------------------------------------------------
   const freshFrom = freshCutoff(cfg.freshMonths)
+  // semantic features live per paper id so rebuilding candidates (after the Scout merge) keeps them
+  const sem = new Map<string, Pick<Candidate['features'], 'eSeed' | 'eQuestion' | 'eFacets'>>()
   const build = (): Candidate[] => {
     const out: Candidate[] = []
     for (const it of pool.values()) {
       if (!it.feat) it.feat = computeLinks(it, lite)
-      const features = { ...it.feat, coupling: null, eSeed: null, eQuestion: null, eFacets: null, rerank: null, impact: it.paper.citationPct, pubmedRank: it.pubmedRank }
+      const e = sem.get(it.paper.id)
+      const features = { ...it.feat, coupling: null, eSeed: e?.eSeed ?? null, eQuestion: e?.eQuestion ?? null, eFacets: e?.eFacets ?? null, rerank: null, impact: it.paper.citationPct, pubmedRank: it.pubmedRank }
       out.push({ paper: it.paper, lane: assignLane(it.paper, it.feat.links, freshFrom), routes: [...it.routes].sort(), signals: it.signals, features, judgement: null, score: 0, rank: 0, whyRanked: '' })
     }
     return out
@@ -215,8 +218,57 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
     return { value: c, count: c.length, message: `routes ${(routesMs / 1000).toFixed(1)} s · abstracts +${ab.pubmed} PubMed +${ab.europepmc} Europe PMC · ${JSON.stringify(laneCounts(c))}` }
   })
 
-  // merge Scout results, if any
-  const scoutPapers = await scoutP
+  // ---- embeddings (start while the Scout may still run) ---------------------------------------------
+  const byLane = (lanes: Lane[]) => cands.filter(c => lanes.includes(c.lane) && c.paper.abstract).sort((a, b) => LANE_ORDER.indexOf(a.lane) - LANE_ORDER.indexOf(b.lane) || a.rank - b.rank)
+  const facets = run.facets
+  const model = EMBED_MODEL(), dims = EMBED_DIMS()
+  const vecs = new Map<string, number[]>()
+  let qv: number[][] | null | undefined
+  let embedOk = true
+  const embedPapers = async (papers: Paper[]): Promise<{ added: number; cached: number }> => {
+    const docs = papers.filter(p => !vecs.has(p.id)).map(p => ({ id: p.id, text: docText(p) }))
+    let cachedN = 0
+    try { for (const [k, v] of repo.getEmbeddings('paper', model, dims, docs)) { vecs.set(k, v); cachedN++ } } catch { /* cache only */ }
+    const todo = docs.filter(d => !vecs.has(d.id))
+    const [q, dv] = await Promise.all([
+      qv === undefined ? withTimeout(ai.embed([run.question, ...facets.map(f => f.query)], 'query', cfg), cfg.timeoutMs * 2, null) : Promise.resolve(qv),
+      todo.length ? withTimeout(ai.embed(todo.map(d => d.text), 'document', cfg), cfg.timeoutMs * 3, null) : Promise.resolve([] as number[][]),
+    ])
+    qv = q
+    if (!q || !dv) { embedOk = false; return { added: 0, cached: cachedN } }
+    const fresh = todo.map((d, i) => ({ ...d, vec: dv[i] })).filter(x => Array.isArray(x.vec) && x.vec.length)
+    for (const f of fresh) vecs.set(f.id, f.vec)
+    try { repo.putEmbeddings('paper', model, dims, fresh) } catch { /* cache only */ }
+    return { added: fresh.length, cached: cachedN }
+  }
+  const applySem = () => {
+    if (!qv) return 0
+    const seedVecs = seeds.map(s => vecs.get(s.id)).filter((v): v is number[] => !!v)
+    const fq = (k: string) => { const i = facets.findIndex(f => f.key === k); return i >= 0 && qv![i + 1] ? qv![i + 1] : qv![0] }
+    let n = 0
+    for (const c of cands) {
+      const v = vecs.get(c.paper.id)
+      if (!v) continue
+      n++
+      const e = { eSeed: seedVecs.length ? Math.max(...seedVecs.map(s => cos(v, s))) : null, eQuestion: cos(v, qv[0]), eFacets: { topic: cos(v, fq('topic')), method: cos(v, fq('method')), population: cos(v, fq('population')) } }
+      sem.set(c.paper.id, e)
+      Object.assign(c.features, e)
+    }
+    return n
+  }
+  const embedT0 = Date.now()
+  emit(run, { type: 'stage', stage: 'embed', status: 'start' })
+  const firstEmbed = (async () => {
+    const bridges = byLane(['Bridges'])
+    const main = byLane(['Core', 'Fresh', 'Linked'])
+    const max = Math.max(0, cfg.embedMaxDocs - seeds.length)
+    const nb = Math.min(bridges.length, Math.floor(max * 0.25))
+    return embedPapers([...seeds, ...main.slice(0, max - nb).map(c => c.paper), ...bridges.slice(0, nb).map(c => c.paper)])
+  })().catch(e => { embedOk = false; console.warn('embed failed', (e as Error).message); return { added: 0, cached: 0 } })
+
+  // merge Scout results, if any (embedding runs meanwhile)
+  const [scoutPapers, e1] = await Promise.all([scoutP, firstEmbed])
+  let e2 = { added: 0, cached: 0 }
   if (scoutPapers?.length) {
     for (const p of scoutPapers as (Paper & { __web?: { url: string; title: string; snippet: string }[] })[]) {
       const web = p.__web?.find(w => (p.doi && (w.url.toLowerCase().includes(p.doi) || w.snippet.toLowerCase().includes(p.doi))))
@@ -224,46 +276,15 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
       addToPool(pool, seedIds, paper as Paper, 'R5', { kind: 'web', route: 'R5', seedNs: [], source: web ? { name: web.title || 'web', url: web.url } : { name: 'Scout agent', url: `https://openalex.org/${paper.id}` } })
     }
     try { await fillAbstractsFromPubmed([...pool.values()].filter(it => it.routes.has('R5') && !it.paper.abstract).map(it => it.paper)) } catch { /* optional */ }
-    cands = publish(build())
+    if (embedOk && qv) e2 = await embedPapers([...pool.values()].filter(it => it.routes.has('R5') && it.paper.abstract).map(it => it.paper)).catch(() => e2)
+    cands = build()
     try { repo.upsertPapers(cands.filter(c => c.routes.includes('R5')).map(c => c.paper)); repo.addProvenance(run.id, prov.splice(0)) } catch { /* ignore */ }
   }
-
-  // ---- embeddings -----------------------------------------------------------------------------------
-  const byLane = (lanes: Lane[]) => cands.filter(c => lanes.includes(c.lane) && c.paper.abstract).sort((a, b) => LANE_ORDER.indexOf(a.lane) - LANE_ORDER.indexOf(b.lane) || a.rank - b.rank)
-  const facets = run.facets
-  const embedded = await stage(run, 'embed', false, async () => {
-    const bridges = byLane(['Bridges'])
-    const main = byLane(['Core', 'Fresh', 'Linked'])
-    const max = Math.max(0, cfg.embedMaxDocs - seeds.length)
-    const nb = Math.min(bridges.length, Math.floor(max * 0.25))
-    const chosen = [...main.slice(0, max - nb), ...bridges.slice(0, nb)]
-    const docs = [...seeds.filter(s => s.abstract || s.title), ...chosen.map(c => c.paper)].map(p => ({ id: p.id, text: docText(p) }))
-    const model = EMBED_MODEL(), dims = EMBED_DIMS()
-    const cached = (() => { try { return repo.getEmbeddings('paper', model, dims, docs) } catch { return new Map<string, number[]>() } })()
-    const todo = docs.filter(d => !cached.has(d.id))
-    const queries = [run.question, ...facets.map(f => f.query)]
-    const [qv, dv] = await Promise.all([
-      withTimeout(ai.embed(queries, 'query', cfg), cfg.timeoutMs * 2, null),
-      todo.length ? withTimeout(ai.embed(todo.map(d => d.text), 'document', cfg), cfg.timeoutMs * 3, null) : Promise.resolve([] as number[][]),
-    ])
-    if (!qv || !dv) return { value: false, count: 0, skipped: true, message: 'embeddings unavailable' }
-    if (dv.length) {
-      todo.forEach((d, i) => { if (dv[i]) cached.set(d.id, dv[i]) })
-      try { repo.putEmbeddings('paper', model, dims, todo.filter((_, i) => dv[i]).map((d, i) => ({ ...d, vec: dv[i] }))) } catch { /* cache only */ }
-    }
-    const seedVecs = seeds.map(s => cached.get(s.id)).filter((v): v is number[] => !!v)
-    const fq = (k: string) => { const i = facets.findIndex(f => f.key === k); return i >= 0 ? qv[i + 1] : qv[0] }
-    let n = 0
-    for (const c of chosen) {
-      const v = cached.get(c.paper.id)
-      if (!v) continue
-      n++
-      c.features.eSeed = seedVecs.length ? Math.max(...seedVecs.map(s => cos(v, s))) : null
-      c.features.eQuestion = cos(v, qv[0])
-      c.features.eFacets = { topic: cos(v, fq('topic')), method: cos(v, fq('method')), population: cos(v, fq('population')) }
-    }
-    return { value: true, count: n, message: `${todo.length} new, ${docs.length - todo.length} cached` }
-  })
+  const nSem = applySem()
+  if (scoutPapers?.length) cands = publish(cands)
+  emit(run, embedOk && qv
+    ? { type: 'stage', stage: 'embed', status: 'done', count: nSem, message: `${e1.added + e2.added} new, ${e1.cached + e2.cached} cached`, ms: Date.now() - embedT0 }
+    : { type: 'stage', stage: 'embed', status: 'skipped', count: 0, message: 'embeddings unavailable', ms: Date.now() - embedT0 })
 
   // ---- rerank ---------------------------------------------------------------------------------------
   const gArr = percentiles(cands.map(x => x.features.links))
