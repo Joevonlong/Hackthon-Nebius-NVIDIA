@@ -1,0 +1,8273 @@
+{
+ "runId": "demo-melanoma",
+ "question": "Which single-cell methods help study melanoma immune cells?",
+ "preset": "demo",
+ "seeds": [
+  {
+   "id": "W2332292689",
+   "doi": "10.1126/science.aad0501",
+   "pmid": null,
+   "pmcid": null,
+   "title": "Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq",
+   "authors": [
+    "Itay Tirosh"
+   ],
+   "year": 2016,
+   "publicationDate": null,
+   "venue": "Science",
+   "type": "article",
+   "citedByCount": 4914,
+   "citationPct": null,
+   "isRetracted": false,
+   "isOa": null,
+   "oaUrl": null,
+   "abstract": null,
+   "abstractSource": null,
+   "referencedWorks": [],
+   "url": "https://openalex.org/W2332292689",
+   "n": 1,
+   "label": "S1",
+   "shortName": "Tirosh 2016",
+   "input": "10.1126/science.aad0501"
+  },
+  {
+   "id": "W2899145148",
+   "doi": "10.1016/j.cell.2018.10.038",
+   "pmid": null,
+   "pmcid": null,
+   "title": "Defining T Cell States Associated with Response to Checkpoint Immunotherapy in Melanoma",
+   "authors": [
+    "Moshe Sade-Feldman"
+   ],
+   "year": 2018,
+   "publicationDate": null,
+   "venue": "Cell",
+   "type": "article",
+   "citedByCount": 2040,
+   "citationPct": null,
+   "isRetracted": false,
+   "isOa": null,
+   "oaUrl": null,
+   "abstract": null,
+   "abstractSource": null,
+   "referencedWorks": [],
+   "url": "https://openalex.org/W2899145148",
+   "n": 2,
+   "label": "S2",
+   "shortName": "Sade-Feldman 2018",
+   "input": "10.1016/j.cell.2018.10.038"
+  },
+  {
+   "id": "W3184584468",
+   "doi": "10.1038/s41586-021-03704-y",
+   "pmid": null,
+   "pmcid": null,
+   "title": "Phenotype, specificity and avidity of antitumour CD8+ T cells in melanoma",
+   "authors": [
+    "Giacomo Oliveira"
+   ],
+   "year": 2021,
+   "publicationDate": null,
+   "venue": "Nature",
+   "type": "article",
+   "citedByCount": 561,
+   "citationPct": null,
+   "isRetracted": false,
+   "isOa": null,
+   "oaUrl": null,
+   "abstract": null,
+   "abstractSource": null,
+   "referencedWorks": [],
+   "url": "https://openalex.org/W3184584468",
+   "n": 3,
+   "label": "S3",
+   "shortName": "Oliveira 2021",
+   "input": "10.1038/s41586-021-03704-y"
+  },
+  {
+   "id": "W4229030906",
+   "doi": "10.1038/s41586-022-04682-5",
+   "pmid": null,
+   "pmcid": null,
+   "title": "Landscape of helper and regulatory antitumour CD4+ T cells in melanoma",
+   "authors": [
+    "Giacomo Oliveira"
+   ],
+   "year": 2022,
+   "publicationDate": null,
+   "venue": "Nature",
+   "type": "article",
+   "citedByCount": 199,
+   "citationPct": null,
+   "isRetracted": false,
+   "isOa": null,
+   "oaUrl": null,
+   "abstract": null,
+   "abstractSource": null,
+   "referencedWorks": [],
+   "url": "https://openalex.org/W4229030906",
+   "n": 4,
+   "label": "S4",
+   "shortName": "Oliveira 2022",
+   "input": "10.1038/s41586-022-04682-5"
+  },
+  {
+   "id": "W3165815938",
+   "doi": "10.1158/1078-0432.ccr-21-1694",
+   "pmid": null,
+   "pmcid": null,
+   "title": "Single-Cell Characterization of the Immune Microenvironment of Melanoma Brain and Leptomeningeal Metastases",
+   "authors": [
+    "Inna Smalley"
+   ],
+   "year": 2021,
+   "publicationDate": null,
+   "venue": "Clin Cancer Res",
+   "type": "article",
+   "citedByCount": 161,
+   "citationPct": null,
+   "isRetracted": false,
+   "isOa": null,
+   "oaUrl": null,
+   "abstract": null,
+   "abstractSource": null,
+   "referencedWorks": [],
+   "url": "https://openalex.org/W3165815938",
+   "n": 5,
+   "label": "S5",
+   "shortName": "Smalley 2021",
+   "input": "10.1158/1078-0432.ccr-21-1694"
+  }
+ ],
+ "facets": [
+  {
+   "key": "topic",
+   "label": "Topic",
+   "query": "melanoma tumor-infiltrating immune cells"
+  },
+  {
+   "key": "method",
+   "label": "Method",
+   "query": "single-cell RNA sequencing"
+  },
+  {
+   "key": "population",
+   "label": "Population",
+   "query": "melanoma patients"
+  }
+ ],
+ "candidates": [
+  {
+   "paper": {
+    "id": "W7160921086",
+    "doi": "10.1080/25785826.2026.2670041",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Immune microenvironment and strategy of immunotherapy in acral melanoma",
+    "authors": [
+     "Tomoyuki Minowa"
+    ],
+    "year": 2026,
+    "publicationDate": null,
+    "venue": "Immunological Medicine",
+    "type": "article",
+    "citedByCount": 0,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W7160921086"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3,
+      4,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3, S4, S5"
+    }
+   ],
+   "features": {
+    "links": 5,
+    "out": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 5,
+   "rank": 1,
+   "whyRanked": "5 of 5 seeds linked (cites S1, S2, S3, S4, S5) · found by R2 · 0 citations, 2026"
+  },
+  {
+   "paper": {
+    "id": "W2966465234",
+    "doi": "10.1038/s41591-019-0522-3",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Clonal replacement of tumor-specific T cells following PD-1 blockade",
+    "authors": [
+     "Kathryn E. Yost"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-07-29",
+    "venue": "Nature Medicine",
+    "type": "article",
+    "citedByCount": 1522,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2966465234"
+   },
+   "lane": "Core",
+   "routes": [
+    "R1",
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2"
+    },
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S3, S4"
+    }
+   ],
+   "features": {
+    "links": 4,
+    "out": [
+     1,
+     2
+    ],
+    "in": [
+     3,
+     4
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 4.318269990333604,
+   "rank": 2,
+   "whyRanked": "4 of 5 seeds linked (cites S1, S2; cited by S3, S4) · found by R1, R2 · 1,522 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W4365143025",
+    "doi": "10.1038/s41568-023-00560-y",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Dynamics and specificities of T cells in cancer immunotherapy",
+    "authors": [
+     "Giacomo Oliveira"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Nature reviews. Cancer",
+    "type": "review",
+    "citedByCount": 528,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4365143025"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 4,
+    "out": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 4.272345567203518,
+   "rank": 3,
+   "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 528 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4365457190",
+    "doi": "10.1016/j.ccell.2023.03.014",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Phenotypic plasticity and reduced tissue retention of exhausted tumor-infiltrating T cells following neoadjuvant immunotherapy in head and neck cancer",
+    "authors": [
+     "Cem M. Sievers"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Cancer Cell",
+    "type": "article",
+    "citedByCount": 60,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4365457190"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 4,
+    "out": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 4.178532983501077,
+   "rank": 4,
+   "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 60 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4405022534",
+    "doi": "10.1126/scitranslmed.adk8832",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Single-cell profiling of acral melanoma infiltrating lymphocytes reveals a suppressive tumor microenvironment",
+    "authors": [
+     "Tomoyuki Minowa"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "Science Translational Medicine",
+    "type": "article",
+    "citedByCount": 27,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4405022534"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 4,
+    "out": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 4.144715803134222,
+   "rank": 5,
+   "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 27 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W4404824470",
+    "doi": "10.1038/s41590-024-02023-4",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Circulating tumor-reactive KIR+CD8+ T cells suppress anti-tumor immunity in patients with melanoma",
+    "authors": [
+     "Benjamin Y. Lu"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "Nature Immunology",
+    "type": "article",
+    "citedByCount": 16,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4404824470"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 4,
+    "out": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 4.123044892137828,
+   "rank": 6,
+   "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 16 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W2572174216",
+    "doi": "10.1159/000455014",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Adverse Renal Effects of Immune Checkpoint Inhibitors: A Narrative Review",
+    "authors": [
+     "Rimda Wanchoo"
+    ],
+    "year": 2017,
+    "publicationDate": "2017-01-01",
+    "venue": "American Journal of Nephrology",
+    "type": "review",
+    "citedByCount": 15256,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2572174216"
+   },
+   "lane": "Core",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [],
+    "in": [
+     1,
+     2,
+     5
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.418346914623151,
+   "rank": 7,
+   "whyRanked": "3 of 5 seeds linked (cited by S1, S2, S5) · found by R1 · 15,256 citations, 2017"
+  },
+  {
+   "paper": {
+    "id": "W3000311037",
+    "doi": "10.1038/s41586-019-1914-8",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Tertiary lymphoid structures improve immunotherapy and survival in melanoma",
+    "authors": [
+     "Rita Cabrita"
+    ],
+    "year": 2020,
+    "publicationDate": "2020-01-15",
+    "venue": "Nature",
+    "type": "article",
+    "citedByCount": 2357,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W3000311037"
+   },
+   "lane": "Core",
+   "routes": [
+    "R1",
+    "R2",
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2"
+    },
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S5"
+    },
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 6,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2
+    ],
+    "in": [
+     5
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 6
+   },
+   "judgement": null,
+   "score": 3.337254380075907,
+   "rank": 8,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2; cited by S5) · PubMed similar rank 6 · found by R1, R2, R3 · 2,357 citations, 2020"
+  },
+  {
+   "paper": {
+    "id": "W2913558101",
+    "doi": "10.1038/s41590-019-0312-6",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Subsets of exhausted CD8+ T cells differentially mediate tumor control and respond to checkpoint blockade",
+    "authors": [
+     "Brian C. Miller"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-02-18",
+    "venue": "Nature Immunology",
+    "type": "article",
+    "citedByCount": 2067,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2913558101"
+   },
+   "lane": "Core",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R1",
+     "seedNs": [
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2"
+    },
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2
+    ],
+    "in": [
+     3,
+     4
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.3315550534421905,
+   "rank": 9,
+   "whyRanked": "3 of 5 seeds linked (cites S2; cited by S3, S4) · found by R1 · 2,067 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W2909486828",
+    "doi": "10.1016/j.immuni.2018.12.021",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Intratumoral Tcf1+PD-1+CD8+ T Cells with Stem-like Properties Promote Tumor Control in Response to Vaccination and Checkpoint Blockade Immunotherapy",
+    "authors": [
+     "Imran Siddiqui"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-01-01",
+    "venue": "Immunity",
+    "type": "article",
+    "citedByCount": 1661,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2909486828"
+   },
+   "lane": "Core",
+   "routes": [
+    "R1",
+    "R2",
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2"
+    },
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S3"
+    },
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 7,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2
+    ],
+    "in": [
+     3
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 7
+   },
+   "judgement": null,
+   "score": 3.322063101944809,
+   "rank": 10,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2; cited by S3) · PubMed similar rank 7 · found by R1, R2, R3 · 1,661 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W4381149624",
+    "doi": "10.1038/s41392-023-01471-y",
+    "pmid": null,
+    "pmcid": null,
+    "title": "T cells in health and disease",
+    "authors": [
+     "Lina Sun"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Signal Transduction and Targeted Therapy",
+    "type": "article",
+    "citedByCount": 1019,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4381149624"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.3008600171761917,
+   "rank": 11,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 1,019 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4210297691",
+    "doi": "10.1126/science.abl5447",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Molecular signatures of antitumor neoantigen-reactive T cells from metastatic human cancers",
+    "authors": [
+     "Frank J. Lowery"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Science",
+    "type": "article",
+    "citedByCount": 450,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4210297691"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.265417654187796,
+   "rank": 12,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 450 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4285097347",
+    "doi": "10.1016/j.cell.2022.06.035",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Cancer vaccines: Building a bridge over troubled waters",
+    "authors": [
+     "MacLean Sellars"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cell",
+    "type": "article",
+    "citedByCount": 319,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4285097347"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.2505149978319907,
+   "rank": 13,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 319 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4386117348",
+    "doi": "10.1186/s13045-023-01494-6",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Advances in single-cell RNA sequencing and its applications in cancer research",
+    "authors": [
+     "Dezhi Huang"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Journal of Hematology & Oncology",
+    "type": "article",
+    "citedByCount": 201,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4386117348"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.2305351369446624,
+   "rank": 14,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 201 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4223424723",
+    "doi": "10.1016/j.ccell.2022.03.005",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Transcriptomic profiles of neoantigen-reactive T cells in human gastrointestinal cancers",
+    "authors": [
+     "Chunhong Zheng"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cancer Cell",
+    "type": "article",
+    "citedByCount": 150,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4223424723"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.217897694729317,
+   "rank": 15,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 150 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4304196242",
+    "doi": "10.1016/j.immuni.2022.09.002",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Spatial maps of T cell receptors and transcriptomes reveal distinct immune niches and interactions in the adaptive immune response",
+    "authors": [
+     "Sophia Liu"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Immunity",
+    "type": "article",
+    "citedByCount": 148,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4304196242"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.2173186268412275,
+   "rank": 16,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 148 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4210767928",
+    "doi": "10.1016/j.celrep.2022.110331",
+    "pmid": null,
+    "pmcid": null,
+    "title": "PD-1 blockade therapy promotes infiltration of tumor-attacking exhausted T cell clonotypes",
+    "authors": [
+     "Joji Nagasaki"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cell Reports",
+    "type": "article",
+    "citedByCount": 119,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4210767928"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.2079181246047623,
+   "rank": 17,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 119 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4386533618",
+    "doi": "10.1126/sciimmunol.adf4968",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Preexisting tumor-resident T cells with cytotoxic potential associate with response to neoadjuvant anti–PD-1 in head and neck cancer",
+    "authors": [
+     "Giacomo Oliveira"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Science Immunology",
+    "type": "article",
+    "citedByCount": 119,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4386533618"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.2079181246047623,
+   "rank": 18,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 119 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4365139913",
+    "doi": "10.1126/scitranslmed.add1016",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Multiomics and spatial mapping characterizes human CD8 + T cell states in cancer",
+    "authors": [
+     "Stefan Naulaerts"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Science Translational Medicine",
+    "type": "article",
+    "citedByCount": 94,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4365139913"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1977723605288846,
+   "rank": 19,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 94 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4406437647",
+    "doi": "10.1038/s41571-024-00984-x",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Biological and clinical significance of tumour-infiltrating lymphocytes in the era of immunotherapy: a multidimensional approach",
+    "authors": [
+     "Miguel López de Rodas"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Nature Reviews Clinical Oncology",
+    "type": "review",
+    "citedByCount": 84,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4406437647"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1929418925714295,
+   "rank": 20,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 84 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4386926153",
+    "doi": "10.1016/j.ccell.2023.08.013",
+    "pmid": null,
+    "pmcid": null,
+    "title": "ZNF683 marks a CD8+ T cell population associated with anti-tumor immunity following anti-PD-1 therapy for Richter syndrome",
+    "authors": [
+     "Erin Michelle Parry"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Cancer Cell",
+    "type": "article",
+    "citedByCount": 65,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4386926153"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1819543935541867,
+   "rank": 21,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 65 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4302424723",
+    "doi": "10.1016/j.ccell.2022.09.011",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Technology meets TILs: Deciphering T cell function in the -omics era",
+    "authors": [
+     "William H. Hudson"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cancer Cell",
+    "type": "article",
+    "citedByCount": 52,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4302424723"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.172427586960079,
+   "rank": 22,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 52 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4308254806",
+    "doi": "10.1016/j.ccell.2022.10.012",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Tumor-intrinsic SIRPA promotes sensitivity to checkpoint inhibition immunotherapy in melanoma",
+    "authors": [
+     "Zhicheng Zhou"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cancer Cell",
+    "type": "article",
+    "citedByCount": 49,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4308254806"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.169897000433602,
+   "rank": 23,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 49 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4224311924",
+    "doi": "10.1093/intimm/dxac013",
+    "pmid": null,
+    "pmcid": null,
+    "title": "A variety of ‘exhausted’ T cells in the tumor microenvironment",
+    "authors": [
+     "Joji Nagasaki"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "International Immunology",
+    "type": "article",
+    "citedByCount": 40,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4224311924"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1612783856719737,
+   "rank": 24,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 40 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W3204002340",
+    "doi": "10.1016/j.bbcan.2021.188632",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Significance of intratumoral infiltration of B cells in cancer immunotherapy: From a single cell perspective",
+    "authors": [
+     "Sijia Gu"
+    ],
+    "year": 2021,
+    "publicationDate": null,
+    "venue": "Biochimica et Biophysica Acta (BBA) - Reviews on Cancer",
+    "type": "article",
+    "citedByCount": 33,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W3204002340"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1531478917042257,
+   "rank": 25,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 33 citations, 2021"
+  },
+  {
+   "paper": {
+    "id": "W4413894643",
+    "doi": "10.1038/s41467-025-62878-5",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Mature and migratory dendritic cells promote immune infiltration and response to anti-PD-1 checkpoint blockade in metastatic melanoma",
+    "authors": [
+     "Jiekun Yang"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Nature Communications",
+    "type": "article",
+    "citedByCount": 25,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4413894643"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.141497334797082,
+   "rank": 26,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 25 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4403679484",
+    "doi": "10.1016/j.celrep.2024.114875",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Comparing neoantigen cancer vaccines and immune checkpoint therapy unveils an effective vaccine and anti-TREM2 macrophage-targeting dual therapy",
+    "authors": [
+     "Sunita Keshari"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "Cell Reports",
+    "type": "article",
+    "citedByCount": 22,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4403679484"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.136172783601759,
+   "rank": 27,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 22 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W4405079275",
+    "doi": "10.1007/s40257-024-00907-7",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Overcoming Resistance Mechanisms to Melanoma Immunotherapy",
+    "authors": [
+     "David X. Zheng"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "American Journal of Clinical Dermatology",
+    "type": "article",
+    "citedByCount": 21,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4405079275"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.134242268082221,
+   "rank": 28,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S4) · found by R2 · 21 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W4416385939",
+    "doi": "10.1038/s41586-025-09754-w",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Tumour-reactive heterotypic CD8 T cell clusters from clinical samples",
+    "authors": [
+     "Sofia Ibáñez‐Molero"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Nature",
+    "type": "article",
+    "citedByCount": 21,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4416385939"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.134242268082221,
+   "rank": 29,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 21 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4387499185",
+    "doi": "10.3389/fimmu.2023.1267918",
+    "pmid": null,
+    "pmcid": null,
+    "title": "The nexus of dynamic T cell states and immune checkpoint blockade therapy in the periphery and tumor microenvironment",
+    "authors": [
+     "Hong Luo"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "Frontiers in Immunology",
+    "type": "article",
+    "citedByCount": 21,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4387499185"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.134242268082221,
+   "rank": 30,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 21 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4394579481",
+    "doi": "10.1016/j.medj.2024.03.015",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Myeloid-T cell interplay and cell state transitions associated with checkpoint inhibitor response in melanoma",
+    "authors": [
+     "Ramona Schlenker"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "Med",
+    "type": "article",
+    "citedByCount": 17,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4394579481"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1255272505103306,
+   "rank": 31,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S4) · found by R2 · 17 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W3205349475",
+    "doi": "10.3390/genes12101629",
+    "pmid": null,
+    "pmcid": null,
+    "title": "High-Dimensional Single-Cell Transcriptomics in Melanoma and Cancer Immunotherapy",
+    "authors": [
+     "Camelia Y. J. Quek"
+    ],
+    "year": 2021,
+    "publicationDate": null,
+    "venue": "Genes",
+    "type": "article",
+    "citedByCount": 14,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W3205349475"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.117609125905568,
+   "rank": 32,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 14 citations, 2021"
+  },
+  {
+   "paper": {
+    "id": "W4408246324",
+    "doi": "10.1158/0008-5472.can-23-3918",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Single-Cell Analyses Reveal a Functionally Heterogeneous Exhausted CD8+ T-cell Subpopulation That Is Correlated with Response to Checkpoint Therapy in Melanoma",
+    "authors": [
+     "Kelly M. Mahuron"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Cancer Research",
+    "type": "article",
+    "citedByCount": 13,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4408246324"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.114612803567824,
+   "rank": 33,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 13 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4413794946",
+    "doi": "10.1002/advs.202508692",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Insights into the Mechanisms of Immune‐Checkpoint Inhibitors Gained from Spatiotemporal Dynamics of the Tumor Microenvironment",
+    "authors": [
+     "Yuanyuan Zhang"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Advanced Science",
+    "type": "article",
+    "citedByCount": 12,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4413794946"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.111394335230684,
+   "rank": 34,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 12 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4385402452",
+    "doi": "10.1016/j.isci.2023.107472",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Gene signature reveals decreased SOX10-dependent transcripts in malignant cells from immune checkpoint inhibitor-resistant cutaneous melanomas",
+    "authors": [
+     "Timothy J. Purwin"
+    ],
+    "year": 2023,
+    "publicationDate": null,
+    "venue": "iScience",
+    "type": "article",
+    "citedByCount": 10,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4385402452"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      5
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S5"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     5
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1041392685158224,
+   "rank": 35,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 10 citations, 2023"
+  },
+  {
+   "paper": {
+    "id": "W4288684357",
+    "doi": "10.1007/s00262-022-03263-9",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Single-cell analysis of peripheral CD8+ T cell responses in patients receiving checkpoint blockade immunotherapy for cancer",
+    "authors": [
+     "Niloufar Khojandi"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Cancer Immunology Immunotherapy",
+    "type": "article",
+    "citedByCount": 9,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4288684357"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1,
+   "rank": 36,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 9 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4295509389",
+    "doi": "10.1182/blood.2021014669",
+    "pmid": null,
+    "pmcid": null,
+    "title": "The end of the beginning: application of single-cell sequencing to chronic lymphocytic leukemia",
+    "authors": [
+     "Adi Nagler"
+    ],
+    "year": 2022,
+    "publicationDate": null,
+    "venue": "Blood",
+    "type": "article",
+    "citedByCount": 9,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4295509389"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.1,
+   "rank": 37,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S3, S4) · found by R2 · 9 citations, 2022"
+  },
+  {
+   "paper": {
+    "id": "W4407761489",
+    "doi": "10.1016/j.xcrm.2025.101973",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Continuous replenishment of the dysfunctional CD8 T cell axis is associated with response to chemoimmunotherapy in advanced breast cancer",
+    "authors": [
+     "Christina Metoikidou"
+    ],
+    "year": 2025,
+    "publicationDate": null,
+    "venue": "Cell Reports Medicine",
+    "type": "article",
+    "citedByCount": 6,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4407761489"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      2,
+      3
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S2, S3"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     2,
+     3
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.0845098040014256,
+   "rank": 38,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 6 citations, 2025"
+  },
+  {
+   "paper": {
+    "id": "W4391757267",
+    "doi": "10.1101/2024.02.09.579677",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Coordinated Immune Cell Networks in the Bone Marrow Microenvironment Define the Graft versus Leukemia Response with Adoptive Cellular Therapy",
+    "authors": [
+     "Katie Maurer"
+    ],
+    "year": 2024,
+    "publicationDate": null,
+    "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
+    "type": "preprint",
+    "citedByCount": 6,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W4391757267"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      1,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S1, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     1,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.0845098040014256,
+   "rank": 39,
+   "whyRanked": "3 of 5 seeds linked (cites S1, S3, S4) · found by R2 · 6 citations, 2024"
+  },
+  {
+   "paper": {
+    "id": "W7170066891",
+    "doi": "10.1038/s41586-026-10808-w",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Tertiary lymphoid structures harbour stem-like tumour-specific T cells",
+    "authors": [
+     "Alexander B. Afeyan"
+    ],
+    "year": 2026,
+    "publicationDate": null,
+    "venue": "Nature",
+    "type": "article",
+    "citedByCount": 5,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": null,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W7170066891"
+   },
+   "lane": "Core",
+   "routes": [
+    "R2"
+   ],
+   "signals": [
+    {
+     "kind": "cites_seed",
+     "route": "R2",
+     "seedNs": [
+      2,
+      3,
+      4
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cites S2, S3, S4"
+    }
+   ],
+   "features": {
+    "links": 3,
+    "out": [
+     2,
+     3,
+     4
+    ],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 3.0778151250383643,
+   "rank": 40,
+   "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 5 citations, 2026"
+  },
+  {
+   "paper": {
+    "id": "W2117692326",
+    "doi": "10.1016/j.cell.2011.02.013",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Hallmarks of Cancer: The Next Generation",
+    "authors": [
+     "Douglas Hanahan"
+    ],
+    "year": 2011,
+    "publicationDate": "2011-03-01",
+    "venue": "Cell",
+    "type": "article",
+    "citedByCount": 66448,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2117692326"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4822488449571456,
+   "rank": 1,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 66,448 citations, 2011"
+  },
+  {
+   "paper": {
+    "id": "W2108234281",
+    "doi": "10.1093/bioinformatics/btp352",
+    "pmid": null,
+    "pmcid": null,
+    "title": "The Sequence Alignment/Map format and SAMtools",
+    "authors": [
+     "Heng Li"
+    ],
+    "year": 2009,
+    "publicationDate": "2009-06-08",
+    "venue": "Bioinformatics",
+    "type": "article",
+    "citedByCount": 61850,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2108234281"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S2"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     2
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.479134672564616,
+   "rank": 2,
+   "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 61,850 citations, 2009"
+  },
+  {
+   "paper": {
+    "id": "W2103441770",
+    "doi": "10.1093/bioinformatics/btp324",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Fast and accurate short read alignment with Burrows–Wheeler transform",
+    "authors": [
+     "Heng Li"
+    ],
+    "year": 2009,
+    "publicationDate": "2009-05-18",
+    "venue": "Bioinformatics",
+    "type": "article",
+    "citedByCount": 58448,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2103441770"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4766777085246412,
+   "rank": 3,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 58,448 citations, 2009"
+  },
+  {
+   "paper": {
+    "id": "W2170551349",
+    "doi": "10.1038/nmeth.1923",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Fast gapped-read alignment with Bowtie 2",
+    "authors": [
+     "Ben Langmead"
+    ],
+    "year": 2012,
+    "publicationDate": "2012-03-04",
+    "venue": "Nature Methods",
+    "type": "article",
+    "citedByCount": 56209,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2170551349"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S2"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     2
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.474981358529294,
+   "rank": 4,
+   "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 56,209 citations, 2012"
+  },
+  {
+   "paper": {
+    "id": "W2169456326",
+    "doi": "10.1093/bioinformatics/bts635",
+    "pmid": null,
+    "pmcid": null,
+    "title": "STAR: ultrafast universal RNA-seq aligner",
+    "authors": [
+     "Alexander Dobin"
+    ],
+    "year": 2012,
+    "publicationDate": "2012-10-25",
+    "venue": "Bioinformatics",
+    "type": "article",
+    "citedByCount": 51403,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2169456326"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S2"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     2
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4710996914916223,
+   "rank": 5,
+   "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 51,403 citations, 2012"
+  },
+  {
+   "paper": {
+    "id": "W2114104545",
+    "doi": "10.1093/bioinformatics/btp616",
+    "pmid": null,
+    "pmcid": null,
+    "title": "edgeR : a Bioconductor package for differential expression analysis of digital gene expression data",
+    "authors": [
+     "Mark D. Robinson"
+    ],
+    "year": 2009,
+    "publicationDate": "2009-11-11",
+    "venue": "Bioinformatics",
+    "type": "article",
+    "citedByCount": 41238,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2114104545"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      2
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S2"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     2
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4615308125579776,
+   "rank": 6,
+   "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 41,238 citations, 2009"
+  },
+  {
+   "paper": {
+    "id": "W2119180969",
+    "doi": "10.1101/gr.107524.110",
+    "pmid": null,
+    "pmcid": null,
+    "title": "The Genome Analysis Toolkit: A MapReduce framework for analyzing next-generation DNA sequencing data",
+    "authors": [
+     "Aaron McKenna"
+    ],
+    "year": 2010,
+    "publicationDate": "2010-07-19",
+    "venue": "Genome Research",
+    "type": "preprint",
+    "citedByCount": 27795,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2119180969"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4443982303007412,
+   "rank": 7,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 27,795 citations, 2010"
+  },
+  {
+   "paper": {
+    "id": "W2124985265",
+    "doi": "10.1186/gb-2009-10-3-r25",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Ultrafast and memory-efficient alignment of short DNA sequences to the human genome",
+    "authors": [
+     "Ben Langmead"
+    ],
+    "year": 2009,
+    "publicationDate": "2009-03-04",
+    "venue": "Genome biology",
+    "type": "article",
+    "citedByCount": 21775,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2124985265"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.433797810785926,
+   "rank": 8,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 21,775 citations, 2009"
+  },
+  {
+   "paper": {
+    "id": "W1673310716",
+    "doi": null,
+    "pmid": null,
+    "pmcid": null,
+    "title": "A density-based algorithm for discovering clusters in large spatial Databases with Noise",
+    "authors": [
+     "Martin Ester"
+    ],
+    "year": 1996,
+    "publicationDate": "1996-01-01",
+    "venue": null,
+    "type": "article",
+    "citedByCount": 20179,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W1673310716"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4304921161900892,
+   "rank": 9,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 20,179 citations, 1996"
+  },
+  {
+   "paper": {
+    "id": "W2097995306",
+    "doi": "10.1056/nejmoa1003466",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Improved Survival with Ipilimumab in Patients with Metastatic Melanoma",
+    "authors": [
+     "Frank Stephen Hodi"
+    ],
+    "year": 2010,
+    "publicationDate": "2010-06-05",
+    "venue": "New England Journal of Medicine",
+    "type": "article",
+    "citedByCount": 15156,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2097995306"
+   },
+   "lane": "Linked",
+   "routes": [
+    "R1"
+   ],
+   "signals": [
+    {
+     "kind": "cited_by_seed",
+     "route": "R1",
+     "seedNs": [
+      1
+     ],
+     "source": {
+      "name": "OpenAlex",
+      "url": "https://api.openalex.org/works"
+     },
+     "note": "cited by S1"
+    }
+   ],
+   "features": {
+    "links": 1,
+    "out": [],
+    "in": [
+     1
+    ],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": null
+   },
+   "judgement": null,
+   "score": 1.4180613250611602,
+   "rank": 10,
+   "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 15,156 citations, 2010"
+  },
+  {
+   "paper": {
+    "id": "W2998141119",
+    "doi": "10.1158/0008-5472.can-19-2268",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Topological Tumor Graphs: A Graph-Based Spatial Model to Infer Stromal Recruitment for Immunosuppression in Melanoma Histology",
+    "authors": [
+     "Henrik Failmezger"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-12-24",
+    "venue": "Cancer Research",
+    "type": "article",
+    "citedByCount": 71,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2998141119"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 1,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 1
+   },
+   "judgement": null,
+   "score": 1,
+   "rank": 1,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 71 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W2947754693",
+    "doi": "10.3389/fimmu.2019.00319",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Peptide Super-Agonist Enhances T-Cell Responses to Melanoma",
+    "authors": [
+     "Sarah A. E. Galloway"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-03-13",
+    "venue": "Frontiers in Immunology",
+    "type": "article",
+    "citedByCount": 24,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2947754693"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 1,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 1
+   },
+   "judgement": null,
+   "score": 1,
+   "rank": 2,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 24 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W2071922812",
+    "doi": "10.1111/j.1365-3083.1995.tb03579.x",
+    "pmid": null,
+    "pmcid": null,
+    "title": "A Human Melanoma Cell Line, Recognized by Both HLA Class I and Class II Restricted T Cells, is Capable of Initiating both Primary and Secondary Immune Responses",
+    "authors": [
+     "Anna Catharina Olsen"
+    ],
+    "year": 1995,
+    "publicationDate": "1995-04-01",
+    "venue": "Scandinavian Journal of Immunology",
+    "type": "article",
+    "citedByCount": 20,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2071922812"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 1,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 1
+   },
+   "judgement": null,
+   "score": 1,
+   "rank": 3,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 20 citations, 1995"
+  },
+  {
+   "paper": {
+    "id": "W2945002292",
+    "doi": "10.1007/s00262-019-02346-4",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Checkpoint blockade immunotherapy enhances the frequency and effector function of murine tumor-infiltrating T cells but does not alter TCRβ diversity",
+    "authors": [
+     "Lindsey M. Kuehm"
+    ],
+    "year": 2019,
+    "publicationDate": "2019-05-18",
+    "venue": "Cancer Immunology Immunotherapy",
+    "type": "article",
+    "citedByCount": 9,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2945002292"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 1,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 1
+   },
+   "judgement": null,
+   "score": 1,
+   "rank": 4,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 9 citations, 2019"
+  },
+  {
+   "paper": {
+    "id": "W1999502843",
+    "doi": "10.1002/ijc.2910580113",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Melanoma‐specific CD4+ T lymphocytes recognize human melanoma antigens processed and presented by epstein‐barr virus‐transformed B cells",
+    "authors": [
+     "Suzanne Louise Topalian"
+    ],
+    "year": 1994,
+    "publicationDate": "1994-07-01",
+    "venue": "International Journal of Cancer",
+    "type": "article",
+    "citedByCount": 84,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W1999502843"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 2,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 2
+   },
+   "judgement": null,
+   "score": 0.5,
+   "rank": 5,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 84 citations, 1994"
+  },
+  {
+   "paper": {
+    "id": "W3041753573",
+    "doi": "10.1128/jvi.00795-20",
+    "pmid": null,
+    "pmcid": null,
+    "title": "PD-L1 Checkpoint Inhibition Narrows the Antigen-Specific T Cell Receptor Repertoire in Chronic Lymphocytic Choriomeningitis Virus Infection",
+    "authors": [
+     "S. Klein"
+    ],
+    "year": 2020,
+    "publicationDate": "2020-07-07",
+    "venue": "Journal of Virology",
+    "type": "article",
+    "citedByCount": 8,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W3041753573"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 2,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 2
+   },
+   "judgement": null,
+   "score": 0.5,
+   "rank": 6,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 8 citations, 2020"
+  },
+  {
+   "paper": {
+    "id": "W3089088060",
+    "doi": "10.1007/s11060-020-03619-0",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Melanoma brain metastases have lower T-cell content and microvessel density compared to matched extracranial metastases",
+    "authors": [
+     "Sarah Ann Weiss"
+    ],
+    "year": 2020,
+    "publicationDate": "2020-09-24",
+    "venue": "Journal of Neuro-Oncology",
+    "type": "article",
+    "citedByCount": 26,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W3089088060"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 2,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 2
+   },
+   "judgement": null,
+   "score": 0.5,
+   "rank": 7,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 26 citations, 2020"
+  },
+  {
+   "paper": {
+    "id": "W2795035720",
+    "doi": "10.1158/1078-0432.ccr-17-2257",
+    "pmid": null,
+    "pmcid": null,
+    "title": "CD103+ Tumor-Resident CD8+ T Cells Are Associated with Improved Survival in Immunotherapy-Naïve Melanoma Patients and Expand Significantly During Anti–PD-1 Treatment",
+    "authors": [
+     "Jarem J. Edwards"
+    ],
+    "year": 2018,
+    "publicationDate": "2018-03-29",
+    "venue": "Clinical Cancer Research",
+    "type": "article",
+    "citedByCount": 431,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2795035720"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 2,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 2
+   },
+   "judgement": null,
+   "score": 0.5,
+   "rank": 8,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 431 citations, 2018"
+  },
+  {
+   "paper": {
+    "id": "W2066289036",
+    "doi": "10.1046/j.1365-2567.1999.00912.x",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Human antigen‐presenting cell/tumour cell hybrids stimulate strong allogeneic responses and present tumour‐associated antigens to cytotoxic T cells in vitro",
+    "authors": [
+     "Deborah J. Dunnion"
+    ],
+    "year": 1999,
+    "publicationDate": "1999-12-01",
+    "venue": "Immunology",
+    "type": "article",
+    "citedByCount": 19,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2066289036"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 3,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 3
+   },
+   "judgement": null,
+   "score": 0.3333333333333333,
+   "rank": 9,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 3 · found by R3 · 19 citations, 1999"
+  },
+  {
+   "paper": {
+    "id": "W2154270347",
+    "doi": "10.1158/0008-5472.can-11-3218",
+    "pmid": null,
+    "pmcid": null,
+    "title": "Immunotype and Immunohistologic Characteristics of Tumor-Infiltrating Immune Cells Are Associated with Clinical Outcome in Metastatic Melanoma",
+    "authors": [
+     "Gulsun Erdag"
+    ],
+    "year": 2012,
+    "publicationDate": "2012-01-20",
+    "venue": "Cancer Research",
+    "type": "article",
+    "citedByCount": 590,
+    "citationPct": null,
+    "isRetracted": false,
+    "isOa": true,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2154270347"
+   },
+   "lane": "Bridges",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 3,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 3
+   },
+   "judgement": null,
+   "score": 0.3333333333333333,
+   "rank": 10,
+   "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 3 · found by R3 · 590 citations, 2012"
+  },
+  {
+   "paper": {
+    "id": "W2015330587",
+    "doi": "10.1002/ijc.2910490412",
+    "pmid": null,
+    "pmcid": null,
+    "title": "An analysis of T‐cell‐receptor variable‐region genes in tumor‐infiltrating lymphocytes within malignant tumors",
+    "authors": [
+     "Taizo Nitta"
+    ],
+    "year": 1991,
+    "publicationDate": "1991-10-21",
+    "venue": "International Journal of Cancer",
+    "type": "article",
+    "citedByCount": 22,
+    "citationPct": null,
+    "isRetracted": true,
+    "isOa": false,
+    "oaUrl": null,
+    "abstract": null,
+    "abstractSource": null,
+    "referencedWorks": [],
+    "url": "https://openalex.org/W2015330587"
+   },
+   "lane": "Retracted",
+   "routes": [
+    "R3"
+   ],
+   "signals": [
+    {
+     "kind": "pubmed_similar",
+     "route": "R3",
+     "seedNs": [],
+     "value": 59,
+     "source": {
+      "name": "PubMed",
+      "url": "https://pubmed.ncbi.nlm.nih.gov"
+     }
+    }
+   ],
+   "features": {
+    "links": 0,
+    "out": [],
+    "in": [],
+    "coupling": null,
+    "eSeed": null,
+    "eQuestion": null,
+    "eFacets": null,
+    "rerank": null,
+    "impact": null,
+    "pubmedRank": 59
+   },
+   "judgement": null,
+   "score": 0.01694915254237288,
+   "rank": 1,
+   "whyRanked": "flagged as retracted in OpenAlex · no direct seed link; surfaced by PubMed similarity · PubMed similar rank 59 · found by R3 · 22 citations, 1991"
+  }
+ ],
+ "counts": {
+  "Core": 545,
+  "Linked": 216,
+  "Bridges": 218,
+  "Retracted": 1
+ },
+ "total": 980,
+ "events": [
+  {
+   "type": "run",
+   "runId": "demo-melanoma",
+   "question": "Which single-cell methods help study melanoma immune cells?",
+   "preset": "demo",
+   "config": {
+    "provisional": true,
+    "sendPerLane": 40,
+    "seeds": 5
+   }
+  },
+  {
+   "type": "stage",
+   "stage": "resolve",
+   "status": "start"
+  },
+  {
+   "type": "seeds",
+   "seeds": [
+    {
+     "id": "W2332292689",
+     "doi": "10.1126/science.aad0501",
+     "pmid": null,
+     "pmcid": null,
+     "title": "Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq",
+     "authors": [
+      "Itay Tirosh"
+     ],
+     "year": 2016,
+     "publicationDate": null,
+     "venue": "Science",
+     "type": "article",
+     "citedByCount": 4914,
+     "citationPct": null,
+     "isRetracted": false,
+     "isOa": null,
+     "oaUrl": null,
+     "abstract": null,
+     "abstractSource": null,
+     "referencedWorks": [],
+     "url": "https://openalex.org/W2332292689",
+     "n": 1,
+     "label": "S1",
+     "shortName": "Tirosh 2016",
+     "input": "10.1126/science.aad0501"
+    },
+    {
+     "id": "W2899145148",
+     "doi": "10.1016/j.cell.2018.10.038",
+     "pmid": null,
+     "pmcid": null,
+     "title": "Defining T Cell States Associated with Response to Checkpoint Immunotherapy in Melanoma",
+     "authors": [
+      "Moshe Sade-Feldman"
+     ],
+     "year": 2018,
+     "publicationDate": null,
+     "venue": "Cell",
+     "type": "article",
+     "citedByCount": 2040,
+     "citationPct": null,
+     "isRetracted": false,
+     "isOa": null,
+     "oaUrl": null,
+     "abstract": null,
+     "abstractSource": null,
+     "referencedWorks": [],
+     "url": "https://openalex.org/W2899145148",
+     "n": 2,
+     "label": "S2",
+     "shortName": "Sade-Feldman 2018",
+     "input": "10.1016/j.cell.2018.10.038"
+    },
+    {
+     "id": "W3184584468",
+     "doi": "10.1038/s41586-021-03704-y",
+     "pmid": null,
+     "pmcid": null,
+     "title": "Phenotype, specificity and avidity of antitumour CD8+ T cells in melanoma",
+     "authors": [
+      "Giacomo Oliveira"
+     ],
+     "year": 2021,
+     "publicationDate": null,
+     "venue": "Nature",
+     "type": "article",
+     "citedByCount": 561,
+     "citationPct": null,
+     "isRetracted": false,
+     "isOa": null,
+     "oaUrl": null,
+     "abstract": null,
+     "abstractSource": null,
+     "referencedWorks": [],
+     "url": "https://openalex.org/W3184584468",
+     "n": 3,
+     "label": "S3",
+     "shortName": "Oliveira 2021",
+     "input": "10.1038/s41586-021-03704-y"
+    },
+    {
+     "id": "W4229030906",
+     "doi": "10.1038/s41586-022-04682-5",
+     "pmid": null,
+     "pmcid": null,
+     "title": "Landscape of helper and regulatory antitumour CD4+ T cells in melanoma",
+     "authors": [
+      "Giacomo Oliveira"
+     ],
+     "year": 2022,
+     "publicationDate": null,
+     "venue": "Nature",
+     "type": "article",
+     "citedByCount": 199,
+     "citationPct": null,
+     "isRetracted": false,
+     "isOa": null,
+     "oaUrl": null,
+     "abstract": null,
+     "abstractSource": null,
+     "referencedWorks": [],
+     "url": "https://openalex.org/W4229030906",
+     "n": 4,
+     "label": "S4",
+     "shortName": "Oliveira 2022",
+     "input": "10.1038/s41586-022-04682-5"
+    },
+    {
+     "id": "W3165815938",
+     "doi": "10.1158/1078-0432.ccr-21-1694",
+     "pmid": null,
+     "pmcid": null,
+     "title": "Single-Cell Characterization of the Immune Microenvironment of Melanoma Brain and Leptomeningeal Metastases",
+     "authors": [
+      "Inna Smalley"
+     ],
+     "year": 2021,
+     "publicationDate": null,
+     "venue": "Clin Cancer Res",
+     "type": "article",
+     "citedByCount": 161,
+     "citationPct": null,
+     "isRetracted": false,
+     "isOa": null,
+     "oaUrl": null,
+     "abstract": null,
+     "abstractSource": null,
+     "referencedWorks": [],
+     "url": "https://openalex.org/W3165815938",
+     "n": 5,
+     "label": "S5",
+     "shortName": "Smalley 2021",
+     "input": "10.1158/1078-0432.ccr-21-1694"
+    }
+   ]
+  },
+  {
+   "type": "stage",
+   "stage": "resolve",
+   "status": "done",
+   "count": 5,
+   "ms": 1200
+  },
+  {
+   "type": "facets",
+   "facets": [
+    {
+     "key": "topic",
+     "label": "Topic",
+     "query": "melanoma tumor-infiltrating immune cells"
+    },
+    {
+     "key": "method",
+     "label": "Method",
+     "query": "single-cell RNA sequencing"
+    },
+    {
+     "key": "population",
+     "label": "Population",
+     "query": "melanoma patients"
+    }
+   ]
+  },
+  {
+   "type": "stage",
+   "stage": "r1",
+   "status": "start"
+  },
+  {
+   "type": "stage",
+   "stage": "r1",
+   "status": "done",
+   "count": 238,
+   "ms": 2100
+  },
+  {
+   "type": "stage",
+   "stage": "r2",
+   "status": "start"
+  },
+  {
+   "type": "stage",
+   "stage": "r2",
+   "status": "done",
+   "count": 494,
+   "ms": 3400
+  },
+  {
+   "type": "stage",
+   "stage": "r3",
+   "status": "start"
+  },
+  {
+   "type": "stage",
+   "stage": "r3",
+   "status": "done",
+   "count": 283,
+   "ms": 1800
+  },
+  {
+   "type": "stage",
+   "stage": "lanes",
+   "status": "start"
+  },
+  {
+   "type": "candidates",
+   "candidates": [
+    {
+     "paper": {
+      "id": "W7160921086",
+      "doi": "10.1080/25785826.2026.2670041",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Immune microenvironment and strategy of immunotherapy in acral melanoma",
+      "authors": [
+       "Tomoyuki Minowa"
+      ],
+      "year": 2026,
+      "publicationDate": null,
+      "venue": "Immunological Medicine",
+      "type": "article",
+      "citedByCount": 0,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W7160921086"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3,
+        4,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3, S4, S5"
+      }
+     ],
+     "features": {
+      "links": 5,
+      "out": [
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 5,
+     "rank": 1,
+     "whyRanked": "5 of 5 seeds linked (cites S1, S2, S3, S4, S5) · found by R2 · 0 citations, 2026"
+    },
+    {
+     "paper": {
+      "id": "W2966465234",
+      "doi": "10.1038/s41591-019-0522-3",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Clonal replacement of tumor-specific T cells following PD-1 blockade",
+      "authors": [
+       "Kathryn E. Yost"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-07-29",
+      "venue": "Nature Medicine",
+      "type": "article",
+      "citedByCount": 1522,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2966465234"
+     },
+     "lane": "Core",
+     "routes": [
+      "R1",
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2"
+      },
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S3, S4"
+      }
+     ],
+     "features": {
+      "links": 4,
+      "out": [
+       1,
+       2
+      ],
+      "in": [
+       3,
+       4
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 4.318269990333604,
+     "rank": 2,
+     "whyRanked": "4 of 5 seeds linked (cites S1, S2; cited by S3, S4) · found by R1, R2 · 1,522 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W4365143025",
+      "doi": "10.1038/s41568-023-00560-y",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Dynamics and specificities of T cells in cancer immunotherapy",
+      "authors": [
+       "Giacomo Oliveira"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Nature reviews. Cancer",
+      "type": "review",
+      "citedByCount": 528,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4365143025"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 4,
+      "out": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 4.272345567203518,
+     "rank": 3,
+     "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 528 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4365457190",
+      "doi": "10.1016/j.ccell.2023.03.014",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Phenotypic plasticity and reduced tissue retention of exhausted tumor-infiltrating T cells following neoadjuvant immunotherapy in head and neck cancer",
+      "authors": [
+       "Cem M. Sievers"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Cancer Cell",
+      "type": "article",
+      "citedByCount": 60,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4365457190"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 4,
+      "out": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 4.178532983501077,
+     "rank": 4,
+     "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 60 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4405022534",
+      "doi": "10.1126/scitranslmed.adk8832",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Single-cell profiling of acral melanoma infiltrating lymphocytes reveals a suppressive tumor microenvironment",
+      "authors": [
+       "Tomoyuki Minowa"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "Science Translational Medicine",
+      "type": "article",
+      "citedByCount": 27,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4405022534"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 4,
+      "out": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 4.144715803134222,
+     "rank": 5,
+     "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 27 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W4404824470",
+      "doi": "10.1038/s41590-024-02023-4",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Circulating tumor-reactive KIR+CD8+ T cells suppress anti-tumor immunity in patients with melanoma",
+      "authors": [
+       "Benjamin Y. Lu"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "Nature Immunology",
+      "type": "article",
+      "citedByCount": 16,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4404824470"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 4,
+      "out": [
+       1,
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 4.123044892137828,
+     "rank": 6,
+     "whyRanked": "4 of 5 seeds linked (cites S1, S2, S3, S4) · found by R2 · 16 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W2572174216",
+      "doi": "10.1159/000455014",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Adverse Renal Effects of Immune Checkpoint Inhibitors: A Narrative Review",
+      "authors": [
+       "Rimda Wanchoo"
+      ],
+      "year": 2017,
+      "publicationDate": "2017-01-01",
+      "venue": "American Journal of Nephrology",
+      "type": "review",
+      "citedByCount": 15256,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2572174216"
+     },
+     "lane": "Core",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [],
+      "in": [
+       1,
+       2,
+       5
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.418346914623151,
+     "rank": 7,
+     "whyRanked": "3 of 5 seeds linked (cited by S1, S2, S5) · found by R1 · 15,256 citations, 2017"
+    },
+    {
+     "paper": {
+      "id": "W3000311037",
+      "doi": "10.1038/s41586-019-1914-8",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Tertiary lymphoid structures improve immunotherapy and survival in melanoma",
+      "authors": [
+       "Rita Cabrita"
+      ],
+      "year": 2020,
+      "publicationDate": "2020-01-15",
+      "venue": "Nature",
+      "type": "article",
+      "citedByCount": 2357,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W3000311037"
+     },
+     "lane": "Core",
+     "routes": [
+      "R1",
+      "R2",
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2"
+      },
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S5"
+      },
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 6,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2
+      ],
+      "in": [
+       5
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 6
+     },
+     "judgement": null,
+     "score": 3.337254380075907,
+     "rank": 8,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2; cited by S5) · PubMed similar rank 6 · found by R1, R2, R3 · 2,357 citations, 2020"
+    },
+    {
+     "paper": {
+      "id": "W2913558101",
+      "doi": "10.1038/s41590-019-0312-6",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Subsets of exhausted CD8+ T cells differentially mediate tumor control and respond to checkpoint blockade",
+      "authors": [
+       "Brian C. Miller"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-02-18",
+      "venue": "Nature Immunology",
+      "type": "article",
+      "citedByCount": 2067,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2913558101"
+     },
+     "lane": "Core",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R1",
+       "seedNs": [
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2"
+      },
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2
+      ],
+      "in": [
+       3,
+       4
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.3315550534421905,
+     "rank": 9,
+     "whyRanked": "3 of 5 seeds linked (cites S2; cited by S3, S4) · found by R1 · 2,067 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W2909486828",
+      "doi": "10.1016/j.immuni.2018.12.021",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Intratumoral Tcf1+PD-1+CD8+ T Cells with Stem-like Properties Promote Tumor Control in Response to Vaccination and Checkpoint Blockade Immunotherapy",
+      "authors": [
+       "Imran Siddiqui"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-01-01",
+      "venue": "Immunity",
+      "type": "article",
+      "citedByCount": 1661,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2909486828"
+     },
+     "lane": "Core",
+     "routes": [
+      "R1",
+      "R2",
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2"
+      },
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S3"
+      },
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 7,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2
+      ],
+      "in": [
+       3
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 7
+     },
+     "judgement": null,
+     "score": 3.322063101944809,
+     "rank": 10,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2; cited by S3) · PubMed similar rank 7 · found by R1, R2, R3 · 1,661 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W4381149624",
+      "doi": "10.1038/s41392-023-01471-y",
+      "pmid": null,
+      "pmcid": null,
+      "title": "T cells in health and disease",
+      "authors": [
+       "Lina Sun"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Signal Transduction and Targeted Therapy",
+      "type": "article",
+      "citedByCount": 1019,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4381149624"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.3008600171761917,
+     "rank": 11,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 1,019 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4210297691",
+      "doi": "10.1126/science.abl5447",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Molecular signatures of antitumor neoantigen-reactive T cells from metastatic human cancers",
+      "authors": [
+       "Frank J. Lowery"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Science",
+      "type": "article",
+      "citedByCount": 450,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4210297691"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.265417654187796,
+     "rank": 12,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 450 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4285097347",
+      "doi": "10.1016/j.cell.2022.06.035",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Cancer vaccines: Building a bridge over troubled waters",
+      "authors": [
+       "MacLean Sellars"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cell",
+      "type": "article",
+      "citedByCount": 319,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4285097347"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.2505149978319907,
+     "rank": 13,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 319 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4386117348",
+      "doi": "10.1186/s13045-023-01494-6",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Advances in single-cell RNA sequencing and its applications in cancer research",
+      "authors": [
+       "Dezhi Huang"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Journal of Hematology & Oncology",
+      "type": "article",
+      "citedByCount": 201,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4386117348"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.2305351369446624,
+     "rank": 14,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 201 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4223424723",
+      "doi": "10.1016/j.ccell.2022.03.005",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Transcriptomic profiles of neoantigen-reactive T cells in human gastrointestinal cancers",
+      "authors": [
+       "Chunhong Zheng"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cancer Cell",
+      "type": "article",
+      "citedByCount": 150,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4223424723"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.217897694729317,
+     "rank": 15,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 150 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4304196242",
+      "doi": "10.1016/j.immuni.2022.09.002",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Spatial maps of T cell receptors and transcriptomes reveal distinct immune niches and interactions in the adaptive immune response",
+      "authors": [
+       "Sophia Liu"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Immunity",
+      "type": "article",
+      "citedByCount": 148,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4304196242"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.2173186268412275,
+     "rank": 16,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 148 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4210767928",
+      "doi": "10.1016/j.celrep.2022.110331",
+      "pmid": null,
+      "pmcid": null,
+      "title": "PD-1 blockade therapy promotes infiltration of tumor-attacking exhausted T cell clonotypes",
+      "authors": [
+       "Joji Nagasaki"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cell Reports",
+      "type": "article",
+      "citedByCount": 119,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4210767928"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.2079181246047623,
+     "rank": 17,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 119 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4386533618",
+      "doi": "10.1126/sciimmunol.adf4968",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Preexisting tumor-resident T cells with cytotoxic potential associate with response to neoadjuvant anti–PD-1 in head and neck cancer",
+      "authors": [
+       "Giacomo Oliveira"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Science Immunology",
+      "type": "article",
+      "citedByCount": 119,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4386533618"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.2079181246047623,
+     "rank": 18,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 119 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4365139913",
+      "doi": "10.1126/scitranslmed.add1016",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Multiomics and spatial mapping characterizes human CD8 + T cell states in cancer",
+      "authors": [
+       "Stefan Naulaerts"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Science Translational Medicine",
+      "type": "article",
+      "citedByCount": 94,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4365139913"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1977723605288846,
+     "rank": 19,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 94 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4406437647",
+      "doi": "10.1038/s41571-024-00984-x",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Biological and clinical significance of tumour-infiltrating lymphocytes in the era of immunotherapy: a multidimensional approach",
+      "authors": [
+       "Miguel López de Rodas"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Nature Reviews Clinical Oncology",
+      "type": "review",
+      "citedByCount": 84,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4406437647"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1929418925714295,
+     "rank": 20,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 84 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4386926153",
+      "doi": "10.1016/j.ccell.2023.08.013",
+      "pmid": null,
+      "pmcid": null,
+      "title": "ZNF683 marks a CD8+ T cell population associated with anti-tumor immunity following anti-PD-1 therapy for Richter syndrome",
+      "authors": [
+       "Erin Michelle Parry"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Cancer Cell",
+      "type": "article",
+      "citedByCount": 65,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4386926153"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1819543935541867,
+     "rank": 21,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 65 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4302424723",
+      "doi": "10.1016/j.ccell.2022.09.011",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Technology meets TILs: Deciphering T cell function in the -omics era",
+      "authors": [
+       "William H. Hudson"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cancer Cell",
+      "type": "article",
+      "citedByCount": 52,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4302424723"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.172427586960079,
+     "rank": 22,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 52 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4308254806",
+      "doi": "10.1016/j.ccell.2022.10.012",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Tumor-intrinsic SIRPA promotes sensitivity to checkpoint inhibition immunotherapy in melanoma",
+      "authors": [
+       "Zhicheng Zhou"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cancer Cell",
+      "type": "article",
+      "citedByCount": 49,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4308254806"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.169897000433602,
+     "rank": 23,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 49 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4224311924",
+      "doi": "10.1093/intimm/dxac013",
+      "pmid": null,
+      "pmcid": null,
+      "title": "A variety of ‘exhausted’ T cells in the tumor microenvironment",
+      "authors": [
+       "Joji Nagasaki"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "International Immunology",
+      "type": "article",
+      "citedByCount": 40,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4224311924"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1612783856719737,
+     "rank": 24,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 40 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W3204002340",
+      "doi": "10.1016/j.bbcan.2021.188632",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Significance of intratumoral infiltration of B cells in cancer immunotherapy: From a single cell perspective",
+      "authors": [
+       "Sijia Gu"
+      ],
+      "year": 2021,
+      "publicationDate": null,
+      "venue": "Biochimica et Biophysica Acta (BBA) - Reviews on Cancer",
+      "type": "article",
+      "citedByCount": 33,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W3204002340"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1531478917042257,
+     "rank": 25,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 33 citations, 2021"
+    },
+    {
+     "paper": {
+      "id": "W4413894643",
+      "doi": "10.1038/s41467-025-62878-5",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Mature and migratory dendritic cells promote immune infiltration and response to anti-PD-1 checkpoint blockade in metastatic melanoma",
+      "authors": [
+       "Jiekun Yang"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Nature Communications",
+      "type": "article",
+      "citedByCount": 25,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4413894643"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.141497334797082,
+     "rank": 26,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 25 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4403679484",
+      "doi": "10.1016/j.celrep.2024.114875",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Comparing neoantigen cancer vaccines and immune checkpoint therapy unveils an effective vaccine and anti-TREM2 macrophage-targeting dual therapy",
+      "authors": [
+       "Sunita Keshari"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "Cell Reports",
+      "type": "article",
+      "citedByCount": 22,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4403679484"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.136172783601759,
+     "rank": 27,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 22 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W4405079275",
+      "doi": "10.1007/s40257-024-00907-7",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Overcoming Resistance Mechanisms to Melanoma Immunotherapy",
+      "authors": [
+       "David X. Zheng"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "American Journal of Clinical Dermatology",
+      "type": "article",
+      "citedByCount": 21,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4405079275"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.134242268082221,
+     "rank": 28,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S4) · found by R2 · 21 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W4416385939",
+      "doi": "10.1038/s41586-025-09754-w",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Tumour-reactive heterotypic CD8 T cell clusters from clinical samples",
+      "authors": [
+       "Sofia Ibáñez‐Molero"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Nature",
+      "type": "article",
+      "citedByCount": 21,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4416385939"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.134242268082221,
+     "rank": 29,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 21 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4387499185",
+      "doi": "10.3389/fimmu.2023.1267918",
+      "pmid": null,
+      "pmcid": null,
+      "title": "The nexus of dynamic T cell states and immune checkpoint blockade therapy in the periphery and tumor microenvironment",
+      "authors": [
+       "Hong Luo"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "Frontiers in Immunology",
+      "type": "article",
+      "citedByCount": 21,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4387499185"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.134242268082221,
+     "rank": 30,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 21 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4394579481",
+      "doi": "10.1016/j.medj.2024.03.015",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Myeloid-T cell interplay and cell state transitions associated with checkpoint inhibitor response in melanoma",
+      "authors": [
+       "Ramona Schlenker"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "Med",
+      "type": "article",
+      "citedByCount": 17,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4394579481"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1255272505103306,
+     "rank": 31,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S4) · found by R2 · 17 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W3205349475",
+      "doi": "10.3390/genes12101629",
+      "pmid": null,
+      "pmcid": null,
+      "title": "High-Dimensional Single-Cell Transcriptomics in Melanoma and Cancer Immunotherapy",
+      "authors": [
+       "Camelia Y. J. Quek"
+      ],
+      "year": 2021,
+      "publicationDate": null,
+      "venue": "Genes",
+      "type": "article",
+      "citedByCount": 14,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W3205349475"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.117609125905568,
+     "rank": 32,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 14 citations, 2021"
+    },
+    {
+     "paper": {
+      "id": "W4408246324",
+      "doi": "10.1158/0008-5472.can-23-3918",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Single-Cell Analyses Reveal a Functionally Heterogeneous Exhausted CD8+ T-cell Subpopulation That Is Correlated with Response to Checkpoint Therapy in Melanoma",
+      "authors": [
+       "Kelly M. Mahuron"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Cancer Research",
+      "type": "article",
+      "citedByCount": 13,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4408246324"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.114612803567824,
+     "rank": 33,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 13 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4413794946",
+      "doi": "10.1002/advs.202508692",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Insights into the Mechanisms of Immune‐Checkpoint Inhibitors Gained from Spatiotemporal Dynamics of the Tumor Microenvironment",
+      "authors": [
+       "Yuanyuan Zhang"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Advanced Science",
+      "type": "article",
+      "citedByCount": 12,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4413794946"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.111394335230684,
+     "rank": 34,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 12 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4385402452",
+      "doi": "10.1016/j.isci.2023.107472",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Gene signature reveals decreased SOX10-dependent transcripts in malignant cells from immune checkpoint inhibitor-resistant cutaneous melanomas",
+      "authors": [
+       "Timothy J. Purwin"
+      ],
+      "year": 2023,
+      "publicationDate": null,
+      "venue": "iScience",
+      "type": "article",
+      "citedByCount": 10,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4385402452"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        5
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S5"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       5
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1041392685158224,
+     "rank": 35,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S5) · found by R2 · 10 citations, 2023"
+    },
+    {
+     "paper": {
+      "id": "W4288684357",
+      "doi": "10.1007/s00262-022-03263-9",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Single-cell analysis of peripheral CD8+ T cell responses in patients receiving checkpoint blockade immunotherapy for cancer",
+      "authors": [
+       "Niloufar Khojandi"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Cancer Immunology Immunotherapy",
+      "type": "article",
+      "citedByCount": 9,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4288684357"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1,
+     "rank": 36,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 9 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4295509389",
+      "doi": "10.1182/blood.2021014669",
+      "pmid": null,
+      "pmcid": null,
+      "title": "The end of the beginning: application of single-cell sequencing to chronic lymphocytic leukemia",
+      "authors": [
+       "Adi Nagler"
+      ],
+      "year": 2022,
+      "publicationDate": null,
+      "venue": "Blood",
+      "type": "article",
+      "citedByCount": 9,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4295509389"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.1,
+     "rank": 37,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S3, S4) · found by R2 · 9 citations, 2022"
+    },
+    {
+     "paper": {
+      "id": "W4407761489",
+      "doi": "10.1016/j.xcrm.2025.101973",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Continuous replenishment of the dysfunctional CD8 T cell axis is associated with response to chemoimmunotherapy in advanced breast cancer",
+      "authors": [
+       "Christina Metoikidou"
+      ],
+      "year": 2025,
+      "publicationDate": null,
+      "venue": "Cell Reports Medicine",
+      "type": "article",
+      "citedByCount": 6,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4407761489"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        2,
+        3
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S2, S3"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       2,
+       3
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.0845098040014256,
+     "rank": 38,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S2, S3) · found by R2 · 6 citations, 2025"
+    },
+    {
+     "paper": {
+      "id": "W4391757267",
+      "doi": "10.1101/2024.02.09.579677",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Coordinated Immune Cell Networks in the Bone Marrow Microenvironment Define the Graft versus Leukemia Response with Adoptive Cellular Therapy",
+      "authors": [
+       "Katie Maurer"
+      ],
+      "year": 2024,
+      "publicationDate": null,
+      "venue": "bioRxiv (Cold Spring Harbor Laboratory)",
+      "type": "preprint",
+      "citedByCount": 6,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W4391757267"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        1,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S1, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       1,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.0845098040014256,
+     "rank": 39,
+     "whyRanked": "3 of 5 seeds linked (cites S1, S3, S4) · found by R2 · 6 citations, 2024"
+    },
+    {
+     "paper": {
+      "id": "W7170066891",
+      "doi": "10.1038/s41586-026-10808-w",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Tertiary lymphoid structures harbour stem-like tumour-specific T cells",
+      "authors": [
+       "Alexander B. Afeyan"
+      ],
+      "year": 2026,
+      "publicationDate": null,
+      "venue": "Nature",
+      "type": "article",
+      "citedByCount": 5,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": null,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W7170066891"
+     },
+     "lane": "Core",
+     "routes": [
+      "R2"
+     ],
+     "signals": [
+      {
+       "kind": "cites_seed",
+       "route": "R2",
+       "seedNs": [
+        2,
+        3,
+        4
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cites S2, S3, S4"
+      }
+     ],
+     "features": {
+      "links": 3,
+      "out": [
+       2,
+       3,
+       4
+      ],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 3.0778151250383643,
+     "rank": 40,
+     "whyRanked": "3 of 5 seeds linked (cites S2, S3, S4) · found by R2 · 5 citations, 2026"
+    },
+    {
+     "paper": {
+      "id": "W2117692326",
+      "doi": "10.1016/j.cell.2011.02.013",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Hallmarks of Cancer: The Next Generation",
+      "authors": [
+       "Douglas Hanahan"
+      ],
+      "year": 2011,
+      "publicationDate": "2011-03-01",
+      "venue": "Cell",
+      "type": "article",
+      "citedByCount": 66448,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2117692326"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4822488449571456,
+     "rank": 1,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 66,448 citations, 2011"
+    },
+    {
+     "paper": {
+      "id": "W2108234281",
+      "doi": "10.1093/bioinformatics/btp352",
+      "pmid": null,
+      "pmcid": null,
+      "title": "The Sequence Alignment/Map format and SAMtools",
+      "authors": [
+       "Heng Li"
+      ],
+      "year": 2009,
+      "publicationDate": "2009-06-08",
+      "venue": "Bioinformatics",
+      "type": "article",
+      "citedByCount": 61850,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2108234281"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S2"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       2
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.479134672564616,
+     "rank": 2,
+     "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 61,850 citations, 2009"
+    },
+    {
+     "paper": {
+      "id": "W2103441770",
+      "doi": "10.1093/bioinformatics/btp324",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Fast and accurate short read alignment with Burrows–Wheeler transform",
+      "authors": [
+       "Heng Li"
+      ],
+      "year": 2009,
+      "publicationDate": "2009-05-18",
+      "venue": "Bioinformatics",
+      "type": "article",
+      "citedByCount": 58448,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2103441770"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4766777085246412,
+     "rank": 3,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 58,448 citations, 2009"
+    },
+    {
+     "paper": {
+      "id": "W2170551349",
+      "doi": "10.1038/nmeth.1923",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Fast gapped-read alignment with Bowtie 2",
+      "authors": [
+       "Ben Langmead"
+      ],
+      "year": 2012,
+      "publicationDate": "2012-03-04",
+      "venue": "Nature Methods",
+      "type": "article",
+      "citedByCount": 56209,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2170551349"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S2"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       2
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.474981358529294,
+     "rank": 4,
+     "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 56,209 citations, 2012"
+    },
+    {
+     "paper": {
+      "id": "W2169456326",
+      "doi": "10.1093/bioinformatics/bts635",
+      "pmid": null,
+      "pmcid": null,
+      "title": "STAR: ultrafast universal RNA-seq aligner",
+      "authors": [
+       "Alexander Dobin"
+      ],
+      "year": 2012,
+      "publicationDate": "2012-10-25",
+      "venue": "Bioinformatics",
+      "type": "article",
+      "citedByCount": 51403,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2169456326"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S2"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       2
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4710996914916223,
+     "rank": 5,
+     "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 51,403 citations, 2012"
+    },
+    {
+     "paper": {
+      "id": "W2114104545",
+      "doi": "10.1093/bioinformatics/btp616",
+      "pmid": null,
+      "pmcid": null,
+      "title": "edgeR : a Bioconductor package for differential expression analysis of digital gene expression data",
+      "authors": [
+       "Mark D. Robinson"
+      ],
+      "year": 2009,
+      "publicationDate": "2009-11-11",
+      "venue": "Bioinformatics",
+      "type": "article",
+      "citedByCount": 41238,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2114104545"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        2
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S2"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       2
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4615308125579776,
+     "rank": 6,
+     "whyRanked": "1 of 5 seeds linked (cited by S2) · found by R1 · 41,238 citations, 2009"
+    },
+    {
+     "paper": {
+      "id": "W2119180969",
+      "doi": "10.1101/gr.107524.110",
+      "pmid": null,
+      "pmcid": null,
+      "title": "The Genome Analysis Toolkit: A MapReduce framework for analyzing next-generation DNA sequencing data",
+      "authors": [
+       "Aaron McKenna"
+      ],
+      "year": 2010,
+      "publicationDate": "2010-07-19",
+      "venue": "Genome Research",
+      "type": "preprint",
+      "citedByCount": 27795,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2119180969"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4443982303007412,
+     "rank": 7,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 27,795 citations, 2010"
+    },
+    {
+     "paper": {
+      "id": "W2124985265",
+      "doi": "10.1186/gb-2009-10-3-r25",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Ultrafast and memory-efficient alignment of short DNA sequences to the human genome",
+      "authors": [
+       "Ben Langmead"
+      ],
+      "year": 2009,
+      "publicationDate": "2009-03-04",
+      "venue": "Genome biology",
+      "type": "article",
+      "citedByCount": 21775,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2124985265"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.433797810785926,
+     "rank": 8,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 21,775 citations, 2009"
+    },
+    {
+     "paper": {
+      "id": "W1673310716",
+      "doi": null,
+      "pmid": null,
+      "pmcid": null,
+      "title": "A density-based algorithm for discovering clusters in large spatial Databases with Noise",
+      "authors": [
+       "Martin Ester"
+      ],
+      "year": 1996,
+      "publicationDate": "1996-01-01",
+      "venue": null,
+      "type": "article",
+      "citedByCount": 20179,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W1673310716"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4304921161900892,
+     "rank": 9,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 20,179 citations, 1996"
+    },
+    {
+     "paper": {
+      "id": "W2097995306",
+      "doi": "10.1056/nejmoa1003466",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Improved Survival with Ipilimumab in Patients with Metastatic Melanoma",
+      "authors": [
+       "Frank Stephen Hodi"
+      ],
+      "year": 2010,
+      "publicationDate": "2010-06-05",
+      "venue": "New England Journal of Medicine",
+      "type": "article",
+      "citedByCount": 15156,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2097995306"
+     },
+     "lane": "Linked",
+     "routes": [
+      "R1"
+     ],
+     "signals": [
+      {
+       "kind": "cited_by_seed",
+       "route": "R1",
+       "seedNs": [
+        1
+       ],
+       "source": {
+        "name": "OpenAlex",
+        "url": "https://api.openalex.org/works"
+       },
+       "note": "cited by S1"
+      }
+     ],
+     "features": {
+      "links": 1,
+      "out": [],
+      "in": [
+       1
+      ],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": null
+     },
+     "judgement": null,
+     "score": 1.4180613250611602,
+     "rank": 10,
+     "whyRanked": "1 of 5 seeds linked (cited by S1) · found by R1 · 15,156 citations, 2010"
+    },
+    {
+     "paper": {
+      "id": "W2998141119",
+      "doi": "10.1158/0008-5472.can-19-2268",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Topological Tumor Graphs: A Graph-Based Spatial Model to Infer Stromal Recruitment for Immunosuppression in Melanoma Histology",
+      "authors": [
+       "Henrik Failmezger"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-12-24",
+      "venue": "Cancer Research",
+      "type": "article",
+      "citedByCount": 71,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2998141119"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 1,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 1
+     },
+     "judgement": null,
+     "score": 1,
+     "rank": 1,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 71 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W2947754693",
+      "doi": "10.3389/fimmu.2019.00319",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Peptide Super-Agonist Enhances T-Cell Responses to Melanoma",
+      "authors": [
+       "Sarah A. E. Galloway"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-03-13",
+      "venue": "Frontiers in Immunology",
+      "type": "article",
+      "citedByCount": 24,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2947754693"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 1,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 1
+     },
+     "judgement": null,
+     "score": 1,
+     "rank": 2,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 24 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W2071922812",
+      "doi": "10.1111/j.1365-3083.1995.tb03579.x",
+      "pmid": null,
+      "pmcid": null,
+      "title": "A Human Melanoma Cell Line, Recognized by Both HLA Class I and Class II Restricted T Cells, is Capable of Initiating both Primary and Secondary Immune Responses",
+      "authors": [
+       "Anna Catharina Olsen"
+      ],
+      "year": 1995,
+      "publicationDate": "1995-04-01",
+      "venue": "Scandinavian Journal of Immunology",
+      "type": "article",
+      "citedByCount": 20,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2071922812"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 1,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 1
+     },
+     "judgement": null,
+     "score": 1,
+     "rank": 3,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 20 citations, 1995"
+    },
+    {
+     "paper": {
+      "id": "W2945002292",
+      "doi": "10.1007/s00262-019-02346-4",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Checkpoint blockade immunotherapy enhances the frequency and effector function of murine tumor-infiltrating T cells but does not alter TCRβ diversity",
+      "authors": [
+       "Lindsey M. Kuehm"
+      ],
+      "year": 2019,
+      "publicationDate": "2019-05-18",
+      "venue": "Cancer Immunology Immunotherapy",
+      "type": "article",
+      "citedByCount": 9,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2945002292"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 1,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 1
+     },
+     "judgement": null,
+     "score": 1,
+     "rank": 4,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 1 · found by R3 · 9 citations, 2019"
+    },
+    {
+     "paper": {
+      "id": "W1999502843",
+      "doi": "10.1002/ijc.2910580113",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Melanoma‐specific CD4+ T lymphocytes recognize human melanoma antigens processed and presented by epstein‐barr virus‐transformed B cells",
+      "authors": [
+       "Suzanne Louise Topalian"
+      ],
+      "year": 1994,
+      "publicationDate": "1994-07-01",
+      "venue": "International Journal of Cancer",
+      "type": "article",
+      "citedByCount": 84,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W1999502843"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 2,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 2
+     },
+     "judgement": null,
+     "score": 0.5,
+     "rank": 5,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 84 citations, 1994"
+    },
+    {
+     "paper": {
+      "id": "W3041753573",
+      "doi": "10.1128/jvi.00795-20",
+      "pmid": null,
+      "pmcid": null,
+      "title": "PD-L1 Checkpoint Inhibition Narrows the Antigen-Specific T Cell Receptor Repertoire in Chronic Lymphocytic Choriomeningitis Virus Infection",
+      "authors": [
+       "S. Klein"
+      ],
+      "year": 2020,
+      "publicationDate": "2020-07-07",
+      "venue": "Journal of Virology",
+      "type": "article",
+      "citedByCount": 8,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W3041753573"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 2,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 2
+     },
+     "judgement": null,
+     "score": 0.5,
+     "rank": 6,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 8 citations, 2020"
+    },
+    {
+     "paper": {
+      "id": "W3089088060",
+      "doi": "10.1007/s11060-020-03619-0",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Melanoma brain metastases have lower T-cell content and microvessel density compared to matched extracranial metastases",
+      "authors": [
+       "Sarah Ann Weiss"
+      ],
+      "year": 2020,
+      "publicationDate": "2020-09-24",
+      "venue": "Journal of Neuro-Oncology",
+      "type": "article",
+      "citedByCount": 26,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W3089088060"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 2,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 2
+     },
+     "judgement": null,
+     "score": 0.5,
+     "rank": 7,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 26 citations, 2020"
+    },
+    {
+     "paper": {
+      "id": "W2795035720",
+      "doi": "10.1158/1078-0432.ccr-17-2257",
+      "pmid": null,
+      "pmcid": null,
+      "title": "CD103+ Tumor-Resident CD8+ T Cells Are Associated with Improved Survival in Immunotherapy-Naïve Melanoma Patients and Expand Significantly During Anti–PD-1 Treatment",
+      "authors": [
+       "Jarem J. Edwards"
+      ],
+      "year": 2018,
+      "publicationDate": "2018-03-29",
+      "venue": "Clinical Cancer Research",
+      "type": "article",
+      "citedByCount": 431,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2795035720"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 2,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 2
+     },
+     "judgement": null,
+     "score": 0.5,
+     "rank": 8,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 2 · found by R3 · 431 citations, 2018"
+    },
+    {
+     "paper": {
+      "id": "W2066289036",
+      "doi": "10.1046/j.1365-2567.1999.00912.x",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Human antigen‐presenting cell/tumour cell hybrids stimulate strong allogeneic responses and present tumour‐associated antigens to cytotoxic T cells in vitro",
+      "authors": [
+       "Deborah J. Dunnion"
+      ],
+      "year": 1999,
+      "publicationDate": "1999-12-01",
+      "venue": "Immunology",
+      "type": "article",
+      "citedByCount": 19,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2066289036"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 3,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 3
+     },
+     "judgement": null,
+     "score": 0.3333333333333333,
+     "rank": 9,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 3 · found by R3 · 19 citations, 1999"
+    },
+    {
+     "paper": {
+      "id": "W2154270347",
+      "doi": "10.1158/0008-5472.can-11-3218",
+      "pmid": null,
+      "pmcid": null,
+      "title": "Immunotype and Immunohistologic Characteristics of Tumor-Infiltrating Immune Cells Are Associated with Clinical Outcome in Metastatic Melanoma",
+      "authors": [
+       "Gulsun Erdag"
+      ],
+      "year": 2012,
+      "publicationDate": "2012-01-20",
+      "venue": "Cancer Research",
+      "type": "article",
+      "citedByCount": 590,
+      "citationPct": null,
+      "isRetracted": false,
+      "isOa": true,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2154270347"
+     },
+     "lane": "Bridges",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 3,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 3
+     },
+     "judgement": null,
+     "score": 0.3333333333333333,
+     "rank": 10,
+     "whyRanked": "no direct seed link; surfaced by PubMed similarity · PubMed similar rank 3 · found by R3 · 590 citations, 2012"
+    },
+    {
+     "paper": {
+      "id": "W2015330587",
+      "doi": "10.1002/ijc.2910490412",
+      "pmid": null,
+      "pmcid": null,
+      "title": "An analysis of T‐cell‐receptor variable‐region genes in tumor‐infiltrating lymphocytes within malignant tumors",
+      "authors": [
+       "Taizo Nitta"
+      ],
+      "year": 1991,
+      "publicationDate": "1991-10-21",
+      "venue": "International Journal of Cancer",
+      "type": "article",
+      "citedByCount": 22,
+      "citationPct": null,
+      "isRetracted": true,
+      "isOa": false,
+      "oaUrl": null,
+      "abstract": null,
+      "abstractSource": null,
+      "referencedWorks": [],
+      "url": "https://openalex.org/W2015330587"
+     },
+     "lane": "Retracted",
+     "routes": [
+      "R3"
+     ],
+     "signals": [
+      {
+       "kind": "pubmed_similar",
+       "route": "R3",
+       "seedNs": [],
+       "value": 59,
+       "source": {
+        "name": "PubMed",
+        "url": "https://pubmed.ncbi.nlm.nih.gov"
+       }
+      }
+     ],
+     "features": {
+      "links": 0,
+      "out": [],
+      "in": [],
+      "coupling": null,
+      "eSeed": null,
+      "eQuestion": null,
+      "eFacets": null,
+      "rerank": null,
+      "impact": null,
+      "pubmedRank": 59
+     },
+     "judgement": null,
+     "score": 0.01694915254237288,
+     "rank": 1,
+     "whyRanked": "flagged as retracted in OpenAlex · no direct seed link; surfaced by PubMed similarity · PubMed similar rank 59 · found by R3 · 22 citations, 1991"
+    }
+   ],
+   "counts": {
+    "Core": 545,
+    "Linked": 216,
+    "Bridges": 218,
+    "Retracted": 1
+   },
+   "total": 980
+  },
+  {
+   "type": "stage",
+   "stage": "lanes",
+   "status": "done",
+   "count": 980,
+   "ms": 90
+  },
+  {
+   "type": "done",
+   "runId": "demo-melanoma",
+   "counts": {
+    "Core": 545,
+    "Linked": 216,
+    "Bridges": 218,
+    "Retracted": 1
+   },
+   "total": 980,
+   "ms": 8600
+  }
+ ]
+}
