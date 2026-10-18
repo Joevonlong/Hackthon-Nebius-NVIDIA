@@ -22,7 +22,7 @@ export const questionPath = (name: string) => `${questionFolder(name)}/Question.
 export const seedsFolder = (name: string) => `${questionFolder(name)}/seeds`
 /** File-system-safe folder name for a question. */
 export const safeQuestionName = (s: string) => s.replace(/[\\/:*?"<>|#^[\]]/g, '-').replace(/\s+/g, ' ').trim().slice(0, 60)
-/** A short default folder name from the question text ("Which single-cell methods help…" → "single-cell methods melanoma immune"). */
+/** A short default folder name from the question text (first ~6 meaningful words of the question). */
 export function nameFromQuestion(text: string): string {
   const stop = new Set('a an and are can do does for from how in is of on or the to what which who why with help helps study'.split(' '))
   const w = text.replace(/[^\p{L}\p{N}\s-]/gu, ' ').split(/\s+/).filter(x => x && !stop.has(x.toLowerCase())).slice(0, 6)
@@ -53,7 +53,10 @@ const qUrl = (q: string) => `/api/questions/${encodeURIComponent(q)}`
 const noteUrl = (q: string, rel: string) => `${qUrl(q)}/notes/${rel.split('/').map(encodeURIComponent).join('/')}`
 const pending = new Map<string, ReturnType<typeof setTimeout>>()
 let serverOk = true
+/** CR-9: ?demo=1 replays a recording and never writes into the user's workspace (reads are fine). */
+const isDemo = () => { try { return new URLSearchParams(location.search).get('demo') === '1' } catch { return false } }
 async function call(url: string, init?: RequestInit): Promise<Response | null> {
+  if (init?.method && init.method !== 'GET' && isDemo()) return null
   try { const r = await fetch(url, init); serverOk = true; return r } catch { serverOk = false; return null }
 }
 const json = (method: string, body: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
@@ -97,7 +100,7 @@ export const useVault = defineStore('vault', {
     seedsIn: s => (name: string) => s.notes.filter(n => n.path.startsWith(seedsFolder(name) + '/')).sort((a, b) => seedNo(a.path) - seedNo(b.path)),
   },
   actions: {
-    async load(_legacyQuestion?: string) {
+    async load() {
       try {
         const stored = await get<Note[]>(DB_KEY)
         // Keep notes lane C may have upserted before load finished.

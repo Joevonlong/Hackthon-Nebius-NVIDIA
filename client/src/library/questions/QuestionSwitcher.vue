@@ -62,9 +62,9 @@ const onSelect = (e: Event) => { vault.setCurrent((e.target as HTMLSelectElement
 
     <form v-if="mode === 'new'" class="form" @submit.prevent="create">
       <label class="lab" for="qs-text">Question</label>
-      <textarea id="qs-text" v-model="newText" class="box ask" rows="3" placeholder="Which single-cell methods help study melanoma immune cells?" />
+      <textarea id="qs-text" v-model="newText" class="box ask" rows="3" placeholder="Type your research question" />
       <label class="lab" for="qs-name">Short name (folder)</label>
-      <input id="qs-name" ref="nameBox" v-model="newName" class="box" :placeholder="newText ? nameFromQuestion(newText) : 'Melanoma immune cells'" maxlength="60" />
+      <input id="qs-name" ref="nameBox" v-model="newName" class="box" :placeholder="newText ? nameFromQuestion(newText) : 'Short subject'" maxlength="60" />
       <div class="row">
         <button class="pill primary" type="submit">Create question</button>
         <button class="pill" type="button" @click="mode = 'idle'">Cancel</button>

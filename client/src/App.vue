@@ -72,8 +72,8 @@ onMounted(async () => {
   ui.setTheme(initialTheme())
   window.addEventListener('resize', onResize)
   window.addEventListener('keydown', onKey)
-  await vault.load(discovery.question)
-  if (!ui.tabs.length && vault.byPath(QUESTION_PATH)) ui.openNote(QUESTION_PATH, noteName(QUESTION_PATH))
+  await vault.load() // CR-9: no sample question; an empty vault shows "Create your first research question"
+  const q = vault.currentQuestion; if (!ui.tabs.length && q) ui.openNote(q.path, noteName(q.path))
 })
 onBeforeUnmount(() => { window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey) })
 // Opening a note from the file-tree drawer closes the drawer so the editor is visible.

@@ -12,7 +12,8 @@ const editName = ref('')
 const confirming = ref<string | null>(null)
 
 const when = (iso: string) => { const d = new Date(iso); return isNaN(+d) ? iso : d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) }
-async function open(id: string) { if (await lib.openStored(id, props.questionId)) ui.openLibrary() }
+// CR-6: each opened library is its own navigation entry, so Back returns to the previous library (LibraryPanel reloads it)
+async function open(id: string) { if (await lib.openStored(id, props.questionId)) ui.openLibrary({ force: true, meta: { libraryId: id, questionId: props.questionId }, from: 'history' }) }
 function startRename(id: string, cur: string) { editing.value = id; editName.value = cur; confirming.value = null }
 async function saveRename(id: string) { await lib.renameStored(id, editName.value); editing.value = null }
 async function del(id: string) { await lib.deleteStored(id, props.questionId); confirming.value = null }

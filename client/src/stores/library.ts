@@ -425,12 +425,14 @@ export const useLibrary = defineStore('library', {
       return true
     },
     async renameStored(id: string, name: string) {
+      if (isDemoParam()) { this.historyError = 'Demo mode (?demo=1) is read-only: nothing is written to your workspace.'; return }
       const res = await fetch(`/api/library/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).catch(() => null)
       if (!res?.ok) { this.historyError = res ? httpMessage('PATCH /api/library/' + id, res.status) : netMessage('PATCH /api/library'); return }
       const r = LibrarySummary.safeParse(await res.json())
       if (r.success) { const i = this.history.findIndex(h => h.libraryId === id); if (i >= 0) this.history[i] = r.data }
     },
     async deleteStored(id: string, questionId: string | null) {
+      if (isDemoParam()) { this.historyError = 'Demo mode (?demo=1) is read-only: nothing is written to your workspace.'; return }
       const res = await fetch(`/api/library/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
       if (!res?.ok) { this.historyError = res ? httpMessage('DELETE /api/library/' + id, res.status) : netMessage('DELETE /api/library'); return }
       this.history = this.history.filter(h => h.libraryId !== id)

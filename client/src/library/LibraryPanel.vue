@@ -29,7 +29,7 @@ const delay = (i: number) => ({ '--i': i })
 const cur = computed(() => vault.currentQuestion)
 const seedCount = computed(() => cur.value ? vault.seedsIn(cur.value.id).length : 0)
 const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'demo' ? 'Replay of a recorded real run' : lib.mode === 'live' ? 'live' : '')
-const QUESTION_PLACEHOLDER = 'Which single-cell methods help study melanoma immune cells?'
+const QUESTION_PLACEHOLDER = 'Type your research question'
 
 // F-51 / D-33: the question box edits the CURRENT question's Questions/<name>/Question.md (question paragraph only).
 const question = ref('')
@@ -60,10 +60,19 @@ async function reopenFor(qid: string | null) {
   const last = lastOpened(qid)
   if (!last || !lib.history.some(h => h.libraryId === last)) { if (lib.questionId !== qid) lib.reset(); return }
   // openStored restores this library's saved pass rule / weights / filters / topK (Q-1); chat history is keyed by libraryId
-  if (await lib.openStored(last, qid)) { if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary() }
+  if (await lib.openStored(last, qid)) { if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary({ meta: { libraryId: last, questionId: qid } }) }
   else if (lib.questionId !== qid) lib.reset()
 }
 watch(() => [vault.ready, vault.current] as const, ([ready, q]) => { if (ready) void reopenFor(q ?? null) }, { immediate: true })
+// CR-6: Back / Forward to a Library entry that showed another saved library reloads that library (no rebuild).
+watch(() => ui.restoreSeq, () => {
+  const meta = ui.restoring?.entry.meta as { libraryId?: unknown; questionId?: unknown } | undefined
+  const id = typeof meta?.libraryId === 'string' ? meta.libraryId : null
+  if (!id || id === lib.libraryId || lib.status === 'running') return
+  const qid = typeof meta?.questionId === 'string' ? meta.questionId : vault.current
+  if (qid && qid !== vault.current && vault.questions.some(q => q.id === qid)) vault.setCurrent(qid)
+  void lib.openStored(id, qid ?? null)
+})
 // Q-1: remember the pass rule, weights, filters and topK per library so a reload restores them.
 watch(() => lib.libraryId && lib.status === 'done' ? JSON.stringify({ weights: lib.weights, topPercent: lib.topPercent, threshold: lib.threshold, filters: lib.filters, topK: lib.topK }) : null, v => {
   if (!v || !lib.libraryId || lib.mode !== 'live') return
