@@ -1,0 +1,1326 @@
+<title>PaperTrail Build Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one 1180px column of decision → product → evidence → system → plan sections.
+   Page tokens: Brightfield (H&E + DAB stains) in light, Fluorescence (DAPI / GFP / mCherry) in dark.
+   Chart tokens: validated categorical slots 1–2, an ordinal blue ramp for lanes, status red for retracted. */
+:root{
+  --bg:#F3F4F7; --surface:#FFFFFF; --surface-2:#EBEDF2; --fg:#1D1A2C; --muted:#5D5A70; --line:#D8DAE3; --line-2:#B9BCCB;
+  --seed:#3B2E88; --seed-soft:rgba(59,46,136,.12);
+  --cand:#BF3468; --cand-soft:rgba(191,52,104,.12);
+  --gap:#8A5A2B; --gap-soft:rgba(138,90,43,.14);
+  --ok:#1E7A4C; --ok-soft:rgba(30,122,76,.12); --warn:#A35F00;
+  --edge:rgba(29,26,44,.18); --glow:none;
+  --s1:#2a78d6; --s2:#eb6834;
+  --o1:#184f95; --o2:#2a78d6; --o3:#86b6ef; --o1-ink:#FFFFFF; --o2-ink:#FFFFFF; --o3-ink:#0b0b0b;
+  --crit:#d03b3b;
+  --font-display:"Newsreader",Georgia,"Times New Roman",serif;
+  --font-body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#06080C; --surface:#0C1016; --surface-2:#121822; --fg:#E6EAF2; --muted:#93A0B4; --line:#222A37; --line-2:#344055;
+  --seed:#6F9CFF; --seed-soft:rgba(111,156,255,.16);
+  --cand:#3EDF8A; --cand-soft:rgba(62,223,138,.14);
+  --gap:#FF5C7A; --gap-soft:rgba(255,92,122,.16);
+  --ok:#62D5FF; --ok-soft:rgba(98,213,255,.14); --warn:#FFB547;
+  --edge:rgba(230,234,242,.16); --glow:drop-shadow(0 0 4px currentColor);
+  --s1:#3987e5; --s2:#d95926;
+  --o1:#86b6ef; --o2:#3987e5; --o3:#1c5cab; --o1-ink:#0b0b0b; --o2-ink:#0b0b0b; --o3-ink:#FFFFFF;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#06080C; --surface:#0C1016; --surface-2:#121822; --fg:#E6EAF2; --muted:#93A0B4; --line:#222A37; --line-2:#344055;
+  --seed:#6F9CFF; --seed-soft:rgba(111,156,255,.16);
+  --cand:#3EDF8A; --cand-soft:rgba(62,223,138,.14);
+  --gap:#FF5C7A; --gap-soft:rgba(255,92,122,.16);
+  --ok:#62D5FF; --ok-soft:rgba(98,213,255,.14); --warn:#FFB547;
+  --edge:rgba(230,234,242,.16); --glow:drop-shadow(0 0 4px currentColor);
+  --s1:#3987e5; --s2:#d95926;
+  --o1:#86b6ef; --o2:#3987e5; --o3:#1c5cab; --o1-ink:#0b0b0b; --o2-ink:#0b0b0b; --o3-ink:#FFFFFF;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 72px;display:flex;flex-direction:column;gap:64px}
+h1,h2,h3{font-family:var(--font-display);font-weight:600;text-wrap:balance;margin:0;line-height:1.15}
+h2{font-size:clamp(24px,3vw,32px)}
+h3{font-size:18px}
+p{margin:0}
+a{color:inherit;text-decoration-color:var(--line-2);text-underline-offset:3px}
+a:hover{text-decoration-color:currentColor}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--seed);outline-offset:2px;border-radius:3px}
+.mono{font-family:var(--font-mono);font-size:.86em}
+.kicker{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.muted{color:var(--muted)}
+.lede{font-size:17px;max-width:70ch}
+.sec{display:flex;flex-direction:column;gap:20px}
+.sec-head{display:flex;flex-direction:column;gap:6px;max-width:78ch}
+.sec-head p{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);max-width:92ch}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tag{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);white-space:nowrap}
+.tag.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.tag.plan{border-style:dashed}
+.tag.cand{color:var(--cand);border-color:var(--cand);background:var(--cand-soft)}
+.tag.seed{color:var(--seed);border-color:var(--seed);background:var(--seed-soft)}
+.panel{border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+
+/* ---------- header ---------- */
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:24px 28px;align-items:end;padding-top:12px;border-bottom:1px solid var(--line);padding-bottom:26px}
+.brand{display:flex;flex-direction:column;gap:12px;min-width:0}
+.brand h1{font-size:clamp(44px,7vw,74px);letter-spacing:-.02em;display:flex;align-items:baseline;gap:.18em;flex-wrap:wrap}
+.brand h1 .dot{display:inline-block;width:.22em;height:.22em;border-radius:50%;background:var(--cand);color:var(--cand);filter:var(--glow);transform:translateY(-.08em)}
+.tagline{font-family:var(--font-display);font-size:clamp(19px,2.2vw,24px);font-style:italic;max-width:40ch}
+.channel{display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.chan-switch{display:inline-flex;border:1px solid var(--line-2);border-radius:99px;padding:3px;background:var(--surface)}
+.chan-switch button{font:500 12px/1 var(--font-mono);letter-spacing:.08em;border:0;background:transparent;color:var(--muted);padding:8px 12px;border-radius:99px;cursor:pointer;display:flex;gap:7px;align-items:center}
+.chan-switch button[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.chan-switch .sw{width:8px;height:8px;border-radius:50%}
+.stackline{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:420px}
+.clock{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.clock div{background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.clock b{font:500 20px/1.2 var(--font-mono);font-variant-numeric:tabular-nums}
+.clock .hot b{color:var(--cand)}
+.clock span{font-size:12px;color:var(--muted)}
+
+/* ---------- decisions ---------- */
+.decisions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.dec{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.dec .h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.dec .id{font:600 11.5px var(--font-mono);color:var(--seed)}
+.dec .topic{font:500 11px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.dec b{font-size:14.5px;line-height:1.4;font-weight:600}
+.dec p{font-size:12.5px;color:var(--muted);line-height:1.45}
+
+/* ---------- loop ---------- */
+.loop{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;counter-reset:lp}
+.lp{position:relative;padding:14px 14px 14px 16px;border:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:6px;min-width:0}
+.lp + .lp{border-left:0}
+.lp:first-child{border-radius:var(--r) 0 0 var(--r)}
+.lp:last-child{border-radius:0 var(--r) var(--r) 0}
+.lp .n{font:600 11px var(--font-mono);color:var(--cand)}
+.lp b{font-family:var(--font-display);font-size:18px}
+.lp p{font-size:12.5px;color:var(--muted);line-height:1.45}
+.lp .where{margin-top:auto;font:500 11px var(--font-mono);color:var(--fg)}
+
+/* ---------- workspace mockup ---------- */
+.ws{border:1px solid var(--line-2);border-radius:12px;background:var(--surface);overflow:hidden;box-shadow:0 1px 0 var(--line)}
+.ws-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);flex-wrap:wrap}
+.ws-bar .lights{display:flex;gap:6px;margin-right:8px}
+.ws-bar .lights i{width:10px;height:10px;border-radius:50%;background:var(--line-2);display:inline-block}
+.tb{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 8px;font-size:12.5px;color:var(--muted);cursor:pointer}
+.tb:hover{border-color:var(--line-2);color:var(--fg)}
+.tb[aria-pressed="true"]{background:var(--surface);border-color:var(--line-2);color:var(--fg)}
+.tb svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ws-bar .title{margin-left:auto;font:500 11.5px var(--font-mono);color:var(--muted)}
+.ws-body{display:grid;grid-template-columns:200px minmax(0,1fr) 370px;min-height:600px}
+.ws-files{border-right:1px solid var(--line);padding:10px 8px;font-size:12.5px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.ws-files .dir{display:flex;align-items:center;gap:6px;padding:4px 6px;font-weight:600;color:var(--fg)}
+.ws-files .dir small{margin-left:auto;font:500 10.5px var(--font-mono);color:var(--muted)}
+.ws-files .file{display:flex;align-items:center;gap:6px;padding:4px 6px 4px 20px;border-radius:5px;cursor:pointer;color:var(--fg);border:0;background:transparent;text-align:left;width:100%;font-size:12.5px;line-height:1.3}
+.ws-files .file:hover{background:var(--surface-2)}
+.ws-files .file.on{background:var(--cand-soft)}
+.ws-files .file i{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.ws-files .empty{padding:2px 6px 6px 20px;color:var(--muted);font-size:11.5px}
+.ws-main{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line)}
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--line);background:var(--surface-2);overflow-x:auto}
+.tab{border:0;border-right:1px solid var(--line);background:transparent;padding:8px 12px;font-size:12px;color:var(--muted);cursor:pointer;white-space:nowrap;max-width:240px;overflow:hidden;text-overflow:ellipsis}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:inset 0 -2px 0 var(--cand)}
+.doc{padding:18px 22px 24px;overflow:auto;max-height:640px;min-width:0}
+.fm{margin:0 0 14px;font:12px/1.65 var(--font-mono);color:var(--muted);background:var(--surface-2);border-radius:6px;padding:10px 12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.fm .k{color:var(--seed)}
+.doc h4{font:600 22px/1.25 var(--font-display);margin:0 0 10px}
+.doc h5{font:600 15px/1.3 var(--font-display);margin:16px 0 6px}
+.doc p{margin:0 0 8px;font-size:14px}
+.doc ul{margin:0 0 8px;padding-left:18px;font-size:13.5px;display:flex;flex-direction:column;gap:3px}
+.wl{color:var(--seed);text-decoration:none;border-bottom:1px dotted var(--seed);cursor:pointer}
+.slot2{border:1px dashed var(--line-2);border-radius:6px;padding:8px 10px;font-size:12.5px;color:var(--muted);margin:0 0 8px}
+.slot2 b{font:600 11px var(--font-mono);letter-spacing:.06em;color:var(--fg)}
+.docbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.btn{font:600 12.5px/1 var(--font-body);border:1px solid var(--line-2);background:var(--surface);color:var(--fg);border-radius:99px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn:disabled{opacity:.55;cursor:default}
+.graphwrap{position:relative;flex:1;min-height:440px}
+.graphwrap svg{width:100%;height:100%;display:block;min-height:440px}
+.g-legend{position:absolute;left:10px;bottom:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);background:color-mix(in srgb,var(--surface) 88%,transparent);padding:5px 8px;border-radius:6px}
+.g-legend span{display:inline-flex;gap:5px;align-items:center}
+.g-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.nd-seed{fill:var(--seed);color:var(--seed);filter:var(--glow)}
+.nd-saved{fill:var(--cand);color:var(--cand);filter:var(--glow)}
+.nd-ghost{fill:var(--surface);stroke:var(--cand);stroke-width:1.6}
+.nd-bridge{fill:var(--surface);stroke:var(--cand);stroke-width:1.4;stroke-dasharray:3 2}
+.nd-sel{fill:none;stroke:var(--fg);stroke-width:1.4}
+.ge{stroke:var(--edge);stroke-width:1}
+.ge.hot{stroke:var(--cand);stroke-width:1.6}
+.glbl{font:500 10px var(--font-mono);fill:var(--muted)}
+.glbl-seed{font:600 10.5px var(--font-mono)}
+.grow .gn{animation:pop .32s cubic-bezier(.23,1,.32,1) both}
+.grow .ge{animation:fadein .4s ease-out both}
+@keyframes pop{from{opacity:0;transform:scale(.3)}}
+@keyframes fadein{from{opacity:0}}
+.gn{transform-box:fill-box;transform-origin:center;cursor:pointer}
+.ws-side{display:flex;flex-direction:column;min-width:0;background:var(--surface)}
+.sidetabs{display:flex;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.sidetabs button{flex:1;border:0;background:transparent;padding:8px 6px;font-size:12px;color:var(--muted);cursor:pointer}
+.sidetabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:inset 0 -2px 0 var(--cand)}
+.side{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto;max-height:640px}
+.side h4{margin:0;font:500 10.5px/1 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.qbox{font-size:13px;line-height:1.4;border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface-2)}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{font:600 10.5px/1 var(--font-mono);padding:4px 6px;border-radius:4px;border:1px solid var(--seed);color:var(--seed);background:var(--seed-soft)}
+.lens{display:flex;flex-direction:column;gap:4px}
+.lens input{width:100%;accent-color:var(--cand)}
+.lens .ends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.steps{display:flex;flex-wrap:wrap;gap:4px}
+.step{display:inline-flex;gap:6px;align-items:center;font:500 10.5px/1 var(--font-mono);padding:5px 7px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface)}
+.step i{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
+.step.done{color:var(--fg);border-color:var(--seed)}
+.step.done i{background:var(--seed)}
+.step.live{color:var(--fg);border-color:var(--cand)}
+.step.live i{background:var(--cand)}
+.step.pend{border-style:dashed}
+.lane{display:flex;flex-direction:column;gap:6px}
+.lane-h{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600}
+.lane-h .sw{width:10px;height:10px;border-radius:2px;flex:none}
+.lane-h .ct{margin-left:auto;font:500 12px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--fg)}
+.lane-h small{font-weight:400;color:var(--muted);font-size:11.5px}
+.lane-empty{font-size:12px;color:var(--muted);border:1px dashed var(--line-2);border-radius:6px;padding:8px 10px}
+.pc{display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px;padding:8px 9px;border:1px solid var(--line);border-radius:7px;cursor:pointer;background:var(--surface);text-align:left;width:100%}
+.pc:hover{border-color:var(--line-2)}
+.pc.sel{border-color:var(--cand);background:var(--cand-soft)}
+.pc .rk{font:600 12px/1.35 var(--font-mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.pc .tt{font-size:12.5px;line-height:1.35;font-weight:500;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pc .mt{font-size:11px;color:var(--muted);margin-top:2px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc .why{font:400 10.5px/1.4 var(--font-mono);color:var(--muted);margin-top:4px;display:block}
+.pc .row{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.pips{display:inline-flex;gap:2px}
+.pips i{width:12px;height:5px;border-radius:2px;background:var(--line)}
+.pips i.out{background:var(--seed)}
+.pips i.in{background:var(--seed);opacity:.45}
+.saved{font:600 10.5px var(--font-mono);color:var(--cand)}
+.retr{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--crit);border-radius:7px;padding:8px 10px;font-size:12px;background:color-mix(in srgb,var(--crit) 8%,var(--surface))}
+.retr svg{width:16px;height:16px;flex:none;stroke:var(--crit);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:1px}
+.ws-status{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 12px;border-top:1px solid var(--line);background:var(--surface-2);font:500 11px var(--font-mono);color:var(--muted)}
+.rel-item{border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12.5px;display:flex;flex-direction:column;gap:2px}
+.rel-item small{color:var(--muted)}
+
+/* ---------- charts ---------- */
+.viz{margin:0;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.viz figcaption{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.viz figcaption b{font:600 15px/1.35 var(--font-body);display:block}
+.viz figcaption span{font-size:12.5px;color:var(--muted)}
+.tbtn{font:500 11.5px var(--font-mono);border:1px solid var(--line-2);background:var(--surface-2);border-radius:6px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.legend i{width:12px;height:10px;border-radius:2px;display:inline-block}
+.legend i.dot{width:10px;height:10px;border-radius:50%}
+.viz svg{display:block;width:100%;height:auto}
+.viz .scroll-x svg{min-width:560px}
+.ax{font:400 11px var(--font-body);fill:var(--muted)}
+.cl{font:500 12px var(--font-body);fill:var(--fg)}
+.cl.strong{font-weight:700}
+.vl{font:500 11px var(--font-body);fill:var(--fg)}
+.grid-l{stroke:var(--line);stroke-width:1}
+.base-l{stroke:var(--line-2);stroke-width:1}
+.mark{cursor:default}
+.mark:hover,.mark:focus{opacity:.82;outline:none}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th,table.dt td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+table.dt td.n,table.dt th.n{text-align:right;font-variant-numeric:tabular-nums}
+table.dt th{font:500 10.5px var(--font-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.charts2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+#tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:7px 9px;font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-width:260px}
+#tip b{display:block;font-size:13px}
+#tip span{color:var(--muted)}
+
+/* ---------- cascade / lanes / flows ---------- */
+.cascade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.cs{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px;display:flex;flex-direction:column;gap:5px;min-width:0;font-size:12px}
+.cs .no{font:500 10.5px var(--font-mono);color:var(--muted)}
+.cs b{font-size:13.5px}
+.cs .m{font:500 10.5px var(--font-mono);color:var(--fg);margin-top:auto;overflow-wrap:anywhere}
+.cs.ai{border-color:var(--cand)}
+.cs.det{border-color:var(--ok)}
+.lanes-rule{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.lr{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px;display:flex;flex-direction:column;gap:4px;min-width:0;font-size:12px}
+.lr .o{font:600 10.5px var(--font-mono);color:var(--muted)}
+.lr b{display:flex;gap:6px;align-items:center;font-size:13.5px}
+.lr b i{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+.lr code{font:500 11px var(--font-mono);color:var(--fg)}
+.lr p{color:var(--muted)}
+.formula{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 16px;font-family:var(--font-mono);font-size:12px;line-height:1.8;overflow-x:auto;white-space:pre}
+.why-ex{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.why-ex div{display:flex;flex-direction:column;gap:4px;font-size:13px;min-width:0}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:stretch}
+.fl{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:9px 11px;font-size:12.5px;display:flex;flex-direction:column;gap:3px;min-width:120px;flex:1 1 120px}
+.fl b{font-size:13px}
+.fl small{color:var(--muted);font-size:11.5px;line-height:1.4}
+.fl.split{border-color:var(--cand)}
+.arrow{align-self:center;color:var(--muted);font:500 14px var(--font-mono)}
+.agent{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;align-items:start}
+.trace{border:1px solid var(--line);border-radius:var(--r);background:var(--surface-2);padding:10px 12px;font:12px/1.7 var(--font-mono);color:var(--fg);overflow-x:auto;white-space:pre}
+table.t{width:100%;border-collapse:collapse;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+table.t th,table.t td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t th{font:500 10.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+table.t tr:last-child td{border-bottom:0}
+.lv{font:600 10.5px var(--font-mono);text-transform:uppercase;letter-spacing:.06em}
+.lv.h{color:var(--crit)} .lv.m{color:var(--warn)} .lv.l{color:var(--ok)}
+.layers{display:grid;grid-template-columns:170px minmax(0,1fr) minmax(0,1fr) 28px minmax(0,1fr);gap:0;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.layers > div{padding:10px 12px;border-bottom:1px solid var(--line);font-size:12.5px;min-width:0}
+.layers .hd{font:500 10.5px var(--font-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.layers .nm b{display:block;font-size:13.5px}
+.layers .nm small{color:var(--muted)}
+.layers .ar{display:flex;align-items:center;justify-content:center;color:var(--muted);padding:0}
+.layers .today{background:var(--cand-soft)}
+.layers > div.last{border-bottom:0}
+.schema{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.tbl{border:1px solid var(--line);border-radius:6px;background:var(--surface);font:11.5px/1.55 var(--font-mono);overflow:hidden;min-width:0}
+.tbl b{display:block;padding:5px 8px;background:var(--surface-2);font-weight:600;color:var(--fg);border-bottom:1px solid var(--line)}
+.tbl span{display:block;padding:4px 8px;color:var(--muted);overflow-wrap:anywhere}
+
+/* ---------- architecture ---------- */
+.arch{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px}
+.arch svg{display:block;width:100%;min-width:760px;height:auto}
+.a-box{fill:var(--surface);stroke:var(--line-2);stroke-width:1}
+.a-box.main{fill:var(--surface-2);stroke:var(--seed);stroke-width:1.4}
+.a-box.ai{stroke:var(--cand);stroke-width:1.4}
+.a-mod{fill:var(--surface);stroke:var(--line);stroke-width:1}
+.a-t{font:600 14px var(--font-body);fill:var(--fg)}
+.a-s{font:400 11.5px var(--font-body);fill:var(--muted)}
+.a-m{font:400 11px var(--font-mono);fill:var(--fg)}
+.a-k{font:500 10px var(--font-mono);fill:var(--muted);letter-spacing:.08em}
+.a-line{stroke:var(--line-2);stroke-width:1.3;fill:none}
+.a-line.ai{stroke:var(--cand)}
+.a-head{fill:var(--line-2)}
+.a-head.ai{fill:var(--cand)}
+
+/* ---------- board / gantt ---------- */
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
+.col{display:flex;flex-direction:column;gap:8px;min-width:0}
+.col-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid var(--fg);padding-bottom:6px;gap:8px}
+.col-h b{font-family:var(--font-display);font-size:18px}
+.col.p1 .col-h{border-bottom-color:var(--cand)}
+.col.p2 .col-h,.col.p3 .col-h{border-bottom-color:var(--line-2)}
+.card{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:9px 11px;display:flex;flex-direction:column;gap:5px}
+.card .h{display:flex;gap:8px;align-items:baseline;justify-content:space-between}
+.card .id,.card .est{font:500 11px var(--font-mono);color:var(--muted)}
+.card p{font-size:13px;line-height:1.42}
+.card .lns{display:flex;gap:4px;flex-wrap:wrap}
+.ln{font:600 10.5px/1 var(--font-mono);padding:3px 6px;border-radius:4px;border:1px solid}
+.ln.A{color:var(--seed);border-color:var(--seed)}
+.ln.B{color:var(--cand);border-color:var(--cand)}
+.ln.C{color:var(--gap);border-color:var(--gap)}
+.ln.D{color:var(--fg);border-color:var(--fg)}
+.card.never{border-color:var(--fg)}
+.lanes-key{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.lanes-key span{display:inline-flex;gap:6px;align-items:center}
+.gantt{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px 14px}
+.g-inner{min-width:940px;position:relative}
+.g-axis,.g-row{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center}
+.g-axis .track{position:relative;height:22px}
+.g-axis .track span{position:absolute;transform:translateX(-50%);font:500 10.5px var(--font-mono);color:var(--muted);top:2px}
+.g-row{min-height:44px;border-top:1px solid var(--line)}
+.g-row .who{font:600 12px var(--font-mono)}
+.g-row .who small{display:block;font-weight:400;color:var(--muted);font-size:10.5px}
+.g-row .track{position:relative;height:44px}
+.blk{position:absolute;top:7px;height:30px;border-radius:5px;padding:3px 6px;font-size:11px;line-height:1.2;overflow:hidden;border:1px solid var(--line-2);background:var(--surface-2);display:flex;align-items:center}
+.blk.A{border-color:var(--seed);background:var(--seed-soft)}
+.blk.B{border-color:var(--cand);background:var(--cand-soft)}
+.blk.C{border-color:var(--gap);background:var(--gap-soft)}
+.blk.D{border-color:var(--fg)}
+.blk.ph{font-weight:600}
+.g-marks{position:absolute;left:96px;right:0;top:0;bottom:0;pointer-events:none}
+.gm{position:absolute;top:22px;bottom:0;border-left:1px dashed var(--line-2)}
+.gm span{position:absolute;bottom:100%;transform:translate(-50%,-2px);font:600 9.5px var(--font-mono);background:var(--surface);padding:0 3px;white-space:nowrap}
+.gm.hard{border-left:1.5px solid var(--fg)}
+.gm.now{border-left:2px solid var(--cand);z-index:2}
+.gm.now span{color:var(--cand)}
+.deploy{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+.code{position:relative;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);min-width:0}
+.code pre{margin:0;padding:14px 16px;font:12px/1.65 var(--font-mono);overflow-x:auto}
+.code .c{color:var(--muted)}
+.copy{position:absolute;top:8px;right:8px;font:500 11px var(--font-mono);border:1px solid var(--line-2);background:var(--surface-2);border-radius:6px;padding:5px 9px;cursor:pointer}
+.cad{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:10px 12px;display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;font-size:13px}
+.cad > b{font:600 13px var(--font-mono);color:var(--seed)}
+.cadence{display:flex;flex-direction:column;gap:8px}
+.next{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.next div{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:14px}
+.next .n{font:600 13px var(--font-mono);color:var(--cand)}
+footer{font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px;display:flex;flex-wrap:wrap;gap:6px 20px}
+
+@media (max-width:1080px){
+  .ws-body{grid-template-columns:180px minmax(0,1fr)}
+  .ws-side{grid-column:1/-1;border-top:1px solid var(--line)}
+  .decisions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .loop{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .lp + .lp{border-left:1px solid var(--line)}
+  .lp,.lp:first-child,.lp:last-child{border-radius:var(--r)}
+  .loop{gap:8px}
+  .cascade{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .lanes-rule{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .schema{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  header.top{grid-template-columns:1fr}
+  .channel{align-items:flex-start}
+  .stackline{justify-content:flex-start}
+  .clock{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .decisions,.loop,.charts2,.agent,.why-ex,.deploy,.next,.board,.schema{grid-template-columns:1fr}
+  .cascade,.lanes-rule{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ws-body{grid-template-columns:1fr}
+  .ws-files{border-right:0;border-bottom:1px solid var(--line)}
+  .ws-main{border-right:0}
+  .layers{grid-template-columns:120px minmax(0,1fr) minmax(0,1fr)}
+  .layers .ar,.layers .prod{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .grow .gn,.grow .ge{animation:none}
+  *{transition:none!important}
+}
+</style>
+
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <div class="kicker">Nebius · Healthcare / Life Sciences · Research Paper Discovery · 2026-10-18</div>
+    <h1>PaperTrail<span class="dot" aria-hidden="true"></span></h1>
+    <p class="tagline">Start from the papers you trust. Find the ones you missed, with receipts.</p>
+    <p class="lede">A Zettlr-style research workspace on the web. A researcher brings a question and a few trusted papers; PaperTrail finds the papers they connect to, ranks them in honest lanes, checks every quoted claim against the source, and turns the keepers into linked Markdown notes and a graph.</p>
+  </div>
+  <div class="channel">
+    <div class="kicker">Theme · microscope channel</div>
+    <div class="chan-switch" role="group" aria-label="Theme">
+      <button id="bf" type="button" aria-pressed="false"><span class="sw" style="background:#BF3468"></span>BRIGHTFIELD</button>
+      <button id="fl" type="button" aria-pressed="false"><span class="sw" style="background:#3EDF8A"></span>FLUORESCENCE</button>
+    </div>
+    <div class="stackline"><span class="tag">Vue 3 + CodeMirror 6 + d3</span><span class="tag">Hono · Node 22</span><span class="tag">SQLite</span><span class="tag">Token Factory</span><span class="tag">Tavily</span><span class="tag">Nebius Serverless</span></div>
+  </div>
+  <div class="clock" aria-live="polite">
+    <div><span>Now (CEST)</span><b id="now">--:--</b></div>
+    <div class="hot"><span>Until internal submit, 18:00</span><b id="cd">--:--</b></div>
+    <div><span>Official deadline</span><b>18:30</b></div>
+    <div><span>Live demo</span><b>20:00</b></div>
+  </div>
+</header>
+
+<section class="sec" id="decisions">
+  <div class="sec-head">
+    <div class="kicker">01 · Decisions · locked 13:05</div>
+    <h2>Fifteen decisions the team builds against</h2>
+    <p>Anything not on this list is open. Changing one of these needs the captain.</p>
+  </div>
+  <div class="decisions" id="decgrid"></div>
+</section>
+
+<section class="sec" id="loop">
+  <div class="sec-head">
+    <div class="kicker">02 · The researcher loop</div>
+    <h2>From five trusted papers to a linked reading list</h2>
+  </div>
+  <div class="loop">
+    <div class="lp"><span class="n">1 · SEED</span><b>Paste DOIs</b><p>Each seed becomes a literature note with its metadata and abstract.</p><span class="where">Files · Seeds/</span></div>
+    <div class="lp"><span class="n">2 · DISCOVER</span><b>Run discovery</b><p>Five routes stream candidates into lanes; the graph grows ghost nodes.</p><span class="where">Discover tab</span></div>
+    <div class="lp"><span class="n">3 · CHECK</span><b>Read the receipts</b><p>Seed links, route, API source, verified quote, uncertainty, why ranked here.</p><span class="where">Preview tab</span></div>
+    <div class="lp"><span class="n">4 · KEEP</span><b>Add to vault</b><p>Writes a literature note with front matter, quote and [[seed]] links.</p><span class="where">Files · Discovered/</span></div>
+    <div class="lp"><span class="n">5 · CONNECT</span><b>Write and link</b><p>Markdown notes with wikilinks; backlinks and the graph update.</p><span class="where">Editor · Graph · Related</span></div>
+    <div class="lp"><span class="n">6 · EXPORT</span><b>Take it with you</b><p>BibTeX and CSL JSON for Zotero; a Markdown .zip for Zettlr or Obsidian.</p><span class="where">References tab</span></div>
+  </div>
+</section>
+
+<section class="sec" id="workspace">
+  <div class="sec-head">
+    <div class="kicker">03 · Workspace mockup · real data</div>
+    <h2>Zettlr's layout, with a Discover tab that ranks in lanes</h2>
+    <p>Lane counts, titles, seed links and the retraction flag come from a real run of the melanoma example through routes R1–R3 (OpenAlex + PubMed, today 13:00). Try it: run discovery, drag the Lens, preview a paper, add it to the vault, open the Graph tab.</p>
+  </div>
+  <div class="ws" id="ws">
+    <div class="ws-bar">
+      <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+      <button class="tb" type="button" id="tb-files" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg>Files</button>
+      <button class="tb" type="button" id="tb-graph" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="10" cy="18" r="2.5"/><path d="M8.2 7l7.4.6M7 8.3l2.2 7.4M16.6 10.2l-5 6"/></svg>Graph</button>
+      <button class="tb" type="button" id="tb-disc" aria-pressed="true"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M11 8v6M8 11h6"/></svg>Discover</button>
+      <span class="title">PaperTrail · Lena's vault</span>
+    </div>
+    <div class="ws-body">
+      <nav class="ws-files" id="files" aria-label="Vault files"></nav>
+      <section class="ws-main">
+        <div class="tabs" id="tabs" role="tablist"></div>
+        <div id="center" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
+      </section>
+      <aside class="ws-side">
+        <div class="sidetabs" role="tablist">
+          <button type="button" role="tab" id="st-disc" aria-selected="true">Discover</button>
+          <button type="button" role="tab" id="st-rel" aria-selected="false">Related</button>
+          <button type="button" role="tab" id="st-ref" aria-selected="false">References</button>
+        </div>
+        <div class="side" id="side"></div>
+      </aside>
+    </div>
+    <div class="ws-status"><span id="status-l"></span><span id="status-r"></span></div>
+  </div>
+  <p class="note">Honest labels: before the judge runs, lanes are ordered by seed links, then the Lens, then citation count. The Lens here uses a title keyword rule in place of the judge's facet grades (F-03). Dashed boxes mark where judge output and verified quotes appear.</p>
+</section>
+
+<section class="sec" id="evidence">
+  <div class="sec-head">
+    <div class="kicker">04 · Evidence · measured today</div>
+    <h2>Why the ranking is built on seed links</h2>
+    <p>Hold-out test: take a real review, keep 5 of its references as seeds, hide the rest, and check what each route finds and how each ranking orders it. Two reviews, so read these as a direction, not a benchmark. Scripts in <span class="mono">eval/</span>.</p>
+  </div>
+  <div class="charts2">
+    <figure class="viz" id="vizA">
+      <figcaption><div><b>Share of hidden references each route finds</b><span>Recall, %. Higher is better.</span></div><button class="tbtn" type="button" data-table="tA">Show table</button></figcaption>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Review A · Nat Rev Cancer 2023 · 235 refs</span><span><i style="background:var(--s2)"></i>Review B · 2020 · 93 refs</span></div>
+      <div class="scroll-x"><svg id="chartA" role="img" aria-label="Recall by discovery route for two reviews"></svg></div>
+      <table class="dt" id="tA" hidden></table>
+    </figure>
+    <figure class="viz" id="vizB">
+      <figcaption><div><b>Relevant papers in the top 20, by ranking method</b><span>Precision at 20, %. Shaded band = random pick (4.5–5.2%).</span></div><button class="tbtn" type="button" data-table="tB">Show table</button></figcaption>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Review A</span><span><i style="background:var(--s2)"></i>Review B</span></div>
+      <div class="scroll-x"><svg id="chartB" role="img" aria-label="Precision at 20 by ranking method for two reviews"></svg></div>
+      <table class="dt" id="tB" hidden></table>
+    </figure>
+  </div>
+  <figure class="viz" id="vizE">
+    <figcaption><div><b>The melanoma run: routes, pool, lanes</b><span>Real counts from R1–R3. Judge and verification are planned (F-03), not measured yet.</span></div><button class="tbtn" type="button" data-table="tE">Show table</button></figcaption>
+    <div class="legend"><span><i style="background:var(--s1)"></i>Candidates per route</span><span><i style="background:var(--o1)"></i>Core</span><span><i style="background:var(--o2)"></i>Linked</span><span><i style="background:var(--o3)"></i>Bridges</span><span><i style="background:var(--crit)"></i>Retracted</span><span>Fresh 0</span></div>
+    <div class="scroll-x"><svg id="chartE" role="img" aria-label="Candidates per route and lane counts for the melanoma run"></svg></div>
+    <table class="dt" id="tE" hidden></table>
+  </figure>
+  <p class="note">What this changed: OpenAlex <span class="mono">related_works</span> is dropped (0 hits twice); seed links lead the ranking; any text signal earns weight only after the harness shows it helps (title text dragged every blend down). The real run added three rules: generic tool papers top the Linked lane until the judge's facets and the Lens sort them; a seed can't cite a paper published after it (OpenAlex has such errors), so links get a date check; Fresh papers only come from query expansion and the Scout.</p>
+</section>
+
+<section class="sec" id="ranking">
+  <div class="sec-head">
+    <div class="kicker">05 · Ranking</div>
+    <h2>A cascade that ends in lanes, not one blended number</h2>
+  </div>
+  <div class="cascade">
+    <div class="cs"><span class="no">0 · POOL</span><b>Candidate routes</b><span>R1 refs · R2 ≥2-seed citers · R3 PubMed similar · R4 query expansion · R5 Scout</span><span class="m">OpenAlex · PubMed · Tavily</span></div>
+    <div class="cs"><span class="no">1 · GRAPH</span><b>Seed links</b><span>links, out, in, coupling, date check, impact percentile</span><span class="m">OpenAlex</span></div>
+    <div class="cs ai"><span class="no">2 · SEMANTIC</span><b>Embed + rerank</b><span>per-facet similarity; rerank top 150</span><span class="m">Qwen3-Embedding-8B · Qwen3-Reranker-8B</span></div>
+    <div class="cs ai"><span class="no">3 · JUDGE</span><b>Facet grades</b><span>topic, method, population 0–3; why; quote; uncertainty; paper type</span><span class="m">Nemotron-3.5-Lightning</span></div>
+    <div class="cs det"><span class="no">4 · VERIFY</span><b>Verbatim check</b><span>quote must match abstract or chunk; offsets stored</span><span class="m">deterministic</span></div>
+    <div class="cs"><span class="no">5 · ORDER</span><b>Lanes + Lens</b><span>lane precedence; within-lane score; near-duplicate push-down</span><span class="m">browser re-sort</span></div>
+    <div class="cs"><span class="no">6 · FEEDBACK</span><b>Keep or reject</b><span>👍 becomes a seed; 👎 with a reason moves one weight</span><span class="m">next round</span></div>
+  </div>
+  <div class="lanes-rule">
+    <div class="lr"><span class="o">ORDER 0</span><b><i style="background:var(--crit)"></i>Retracted</b><code>is_retracted</code><p>Warning row, never recommended.</p></div>
+    <div class="lr"><span class="o">ORDER 1</span><b><i style="background:var(--line-2)"></i>Not assessable</b><code>no abstract, links &lt; 3</code><p>We say so instead of guessing.</p></div>
+    <div class="lr"><span class="o">ORDER 2</span><b><i style="background:var(--o1)"></i>Core</b><code>links ≥ 2</code><p>Strongest measured signal.</p></div>
+    <div class="lr"><span class="o">ORDER 3</span><b><i style="background:var(--cand)"></i>Fresh</b><code>≤ 18 months, links &lt; 2</code><p>New work can't win on links or citations yet.</p></div>
+    <div class="lr"><span class="o">ORDER 4</span><b><i style="background:var(--o2)"></i>Linked</b><code>links = 1</code><p>Plausible, weaker evidence.</p></div>
+    <div class="lr"><span class="o">ORDER 5</span><b><i style="background:var(--o3)"></i>Bridges</b><code>links = 0, R3–R5</code><p>Related by meaning; citations miss them.</p></div>
+  </div>
+  <div class="formula">before the judge   order = links ↓, then Lens facet ↓, then citations ↓            <span class="muted"># best measured so far</span>
+after the judge    score = a·J(lens) + b·R(lens) + c·G + d·impact                 <span class="muted"># a .45  b .20  c .30  d .05, tuned by the harness</span>
+J(lens) = Σ_f w_f(lens) · grade_f / 3 × (quote verified ? 1 : 0.6)
+R(lens) = Σ_f w_f(lens) · pct(rerank_f)          G = pct(links) + 0.5·pct(coupling)    <span class="muted"># coupling weight 0 until tested</span>
+Lens: Evidence end raises topic + population; Method end raises method.  Every 5th slot shows the best Fresh or Bridges paper.</div>
+  <div class="why-ex">
+    <div><span class="kicker">Why relevant · from the judge</span><span>One sentence on how the paper answers the question, then a quote checked word for word against the abstract, with its source (OpenAlex or PubMed) and character offsets.</span></div>
+    <div><span class="kicker">Why ranked here · generated from the score</span><span class="mono" id="whyex"></span></div>
+  </div>
+</section>
+
+<section class="sec" id="agent">
+  <div class="sec-head">
+    <div class="kicker">06 · Agent</div>
+    <h2>One Scout with a budget, not an agent framework</h2>
+    <p>The fixed pipeline builds the ranked list. The Scout is route R5: it goes where citations can't (recent preprints, trials, blind spots) and everything it finds passes through the same judge and quote check.</p>
+  </div>
+  <div class="agent">
+    <div class="flow">
+      <div class="fl"><b>Scout</b><small>≤ 6 tool calls · ≤ 45 s · AI SDK tool loop · nemotron-3-super (fallback Qwen3-235B)</small></div>
+      <span class="arrow">→</span>
+      <div class="fl"><b>Tools</b><small>tavily_search · openalex_search · pubmed_similar · resolve_doi</small></div>
+      <span class="arrow">→</span>
+      <div class="fl split"><b>Same pool</b><small>resolved papers only; web pages become context</small></div>
+      <span class="arrow">→</span>
+      <div class="fl"><b>Same judge + verify</b><small>no shortcut for agent finds</small></div>
+    </div>
+    <div class="trace" aria-label="Example agent trace"><span class="muted"># example trace format (illustrative)</span>
+scout  tavily_search  "myeloid cells melanoma scRNA-seq 2025"  → 5 hits
+scout  resolve_doi    10.1101/2025.…  → OpenAlex W… (preprint)
+scout  openalex_search "acral melanoma TIL single-cell"         → 12 hits
+scout  done  3 calls · 21 s · 4 new candidates → Fresh</div>
+  </div>
+</section>
+
+<section class="sec" id="ingest">
+  <div class="sec-head">
+    <div class="kicker">07 · Ingestion</div>
+    <h2>Every format ends as one paper, Markdown chunks and the original by hash</h2>
+  </div>
+  <div class="flow">
+    <div class="fl"><b>Search hit</b><small>Tavily, OpenAlex, PubMed</small></div><span class="arrow">→</span>
+    <div class="fl"><b>Classify URL</b><small>publisher · preprint · PMC · trial · news</small></div><span class="arrow">→</span>
+    <div class="fl"><b>Extract IDs</b><small>DOI (URL, citation_doi meta) · PMID · NCT</small></div><span class="arrow">→</span>
+    <div class="fl split"><b>Resolve</b><small>OpenAlex → paper record + provenance; unresolved → web source (context only)</small></div><span class="arrow">→</span>
+    <div class="fl"><b>Fetch best text</b><small>OA only: PMC XML → HTML → text PDF → OCR → abstract</small></div><span class="arrow">→</span>
+    <div class="fl"><b>Normalize</b><small>Markdown · chunks with offsets · raw bytes by sha256</small></div>
+  </div>
+  <div class="scroll-x">
+  <table class="t">
+    <thead><tr><th>Format</th><th>Detected by</th><th>Today</th><th>After the hackathon</th><th>Quality</th></tr></thead>
+    <tbody>
+      <tr><td>Metadata + abstract (OpenAlex JSON, PubMed XML)</td><td>API response</td><td><span class="tag ok">P0</span> direct mapping</td><td>same</td><td>exact; used for ranking and judging</td></tr>
+      <tr><td>JATS XML (PMC, Europe PMC, bioRxiv)</td><td>fullTextXML endpoint</td><td><span class="tag">P2</span> sections → Markdown</td><td>same</td><td>best: sections, captions, references with DOIs</td></tr>
+      <tr><td>HTML article page</td><td>text/html</td><td><span class="tag">P1</span> Tavily extract, citation_* meta for identity</td><td>Readability + per-publisher fixes</td><td>good</td></tr>
+      <tr><td>Text PDF</td><td>PDF with a text layer</td><td><span class="tag plan">later</span> link only</td><td>GROBID or Docling</td><td>good: sections, parsed references</td></tr>
+      <tr><td>Scanned PDF</td><td>&lt; ~100 characters per page</td><td><span class="tag plan">later</span> marked "scanned"</td><td>OCR (ocrmypdf, or a GPU pipeline as a Nebius job)</td><td>fair; OCR confidence shown with quotes</td></tr>
+      <tr><td>Closed-access paper</td><td>OpenAlex open_access</td><td>metadata + abstract + link</td><td>same; never through paywalls</td><td>abstract-level</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="sec" id="storage">
+  <div class="sec-head">
+    <div class="kicker">08 · Storage</div>
+    <h2>Four layers; Markdown for people, SQLite for queries</h2>
+    <p>Public scholarly data lives on the server and can always be re-fetched. The researcher's notes live in their browser and export as files. Moving to production swaps one module.</p>
+  </div>
+  <div class="layers">
+    <div class="hd">Layer</div><div class="hd">Holds</div><div class="hd today">Today</div><div class="hd ar"></div><div class="hd prod">Production</div>
+    <div class="nm"><b>Paper store</b><small>source of truth</small></div><div>papers, ID aliases, citations, provenance, documents, chunks, runs, candidates, judgements, feedback</div><div class="today">SQLite (better-sqlite3) · Drizzle schema · FTS5</div><div class="ar">→</div><div class="prod">PostgreSQL, same schema</div>
+    <div class="nm"><b>Raw cache</b><small>immutable</small></div><div>original API responses, HTML, XML, PDFs of saved papers</div><div class="today">gzip files by sha256 under /data</div><div class="ar">→</div><div class="prod">Nebius Object Storage, same keys</div>
+    <div class="nm"><b>Vectors</b><small>derived</small></div><div>embeddings keyed by owner, model, dims, text hash</div><div class="today">fp16 blobs in SQLite · exact search in memory</div><div class="ar">→</div><div class="prod">LanceDB or pgvector past ~100k vectors</div>
+    <div class="nm last"><b>Notes vault</b><small>the researcher's</small></div><div class="last">literature notes, own notes, wikilinks</div><div class="today last">Markdown + YAML front matter in IndexedDB · export .zip, BibTeX, CSL JSON</div><div class="ar last">→</div><div class="prod last">synced per user</div>
+  </div>
+  <div class="schema" aria-label="Paper store tables">
+    <div class="tbl"><b>papers</b><span>id (OpenAlex W…) · doi · pmid · pmcid · title · abstract · abstract_source · year · type · cited_by · citation_pct · is_retracted · is_oa · license</span></div>
+    <div class="tbl"><b>paper_ids · citations</b><span>alias → paper_id</span><span>citing_id · cited_id (both indexed)</span></div>
+    <div class="tbl"><b>provenance · web_sources</b><span>paper · run · route · via_seed · api · request_url · raw_hash</span><span>url · kind · snippet · query → papers</span></div>
+    <div class="tbl"><b>documents · chunks</b><span>source_type · converter · raw_hash · ocr_confidence</span><span>section · ordinal · char_start · char_end · text</span></div>
+    <div class="tbl"><b>embeddings</b><span>owner (paper | chunk) · model · dims · text_hash · vec (fp16)</span></div>
+    <div class="tbl"><b>runs · candidates</b><span>question · facets · seeds · params · models</span><span>lane · features · score · rank</span></div>
+    <div class="tbl"><b>judgements</b><span>model · prompt_hash · output · quote_chunk · start · end · verified</span></div>
+    <div class="tbl"><b>feedback</b><span>run · paper · label · reason</span></div>
+  </div>
+  <div class="charts2">
+    <figure class="viz" id="vizC">
+      <figcaption><div><b>Storage by scenario</b><span>Log scale. 1024-dim fp16 embeddings; ~30% of papers open access.</span></div><button class="tbtn" type="button" data-table="tC">Show table</button></figcaption>
+      <div class="legend"><span><i class="dot" style="background:var(--o3)"></i>Abstracts only</span><span><i class="dot" style="background:var(--o1)"></i>With open-access full text</span></div>
+      <div class="scroll-x"><svg id="chartC" role="img" aria-label="Storage size by scenario on a log scale"></svg></div>
+      <table class="dt" id="tC" hidden></table>
+    </figure>
+    <figure class="viz" id="vizD">
+      <figcaption><div><b>When a vector database pays off</b><span>Vectors on a log scale; markers are our scenarios.</span></div><button class="tbtn" type="button" data-table="tD">Show table</button></figcaption>
+      <div class="scroll-x"><svg id="chartD" role="img" aria-label="Vector count thresholds for exact search, embedded index and distributed vector database"></svg></div>
+      <table class="dt" id="tD" hidden></table>
+    </figure>
+  </div>
+  <p class="note">Per paper: metadata + abstract ~3 KB · citation edges ~2 KB · raw response ~1–2 KB · embedding 2 KB at 1024-d fp16 (16 KB at the 4096-d fp32 default) · full text ~15 KB + ~24 KB of chunk vectors. One run adds at most ~7 MB.</p>
+</section>
+
+<section class="sec" id="arch">
+  <div class="sec-head">
+    <div class="kicker">09 · System</div>
+    <h2>One container on Nebius; the models stay on Token Factory</h2>
+  </div>
+  <div class="arch scroll-x">
+    <svg viewBox="0 0 980 410" role="img" aria-label="Architecture: browser workspace, Nebius Serverless Endpoint, Token Factory, scholarly APIs, Tavily">
+      <defs>
+        <marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" class="a-head"/></marker>
+        <marker id="ahai" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" class="a-head ai"/></marker>
+      </defs>
+      <rect class="a-box" x="10" y="80" width="200" height="250" rx="10"/>
+      <text class="a-k" x="24" y="104">CLIENT · VUE 3</text>
+      <text class="a-t" x="24" y="126">Zettlr Web</text>
+      <text class="a-s" x="24" y="150">CodeMirror 6 editor</text>
+      <text class="a-s" x="24" y="168">(Zettlr renderers, themes)</text>
+      <text class="a-s" x="24" y="190">File tree · tabs</text>
+      <text class="a-s" x="24" y="210">Graph view (d3)</text>
+      <text class="a-s" x="24" y="230">Discover · Related · Refs</text>
+      <text class="a-s" x="24" y="250">Vault in IndexedDB</text>
+      <text class="a-s" x="24" y="270">Export: .zip, BibTeX, CSL</text>
+      <rect class="a-box main" x="270" y="24" width="390" height="364" rx="12"/>
+      <text class="a-k" x="288" y="48">NEBIUS SERVERLESS ENDPOINT · cpu-d3 · 2vcpu-8gb</text>
+      <text class="a-t" x="288" y="72">Hono · Node 22 · :3000 · serves the client</text>
+      <rect class="a-mod" x="288" y="88" width="354" height="46" rx="6"/>
+      <text class="a-m" x="300" y="107">POST /api/runs · GET /api/runs/:id/stream</text>
+      <text class="a-s" x="300" y="124">SSE RunEvents: stage · candidates · judgement · agent</text>
+      <rect class="a-mod" x="288" y="144" width="354" height="64" rx="6"/>
+      <text class="a-m" x="300" y="164">server/discovery</text>
+      <text class="a-s" x="300" y="182">resolve · R1–R4 · Scout (R5) · embed · rerank</text>
+      <text class="a-s" x="300" y="199">judge · verify · lanes · why-ranked</text>
+      <rect class="a-mod" x="288" y="218" width="170" height="64" rx="6"/>
+      <text class="a-m" x="300" y="238">server/sources</text>
+      <text class="a-s" x="300" y="256">openalex · pubmed</text>
+      <text class="a-s" x="300" y="273">europepmc · tavily</text>
+      <rect class="a-mod" x="472" y="218" width="170" height="64" rx="6"/>
+      <text class="a-m" x="484" y="238">shared/contracts</text>
+      <text class="a-s" x="484" y="256">zod: Paper · Candidate</text>
+      <text class="a-s" x="484" y="273">Judgement · RunEvent</text>
+      <rect class="a-mod" x="288" y="292" width="170" height="80" rx="6"/>
+      <text class="a-m" x="300" y="312">server/data</text>
+      <text class="a-s" x="300" y="330">SQLite + Drizzle</text>
+      <text class="a-s" x="300" y="347">raw cache by hash</text>
+      <text class="a-s" x="300" y="364">fp16 vectors</text>
+      <rect class="a-mod" x="472" y="292" width="170" height="80" rx="6"/>
+      <text class="a-m" x="484" y="312">server/demo</text>
+      <text class="a-s" x="484" y="330">?demo=1 replays a</text>
+      <text class="a-s" x="484" y="347">recorded real run</text>
+      <rect class="a-box ai" x="730" y="24" width="240" height="132" rx="10"/>
+      <text class="a-k" x="746" y="48">SEPARATE MODEL ENDPOINT</text>
+      <text class="a-t" x="746" y="70">Nebius Token Factory</text>
+      <text class="a-m" x="746" y="92">Qwen3-Embedding-8B (1024-d)</text>
+      <text class="a-m" x="746" y="110">Qwen3-Reranker-8B</text>
+      <text class="a-m" x="746" y="128">Nemotron-3_5-Lightning</text>
+      <text class="a-m" x="746" y="146">nemotron-3-super-120b</text>
+      <rect class="a-box" x="730" y="176" width="240" height="96" rx="10"/>
+      <text class="a-k" x="746" y="200">SCHOLARLY APIS</text>
+      <text class="a-t" x="746" y="222">OpenAlex · PubMed · Europe PMC</text>
+      <text class="a-s" x="746" y="242">citations, metadata, abstracts,</text>
+      <text class="a-s" x="746" y="259">similar articles, OA full text</text>
+      <rect class="a-box" x="730" y="292" width="240" height="80" rx="10"/>
+      <text class="a-k" x="746" y="316">AGENTIC SEARCH</text>
+      <text class="a-t" x="746" y="338">Tavily (Scout tools)</text>
+      <text class="a-s" x="746" y="358">preprints, trials, web context</text>
+      <path class="a-line" d="M210,195 L268,195" marker-end="url(#ah)"/>
+      <path class="a-line" d="M268,219 L212,219" marker-end="url(#ah)"/>
+      <text class="a-s" x="216" y="187">HTTPS</text><text class="a-s" x="222" y="237">SSE</text>
+      <path class="a-line ai" d="M660,120 L728,96" marker-end="url(#ahai)"/>
+      <text class="a-s" x="664" y="100">/v1 OpenAI-compatible</text>
+      <path class="a-line" d="M660,240 L728,226" marker-end="url(#ah)"/>
+      <path class="a-line" d="M660,330 L728,332" marker-end="url(#ah)"/>
+    </svg>
+  </div>
+</section>
+
+<section class="sec" id="board">
+  <div class="sec-head">
+    <div class="kicker">10 · Board</div>
+    <h2>P0 is the demo path</h2>
+    <div class="lanes-key"><span><span class="ln A">A</span>BE / AI</span><span><span class="ln B">B</span>FE workspace</span><span><span class="ln C">C</span>FE discovery</span><span><span class="ln D">D</span>Infra · eval · story</span><span>Dark border = never cut</span></div>
+  </div>
+  <div class="board" id="boardcols"></div>
+  <p class="note">Cut order if the 15:15 sync misses: P2 → F-16 → F-15 → F-14 → F-13 → F-12 → F-10. If the Zettlr editor port isn't working by 15:15, F-05 switches to plain CodeMirror Markdown. Three people: A's agents take D's deploy and demo mode; C takes the eval run and README.</p>
+</section>
+
+<section class="sec" id="timeline">
+  <div class="sec-head">
+    <div class="kicker">11 · Today, re-planned from 13:05</div>
+    <h2>Sync at 15:15, freeze at 16:30, submit at 18:00</h2>
+    <p>The red line is the current time.</p>
+  </div>
+  <div class="gantt scroll-x"><div class="g-inner" id="gantt"></div></div>
+</section>
+
+<section class="sec" id="demo">
+  <div class="sec-head">
+    <div class="kicker">12 · Demo · 3 minutes</div>
+    <h2>One researcher, one run, receipts on screen</h2>
+  </div>
+  <div class="scroll-x">
+  <table class="t">
+    <thead><tr><th>Time</th><th>Beat</th><th>Line or action</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">0:00</td><td>Hook</td><td>"Lena has five papers she trusts. PubMed gives her 15 results for her question, or 999 for keywords. Neither is a reading list."</td></tr>
+      <tr><td class="mono">0:20</td><td>Workspace</td><td>Her vault: five seed notes made from DOIs, a question note, the graph.</td></tr>
+      <tr><td class="mono">0:35</td><td>Discover</td><td>Run. Steps light up, ghost nodes grow out of the seeds, lanes fill.</td></tr>
+      <tr><td class="mono">1:05</td><td>Receipts</td><td>Top Core paper: cites all five seeds, published 2026, zero citations. Verified quote, paper trail, why ranked here.</td></tr>
+      <tr><td class="mono">1:35</td><td>Honesty</td><td>The retracted row, Not assessable, what Bridges means.</td></tr>
+      <tr><td class="mono">1:50</td><td>Lens</td><td>Evidence → Method: methods and tools rise; back to Evidence: melanoma results rise.</td></tr>
+      <tr><td class="mono">2:10</td><td>Keep</td><td>Add to vault: the literature note appears with front matter, quote and [[seed]] links; its node turns solid.</td></tr>
+      <tr><td class="mono">2:30</td><td>Proof</td><td>Routes find 16–42% of hidden references vs ≤6% for keyword search; seed links put 35–40% relevant papers in the top 20 (plus F-11 numbers).</td></tr>
+      <tr><td class="mono">2:45</td><td>Close</td><td>"Nebius Serverless, Token Factory models, export to Zotero. PaperTrail: find the papers you missed, with receipts."</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="sec" id="deploy">
+  <div class="sec-head">
+    <div class="kicker">13 · Deploy to Nebius</div>
+    <h2>Three deploys, each a new endpoint</h2>
+    <p>Creating an endpoint takes about 5 minutes and there is no update command. The UI endpoint is public: a browser can't send a Bearer header when it opens a page.</p>
+  </div>
+  <div class="deploy">
+    <div class="code">
+      <button class="copy" type="button" id="copybtn">Copy</button>
+<pre id="deploycode"><span class="c"># 1. CLI + sign-in</span>
+curl -sSL https://artifacts.nebius.cloud/cli/install.sh | bash
+nebius profile create
+<span class="c"># 2. Registry</span>
+export REGISTRY_PATH=$(nebius registry create --name papertrail \
+  --format json | jq -r ".metadata.id" | cut -d- -f 2)
+nebius registry configure-helper
+<span class="c"># 3. Build and push (amd64 is required on a Mac)</span>
+docker buildx build --platform linux/amd64 \
+  -t cr.&lt;region&gt;.nebius.cloud/$REGISTRY_PATH/papertrail:v1 --push .
+<span class="c"># 4. Endpoint (no --auth = public)</span>
+nebius ai endpoint create --name papertrail-v1 \
+  --image cr.&lt;region&gt;.nebius.cloud/$REGISTRY_PATH/papertrail:v1 \
+  --platform cpu-d3 --preset 2vcpu-8gb --container-port 3000 \
+  --disk-size 20Gi --subnet-id &lt;subnet-id&gt; \
+  --env TOKEN_FACTORY_API_KEY=…,TAVILY_API_KEY=…,OPENALEX_API_KEY=…,OPENALEX_MAILTO=…
+<span class="c"># 5. Public URL</span>
+nebius ai endpoint get $ID --format json \
+  | jq -r '.status.public_endpoints[] | select(startswith("https://"))'</pre>
+    </div>
+    <div class="cadence">
+      <div class="cad"><b>v1</b><span><b>13:30–14:15</b> Scaffold + <span class="mono">/api/health</span>; proves the path.</span></div>
+      <div class="cad"><b>v2</b><span><b>15:15</b> Real run end-to-end, checked at the sync point.</span></div>
+      <div class="cad"><b>v3</b><span><b>17:30</b> Final build. New tag and endpoint name each time; the previous one stays up for rollback.</span></div>
+      <p class="note">Dockerfile: multi-stage <span class="mono">node:22-slim</span> (better-sqlite3 needs glibc), build the client with Vite and the server with tsup, <span class="mono">PORT=3000</span>, data under <span class="mono">/data</span>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="risks">
+  <div class="sec-head">
+    <div class="kicker">14 · Risks</div>
+    <h2>The two highest risks are handled first</h2>
+  </div>
+  <div class="scroll-x">
+  <table class="t">
+    <thead><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>OpenAlex without a key: the venue IP shares $0.10/day (one 401 already)</td><td><span class="lv h">High</span></td><td>Register a free key now; cache every response</td></tr>
+      <tr><td>Endpoint creation ~5 minutes, no update command</td><td><span class="lv h">High</span></td><td>Three deploys, new tag and name each time; v1 before 14:15</td></tr>
+      <tr><td>Zettlr editor code expects desktop calls (21 config + 16 IPC references)</td><td><span class="lv m">Medium</span></td><td>Shim <span class="mono">window.config</span> and <span class="mono">window.ipc</span>; plain CodeMirror fallback at 15:15</td></tr>
+      <tr><td>Nemotron tool calling unsupported on Token Factory</td><td><span class="lv m">Medium</span></td><td>Test in the first 15 minutes; Scout falls back to Qwen3-235B or gpt-oss-120b</td></tr>
+      <tr><td>OpenAlex reference errors</td><td><span class="lv m">Medium</span></td><td>Date check on links; every link shows its source so users can check</td></tr>
+      <tr><td>Generic tool papers flood a lane</td><td><span class="lv m">Medium</span></td><td>Judge labels paper type; the Lens moves tools</td></tr>
+      <tr><td>LLM JSON invalid or slow</td><td><span class="lv m">Medium</span></td><td>json_schema + zod with one retry; 50 judged, 8 in parallel, 20 s timeout</td></tr>
+      <tr><td>Venue Wi-Fi</td><td><span class="lv m">Medium</span></td><td>Demo mode, local run, screen recording</td></tr>
+      <tr><td>Weak evaluation numbers</td><td><span class="lv l">Low</span></td><td>Report as measured; lead with traceability</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="sec" id="next">
+  <div class="sec-head">
+    <div class="kicker">15 · Next 30 minutes</div>
+    <h2>Keys, lanes, scaffold</h2>
+  </div>
+  <div class="next">
+    <div><span class="n">1</span><span>Register the OpenAlex key. Confirm Token Factory and Tavily keys. Call <span class="mono">GET /v1/models</span>; test 1024-dim embeddings and tool calling.</span></div>
+    <div><span class="n">2</span><span>Share this page with the team and assign lanes A–D.</span></div>
+    <div><span class="n">3</span><span>Run <span class="mono">hack-init</span>: start 13:05, submit_by 18:00, deadline 18:30.</span></div>
+    <div><span class="n">4</span><span>D scaffolds; A writes contracts and the store; B copies Zettlr assets; C builds the Discover tab on <span class="mono">docs/data</span> fixtures.</span></div>
+  </div>
+</section>
+
+<footer>
+  <span>Written plan: docs/PRODUCT_PLAN.md</span>
+  <span>Ranking, ingestion, storage spec: docs/RANKING_AND_STORAGE.md</span>
+  <span>Fixtures: docs/data/ (OpenAlex data, CC0) · Eval scripts: eval/</span>
+  <span>License: GPL-3.0 (includes Zettlr code)</span>
+</footer>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+(function(){
+const LANES = {"counts":{"Linked":216,"Core":545,"Bridges":218,"Retracted":1},"routes":{"R1":238,"R2":494,"R3":283},"union":980,"top":{"Core":[{"id":"W7160921086","t":"Immune microenvironment and strategy of immunotherapy in acral melanoma","y":2026,"dt":"2026","c":0,"k":"article","v":"Immunological Medicine","a":"Tomoyuki Minowa","d":"10.1080/25785826.2026.2670041","out":[1,2,3,4,5],"inn":[],"n":5,"routes":["R2"],"pmr":null,"retr":false,"oa":null,"lane":"Core"},{"id":"W2966465234","t":"Clonal replacement of tumor-specific T cells following PD-1 blockade","y":2019,"dt":"2019-07-29","c":1522,"k":"article","v":"Nature Medicine","a":"Kathryn E. Yost","d":"10.1038/s41591-019-0522-3","out":[1,2],"inn":[3,4],"n":4,"routes":["R1","R2"],"pmr":null,"retr":false,"oa":true,"lane":"Core"},{"id":"W4365143025","t":"Dynamics and specificities of T cells in cancer immunotherapy","y":2023,"dt":"2023","c":528,"k":"review","v":"Nature reviews. Cancer","a":"Giacomo Oliveira","d":"10.1038/s41568-023-00560-y","out":[1,2,3,4],"inn":[],"n":4,"routes":["R2"],"pmr":null,"retr":false,"oa":null,"lane":"Core"},{"id":"W4365457190","t":"Phenotypic plasticity and reduced tissue retention of exhausted tumor-infiltrating T cells following neoadjuvant immunotherapy in head and neck cancer","y":2023,"dt":"2023","c":60,"k":"article","v":"Cancer Cell","a":"Cem M. Sievers","d":"10.1016/j.ccell.2023.03.014","out":[1,2,3,4],"inn":[],"n":4,"routes":["R2"],"pmr":null,"retr":false,"oa":null,"lane":"Core"},{"id":"W4405022534","t":"Single-cell profiling of acral melanoma infiltrating lymphocytes reveals a suppressive tumor microenvironment","y":2024,"dt":"2024","c":27,"k":"article","v":"Science Translational Medicine","a":"Tomoyuki Minowa","d":"10.1126/scitranslmed.adk8832","out":[1,2,3,4],"inn":[],"n":4,"routes":["R2"],"pmr":null,"retr":false,"oa":null,"lane":"Core"},{"id":"W4404824470","t":"Circulating tumor-reactive KIR+CD8+ T cells suppress anti-tumor immunity in patients with melanoma","y":2024,"dt":"2024","c":16,"k":"article","v":"Nature Immunology","a":"Benjamin Y. Lu","d":"10.1038/s41590-024-02023-4","out":[1,2,3,4],"inn":[],"n":4,"routes":["R2"],"pmr":null,"retr":false,"oa":null,"lane":"Core"},{"id":"W2572174216","t":"Adverse Renal Effects of Immune Checkpoint Inhibitors: A Narrative Review","y":2017,"dt":"2017-01-01","c":15256,"k":"review","v":"American Journal of Nephrology","a":"Rimda Wanchoo","d":"10.1159/000455014","out":[],"inn":[1,2,5],"n":3,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Core"},{"id":"W3000311037","t":"Tertiary lymphoid structures improve immunotherapy and survival in melanoma","y":2020,"dt":"2020-01-15","c":2357,"k":"article","v":"Nature","a":"Rita Cabrita","d":"10.1038/s41586-019-1914-8","out":[1,2],"inn":[5],"n":3,"routes":["R1","R2","R3"],"pmr":6,"retr":false,"oa":false,"lane":"Core"},{"id":"W2913558101","t":"Subsets of exhausted CD8+ T cells differentially mediate tumor control and respond to checkpoint blockade","y":2019,"dt":"2019-02-18","c":2067,"k":"article","v":"Nature Immunology","a":"Brian C. Miller","d":"10.1038/s41590-019-0312-6","out":[2],"inn":[3,4],"n":3,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Core"},{"id":"W2909486828","t":"Intratumoral Tcf1+PD-1+CD8+ T Cells with Stem-like Properties Promote Tumor Control in Response to Vaccination and Checkpoint Blockade Immunotherapy","y":2019,"dt":"2019-01-01","c":1661,"k":"article","v":"Immunity","a":"Imran Siddiqui","d":"10.1016/j.immuni.2018.12.021","out":[1,2],"inn":[3],"n":3,"routes":["R1","R2","R3"],"pmr":7,"retr":false,"oa":true,"lane":"Core"}],"Fresh":[],"Linked":[{"id":"W2117692326","t":"Hallmarks of Cancer: The Next Generation","y":2011,"dt":"2011-03-01","c":66448,"k":"article","v":"Cell","a":"Douglas Hanahan","d":"10.1016/j.cell.2011.02.013","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2108234281","t":"The Sequence Alignment/Map format and SAMtools","y":2009,"dt":"2009-06-08","c":61850,"k":"article","v":"Bioinformatics","a":"Heng Li","d":"10.1093/bioinformatics/btp352","out":[],"inn":[2],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2103441770","t":"Fast and accurate short read alignment with Burrows–Wheeler transform","y":2009,"dt":"2009-05-18","c":58448,"k":"article","v":"Bioinformatics","a":"Heng Li","d":"10.1093/bioinformatics/btp324","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2170551349","t":"Fast gapped-read alignment with Bowtie 2","y":2012,"dt":"2012-03-04","c":56209,"k":"article","v":"Nature Methods","a":"Ben Langmead","d":"10.1038/nmeth.1923","out":[],"inn":[2],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2169456326","t":"STAR: ultrafast universal RNA-seq aligner","y":2012,"dt":"2012-10-25","c":51403,"k":"article","v":"Bioinformatics","a":"Alexander Dobin","d":"10.1093/bioinformatics/bts635","out":[],"inn":[2],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2114104545","t":"edgeR : a Bioconductor package for differential expression analysis of digital gene expression data","y":2009,"dt":"2009-11-11","c":41238,"k":"article","v":"Bioinformatics","a":"Mark D. Robinson","d":"10.1093/bioinformatics/btp616","out":[],"inn":[2],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2119180969","t":"The Genome Analysis Toolkit: A MapReduce framework for analyzing next-generation DNA sequencing data","y":2010,"dt":"2010-07-19","c":27795,"k":"preprint","v":"Genome Research","a":"Aaron McKenna","d":"10.1101/gr.107524.110","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W2124985265","t":"Ultrafast and memory-efficient alignment of short DNA sequences to the human genome","y":2009,"dt":"2009-03-04","c":21775,"k":"article","v":"Genome biology","a":"Ben Langmead","d":"10.1186/gb-2009-10-3-r25","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"},{"id":"W1673310716","t":"A density-based algorithm for discovering clusters in large spatial Databases with Noise","y":1996,"dt":"1996-01-01","c":20179,"k":"article","v":"","a":"Martin Ester","d":"","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":false,"lane":"Linked"},{"id":"W2097995306","t":"Improved Survival with Ipilimumab in Patients with Metastatic Melanoma","y":2010,"dt":"2010-06-05","c":15156,"k":"article","v":"New England Journal of Medicine","a":"Frank Stephen Hodi","d":"10.1056/nejmoa1003466","out":[],"inn":[1],"n":1,"routes":["R1"],"pmr":null,"retr":false,"oa":true,"lane":"Linked"}],"Bridges":[{"id":"W2998141119","t":"Topological Tumor Graphs: A Graph-Based Spatial Model to Infer Stromal Recruitment for Immunosuppression in Melanoma Histology","y":2019,"dt":"2019-12-24","c":71,"k":"article","v":"Cancer Research","a":"Henrik Failmezger","d":"10.1158/0008-5472.can-19-2268","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":1,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W2947754693","t":"Peptide Super-Agonist Enhances T-Cell Responses to Melanoma","y":2019,"dt":"2019-03-13","c":24,"k":"article","v":"Frontiers in Immunology","a":"Sarah A. E. Galloway","d":"10.3389/fimmu.2019.00319","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":1,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W2071922812","t":"A Human Melanoma Cell Line, Recognized by Both HLA Class I and Class II Restricted T Cells, is Capable of Initiating both Primary and Secondary Immune Responses","y":1995,"dt":"1995-04-01","c":20,"k":"article","v":"Scandinavian Journal of Immunology","a":"Anna Catharina Olsen","d":"10.1111/j.1365-3083.1995.tb03579.x","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":1,"retr":false,"oa":false,"lane":"Bridges"},{"id":"W2945002292","t":"Checkpoint blockade immunotherapy enhances the frequency and effector function of murine tumor-infiltrating T cells but does not alter TCRβ diversity","y":2019,"dt":"2019-05-18","c":9,"k":"article","v":"Cancer Immunology Immunotherapy","a":"Lindsey M. Kuehm","d":"10.1007/s00262-019-02346-4","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":1,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W1999502843","t":"Melanoma‐specific CD4+ T lymphocytes recognize human melanoma antigens processed and presented by epstein‐barr virus‐transformed B cells","y":1994,"dt":"1994-07-01","c":84,"k":"article","v":"International Journal of Cancer","a":"Suzanne Louise Topalian","d":"10.1002/ijc.2910580113","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":2,"retr":false,"oa":false,"lane":"Bridges"},{"id":"W3041753573","t":"PD-L1 Checkpoint Inhibition Narrows the Antigen-Specific T Cell Receptor Repertoire in Chronic Lymphocytic Choriomeningitis Virus Infection","y":2020,"dt":"2020-07-07","c":8,"k":"article","v":"Journal of Virology","a":"S. Klein","d":"10.1128/jvi.00795-20","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":2,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W3089088060","t":"Melanoma brain metastases have lower T-cell content and microvessel density compared to matched extracranial metastases","y":2020,"dt":"2020-09-24","c":26,"k":"article","v":"Journal of Neuro-Oncology","a":"Sarah Ann Weiss","d":"10.1007/s11060-020-03619-0","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":2,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W2795035720","t":"CD103+ Tumor-Resident CD8+ T Cells Are Associated with Improved Survival in Immunotherapy-Naïve Melanoma Patients and Expand Significantly During Anti–PD-1 Treatment","y":2018,"dt":"2018-03-29","c":431,"k":"article","v":"Clinical Cancer Research","a":"Jarem J. Edwards","d":"10.1158/1078-0432.ccr-17-2257","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":2,"retr":false,"oa":false,"lane":"Bridges"},{"id":"W2066289036","t":"Human antigen‐presenting cell/tumour cell hybrids stimulate strong allogeneic responses and present tumour‐associated antigens to cytotoxic T cells in vitro","y":1999,"dt":"1999-12-01","c":19,"k":"article","v":"Immunology","a":"Deborah J. Dunnion","d":"10.1046/j.1365-2567.1999.00912.x","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":3,"retr":false,"oa":true,"lane":"Bridges"},{"id":"W2154270347","t":"Immunotype and Immunohistologic Characteristics of Tumor-Infiltrating Immune Cells Are Associated with Clinical Outcome in Metastatic Melanoma","y":2012,"dt":"2012-01-20","c":590,"k":"article","v":"Cancer Research","a":"Gulsun Erdag","d":"10.1158/0008-5472.can-11-3218","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":3,"retr":false,"oa":true,"lane":"Bridges"}],"Retracted":[{"id":"W2015330587","t":"An analysis of T‐cell‐receptor variable‐region genes in tumor‐infiltrating lymphocytes within malignant tumors","y":1991,"dt":"1991-10-21","c":22,"k":"article","v":"International Journal of Cancer","a":"Taizo Nitta","d":"10.1002/ijc.2910490412","out":[],"inn":[],"n":0,"routes":["R3"],"pmr":59,"retr":true,"oa":false,"lane":"Retracted"}]}};
+const SEEDS = [
+  {n:1,id:'W2332292689',s:"Tirosh 2016",t:"Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq",v:"Science",y:2016,c:4914},
+  {n:2,id:'W2899145148',s:"Sade-Feldman 2018",t:"Defining T Cell States Associated with Response to Checkpoint Immunotherapy in Melanoma",v:"Cell",y:2018,c:2040},
+  {n:3,id:'W3184584468',s:"Oliveira 2021",t:"Phenotype, specificity and avidity of antitumour CD8+ T cells in melanoma",v:"Nature",y:2021,c:561},
+  {n:4,id:'W4229030906',s:"Oliveira 2022",t:"Landscape of helper and regulatory antitumour CD4+ T cells in melanoma",v:"Nature",y:2022,c:199},
+  {n:5,id:'W3165815938',s:"Smalley 2021",t:"Single-Cell Characterization of the Immune Microenvironment of Melanoma Brain and Leptomeningeal Metastases",v:"Clin Cancer Res",y:2021,c:161}
+];
+const QUESTION = 'Which single-cell methods help study melanoma immune cells?';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const fmt = n => Number(n).toLocaleString('en');
+const seedName = n => 'S' + n + ' ' + SEEDS[n-1].s;
+const shortAu = a => { const p = String(a || '').trim().split(/\s+/); return p.length ? p[p.length-1] : ''; };
+
+/* ---------- theme ---------- */
+const root = document.documentElement;
+function isDark(){ const t = root.dataset.theme; return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches; }
+function syncTheme(){ const d = isDark(); $('#bf').setAttribute('aria-pressed', String(!d)); $('#fl').setAttribute('aria-pressed', String(d)); renderStatus(); }
+function setTheme(t){ root.dataset.theme = t; try{ localStorage.setItem('pt-theme', t); }catch(e){} syncTheme(); }
+try{ const saved = localStorage.getItem('pt-theme'); if (saved) root.dataset.theme = saved; }catch(e){}
+$('#bf').addEventListener('click', () => setTheme('light'));
+$('#fl').addEventListener('click', () => setTheme('dark'));
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncTheme);
+
+/* ---------- clock (CEST = UTC+2) ---------- */
+const at = hm => new Date('2026-10-18T' + hm + ':00+02:00').getTime();
+function cest(d){ const u = new Date(d.getTime() + 2*3600e3); return {h:u.getUTCHours(), m:u.getUTCMinutes(), date:u.toISOString().slice(0,10)}; }
+function tick(){
+  const now = new Date(); const c = cest(now);
+  $('#now').textContent = pad(c.h) + ':' + pad(c.m);
+  const left = at('18:00') - now.getTime();
+  if (c.date < '2026-10-18') $('#cd').textContent = 'Not started';
+  else if (left <= 0) $('#cd').textContent = 'Time is up';
+  else { const mm = Math.floor(left/60000); $('#cd').textContent = Math.floor(mm/60) + 'h ' + pad(mm%60) + 'm'; }
+  placeNow();
+}
+
+/* ---------- decisions ---------- */
+const DEC = [
+  ['D-01','Product','Seed-based discovery with verified explanations, inside a research workspace','Covers discover → check → keep → link → export'],
+  ['D-02','UI','"Zettlr Web": Zettlr layout, editor renderers, graph view and sidebar, copied into a Vue web app, plus a Discover tab','A desktop fork can\'t be hosted; faking ~120 desktop calls would take 6–10 h'],
+  ['D-03','Stack','Vite + Vue 3 + Pinia + CodeMirror 6 + d3 · Hono on Node 22 · shared zod · one container','Zettlr is Vue; one language, one deploy'],
+  ['D-04','Models','Qwen3-Embedding-8B (1024-d) · Qwen3-Reranker-8B · Nemotron-3.5-Lightning judge · nemotron-3-super for facets and Scout','NVIDIA + Nebius fit; IDs and tool calling checked first'],
+  ['D-05','Agent','Fixed pipeline + one Scout agent, ≤6 tool calls, ≤45 s; AI SDK loop, no framework','Agentic search without losing verifiability'],
+  ['D-06','Routes','R1 refs · R2 ≥2-seed citers · R3 PubMed similar · R4 query expansion · R5 Scout. Dropped related_works and S2','Measured on held-out reviews'],
+  ['D-07','Ranking','Lanes: Core → Fresh → Linked → Bridges, Retracted row; seed links first; Lens re-sorts in the browser','Seed links: 35–40% P@20 vs ~5% random'],
+  ['D-08','Evidence','Quotes must match the source word for word, with offsets; web pages are context only','Traceability is the track\'s core ask'],
+  ['D-09','Evaluation','Hold-out harness gates every weight; the pitch uses measured numbers','Proof slide, no tuning by taste'],
+  ['D-10','Ingestion','One paper record + Markdown chunks + original by hash; full text only for open access; PDF and OCR later','One format to quote from'],
+  ['D-11','Storage','SQLite paper store · raw cache · fp16 vectors in SQLite · Markdown vault in the browser','Lowest ops; swap one module to scale'],
+  ['D-12','Vector DB','None today; LanceDB or pgvector past ~100k vectors; distributed past 10M','A run is < 2k vectors'],
+  ['D-13','Deploy','Nebius Serverless Endpoint, cpu-d3 2vcpu-8gb, public; three deploys, new name each','~5 min per endpoint, no update'],
+  ['D-14','License','Repo is GPL-3.0','We include Zettlr code'],
+  ['D-15','Demo data','Melanoma example, 5 seeds; ?demo=1 replays a recorded real run','Reproducible without Wi-Fi']
+];
+$('#decgrid').innerHTML = DEC.map(d => `<div class="dec"><div class="h"><span class="id">${d[0]}</span><span class="topic">${esc(d[1])}</span></div><b>${esc(d[2])}</b><p>${esc(d[3])}</p></div>`).join('');
+
+/* ---------- workspace data ---------- */
+const reTopic = /melanoma/i, reTopic2 = /cancer|tumou?r|neoantigen|immunotherap|checkpoint|pd-1|lymphocyte|t[- ]cell/i;
+const reMethod = /single[- ]cell|scrna|rna[- ]seq|sequencing|transcriptom|multiomic|-omics|spatial|profil|align|aligner|toolkit|package|format|algorithm|framework|cluster/i;
+const lanesShown = {Core:6, Linked:4, Bridges:4};
+const POOL = {};
+['Core','Linked','Bridges','Retracted'].forEach(L => (LANES.top[L] || []).forEach(p => {
+  p.topic = reTopic.test(p.t) ? 1 : reTopic2.test(p.t) ? .55 : .2;
+  p.method = reMethod.test(p.t) ? 1 : .2;
+  POOL[p.id] = p;
+}));
+const state = {lens:0, saved:[], open:null, tab:'preview', side:'disc', ran:true, sel:null};
+const facet = p => (1-state.lens)*p.topic + state.lens*p.method;
+function laneItems(L){
+  const items = (LANES.top[L] || []).slice();
+  if (L === 'Bridges') items.sort((a,b) => facet(b) - facet(a) || (a.pmr||999) - (b.pmr||999));
+  else items.sort((a,b) => b.n - a.n || facet(b) - facet(a) || b.c - a.c);
+  return items.slice(0, lanesShown[L] || 4);
+}
+function rangeList(a){ if (!a.length) return ''; return a.length === 5 ? 'all 5 seeds' : a.map(n => 'S'+n).join(', '); }
+function whyRanked(p, rank){
+  const parts = [`#${rank} · ${p.lane}`];
+  if (p.out.length) parts.push(`cites ${rangeList(p.out)}`);
+  if (p.inn.length) parts.push(`cited by ${rangeList(p.inn)}`);
+  if (p.lane === 'Bridges' && p.pmr) parts.push(`PubMed similar #${p.pmr}`);
+  parts.push(`${fmt(p.c)} citations`, `${p.y}`, `routes ${p.routes.join('+')}`);
+  return parts.join(' · ') + ' · judge pending';
+}
+function noteName(p){ return `${shortAu(p.a)} ${p.y} ${p.t.slice(0, 38).replace(/\s+\S*$/, '')}…`; }
+
+/* ---------- workspace render ---------- */
+function renderFiles(){
+  const seeds = SEEDS.map(s => `<button type="button" class="file${state.open==='seed:'+s.n?' on':''}" data-open="seed:${s.n}"><i style="background:var(--seed)"></i>${esc('S'+s.n+' '+s.s)}.md</button>`).join('');
+  const disc = state.saved.length ? state.saved.map(id => `<button type="button" class="file${state.open==='lit:'+id?' on':''}" data-open="lit:${id}"><i style="background:var(--cand)"></i>${esc(noteName(POOL[id]))}.md</button>`).join('') : '<div class="empty">Nothing kept yet</div>';
+  $('#files').innerHTML = `<div class="dir">▾ Seeds <small>${SEEDS.length}</small></div>${seeds}<div class="dir">▾ Discovered <small>${state.saved.length}</small></div>${disc}<div class="dir">▾ Notes <small>1</small></div><button type="button" class="file${state.open==='q'?' on':''}" data-open="q"><i style="background:var(--line-2)"></i>Question.md</button>`;
+  $('#files').querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', () => openDoc(b.dataset.open)));
+}
+function openDoc(key){ state.open = key; state.tab = 'doc'; if (key.startsWith('lit:')) state.sel = key.slice(4); renderAll(); }
+function renderTabs(){
+  const tabs = [];
+  if (state.open) tabs.push(['doc', docTitle(state.open)]);
+  if (state.sel && !state.saved.includes(state.sel)) tabs.push(['preview', 'Preview · ' + noteName(POOL[state.sel])]);
+  tabs.push(['graph', 'Graph']);
+  if (!tabs.find(t => t[0] === state.tab)) state.tab = tabs[0][0];
+  $('#tabs').innerHTML = tabs.map(t => `<button type="button" role="tab" class="tab" data-tab="${t[0]}" aria-selected="${state.tab===t[0]}">${esc(t[1])}</button>`).join('');
+  $('#tabs').querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; renderAll(); }));
+  $('#tb-graph').setAttribute('aria-pressed', String(state.tab === 'graph'));
+}
+function docTitle(key){
+  if (key === 'q') return 'Question.md';
+  if (key.startsWith('seed:')) return seedName(+key.slice(5)) + '.md';
+  if (key.startsWith('lit:')) return noteName(POOL[key.slice(4)]) + '.md';
+  return key;
+}
+function fmLine(k, v){ return `<span class="k">${esc(k)}:</span> ${esc(v)}`; }
+function litNote(p, saved){
+  const fm = [fmLine('id', p.id), fmLine('doi', p.d || '—'), fmLine('title', p.t), fmLine('first_author', p.a), fmLine('year', p.y), fmLine('venue', p.v || '—'), fmLine('type', p.k), fmLine('lane', p.lane), fmLine('seed_links', `cites [${p.out.map(n=>'S'+n).join(', ')}] · cited_by [${p.inn.map(n=>'S'+n).join(', ')}]`), fmLine('routes', '[' + p.routes.join(', ') + ']'), fmLine('run', 'run-001'), fmLine('retracted', String(!!p.retr))].join('\n');
+  const trail = [...p.out.map(n => `<li>cites <a class="wl" data-open="seed:${n}">[[${esc(seedName(n))}]]</a> · OpenAlex referenced_works</li>`), ...p.inn.map(n => `<li>cited by <a class="wl" data-open="seed:${n}">[[${esc(seedName(n))}]]</a> · OpenAlex referenced_works</li>`)];
+  if (!trail.length) trail.push(`<li>No citation link to the seeds. Found by PubMed similar articles${p.pmr ? ' (rank ' + p.pmr + ')' : ''}.</li>`);
+  const bar = saved ? `<div class="docbar"><span class="tag cand">In vault · Discovered/</span><a class="tag" href="https://openalex.org/${esc(p.id)}" target="_blank" rel="noopener">OpenAlex ↗</a>${p.d ? `<a class="tag" href="https://doi.org/${esc(p.d)}" target="_blank" rel="noopener">DOI ↗</a>` : ''}</div>`
+    : `<div class="docbar"><button class="btn primary" type="button" data-add="${esc(p.id)}">Add to vault</button><a class="tag" href="https://openalex.org/${esc(p.id)}" target="_blank" rel="noopener">OpenAlex ↗</a>${p.d ? `<a class="tag" href="https://doi.org/${esc(p.d)}" target="_blank" rel="noopener">DOI ↗</a>` : ''}<span class="muted" style="font-size:12px">Preview of the note this would create</span></div>`;
+  return `${bar}<pre class="fm">---\n${fm}\n---</pre><h4>${esc(p.t)}</h4>
+    <div class="slot2"><b>WHY READ IT · Nemotron</b><br>One sentence tying it to the question and to a seed (filled by F-03).</div>
+    <div class="slot2"><b>EVIDENCE · ✓ VERIFIED</b><br>A quote checked word for word against the abstract, with source and offsets.</div>
+    <div class="slot2"><b>UNCERTAINTY</b><br>What the abstract doesn't answer.</div>
+    <h5>Paper trail</h5><ul>${trail.join('')}</ul>
+    <h5>Why ranked here</h5><p class="mono" style="font-size:12px">${esc(whyRanked(p, rankOf(p)))}</p>
+    <h5>My notes</h5><p class="muted">Write here. Link other notes with [[wikilinks]].</p>`;
+}
+function rankOf(p){ const items = laneItems(p.lane); const i = items.findIndex(x => x.id === p.id); return i >= 0 ? i + 1 : '–'; }
+function seedNote(n){
+  const s = SEEDS[n-1];
+  const back = state.saved.filter(id => POOL[id].out.includes(n) || POOL[id].inn.includes(n)).map(id => `<li><a class="wl" data-open="lit:${id}">[[${esc(noteName(POOL[id]))}]]</a></li>`);
+  return `<pre class="fm">---\n${[fmLine('id', s.id), fmLine('title', s.t), fmLine('year', s.y), fmLine('venue', s.v), fmLine('cited_by', fmt(s.c)), fmLine('role', 'seed S' + n)].join('\n')}\n---</pre><h4>${esc(s.t)}</h4><p class="muted">Abstract from OpenAlex, or from PubMed when OpenAlex has none (3 of these 5 seeds).</p><h5>Backlinks</h5>${back.length ? `<ul>${back.join('')}</ul>` : '<p class="muted">No kept notes link here yet. Add a candidate to the vault.</p>'}`;
+}
+function questionNote(){
+  return `<pre class="fm">---\n${fmLine('type', 'question')}\n${fmLine('created', '2026-10-18')}\n---</pre><h4>Question</h4><p>${esc(QUESTION)}</p><h5>Seeds</h5><ul>${SEEDS.map(s => `<li><a class="wl" data-open="seed:${s.n}">[[${esc(seedName(s.n))}]]</a></li>`).join('')}</ul><h5>Kept so far</h5>${state.saved.length ? `<ul>${state.saved.map(id => `<li><a class="wl" data-open="lit:${id}">[[${esc(noteName(POOL[id]))}]]</a></li>`).join('')}</ul>` : '<p class="muted">Nothing yet.</p>'}`;
+}
+function renderCenter(){
+  const c = $('#center');
+  if (state.tab === 'graph'){ c.innerHTML = `<div class="graphwrap"><svg id="wsgraph" viewBox="0 0 640 460" role="img" aria-label="Vault graph: seeds, kept notes and candidates"></svg><div class="g-legend"><span><i style="background:var(--seed)"></i>Seed note</span><span><i style="background:var(--cand)"></i>Kept note</span><span><i style="border:1.5px solid var(--cand);background:var(--surface)"></i>Candidate</span><span><i style="border:1.5px dashed var(--cand);background:var(--surface)"></i>Bridge (no citation link)</span></div></div>`; drawGraph(); return; }
+  let html = '';
+  if (state.tab === 'preview' && state.sel) html = litNote(POOL[state.sel], false);
+  else if (state.open === 'q') html = questionNote();
+  else if (state.open && state.open.startsWith('seed:')) html = seedNote(+state.open.slice(5));
+  else if (state.open && state.open.startsWith('lit:')) html = litNote(POOL[state.open.slice(4)], true);
+  else html = questionNote();
+  c.innerHTML = `<div class="doc">${html}</div>`;
+  c.querySelectorAll('[data-open]').forEach(a => a.addEventListener('click', () => openDoc(a.dataset.open)));
+  c.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => addToVault(b.dataset.add)));
+}
+function addToVault(id){
+  if (!state.saved.includes(id)) state.saved.push(id);
+  state.open = 'lit:' + id; state.sel = id; state.tab = 'doc';
+  renderAll();
+}
+const STEPS = [['Resolve','5/5 seeds'],['R1 refs','238'],['R2 ≥2 seeds','494'],['R3 PubMed similar','283'],['Lanes','980'],['Embed',''],['Rerank',''],['Judge',''],['Verify','']];
+function renderSide(){
+  ['disc','rel','ref'].forEach(k => $('#st-' + k).setAttribute('aria-selected', String(state.side === k)));
+  const s = $('#side');
+  if (state.side === 'rel'){
+    let html = '<h4>Related to the open note</h4>';
+    if (state.open && state.open.startsWith('lit:')){
+      const p = POOL[state.open.slice(4)];
+      const links = [...new Set([...p.out, ...p.inn])];
+      html += links.length ? links.map(n => `<div class="rel-item"><a class="wl" data-open="seed:${n}">[[${esc(seedName(n))}]]</a><small>${p.out.includes(n) ? 'this paper cites it' : 'it cites this paper'} · OpenAlex</small></div>`).join('') : '<p class="muted" style="font-size:12.5px">No citation links; related by PubMed similarity.</p>';
+    } else if (state.open && state.open.startsWith('seed:')){
+      const n = +state.open.slice(5);
+      const back = state.saved.filter(id => POOL[id].out.includes(n) || POOL[id].inn.includes(n));
+      html += back.length ? back.map(id => `<div class="rel-item"><a class="wl" data-open="lit:${id}">[[${esc(noteName(POOL[id]))}]]</a><small>backlink · ${POOL[id].lane}</small></div>`).join('') : '<p class="muted" style="font-size:12.5px">No backlinks yet.</p>';
+    } else html += '<p class="muted" style="font-size:12.5px">Open a seed or a kept note to see its links.</p>';
+    s.innerHTML = html;
+  } else if (state.side === 'ref'){
+    const refs = state.saved.map(id => POOL[id]);
+    s.innerHTML = `<h4>References · ${refs.length}</h4>${refs.length ? refs.map(p => `<div class="rel-item"><span>${esc(p.a)} et al. (${p.y}). ${esc(p.t)}. <i>${esc(p.v || '')}</i>.</span><small>${p.d ? 'doi:' + esc(p.d) : esc(p.id)}</small></div>`).join('') + '<div class="chips"><span class="tag">Export BibTeX</span><span class="tag">Export CSL JSON</span><span class="tag">Export .zip</span></div>' : '<p class="muted" style="font-size:12.5px">Kept papers appear here as a bibliography, ready to export to Zotero.</p>'}`;
+  } else {
+    const r = (LANES.top.Retracted || [])[0];
+    s.innerHTML = `<h4>Question</h4><div class="qbox">${esc(QUESTION)}</div><div class="chips">${SEEDS.map(x => `<span class="chip" title="${esc(x.t)}">S${x.n} ${esc(x.s)}</span>`).join('')}</div>
+      <div class="lens"><h4>Lens</h4><input type="range" id="wslens" min="0" max="100" value="${Math.round(state.lens*100)}" aria-label="Lens from Evidence to Method"><div class="ends"><span>Evidence</span><span id="wslensv">${Math.round(state.lens*100)}%</span><span>Method</span></div></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><button class="btn primary" type="button" id="runbtn">Run discovery</button><span class="muted" style="font-size:11.5px">replays the real run</span></div>
+      <div class="steps" id="steps">${STEPS.map((st,i) => `<span class="step ${i < 5 ? 'done' : 'pend'}"><i></i>${esc(st[0])}${st[1] ? ' <b>' + esc(st[1]) + '</b>' : ''}</span>`).join('')}</div>
+      <div id="lanesbox" style="display:flex;flex-direction:column;gap:12px"></div>
+      ${r ? `<div class="retr" role="note"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><span><b>Retracted · ${fmt(LANES.counts.Retracted || 1)}</b> · ${esc(r.t)} (${r.y}). Flagged by OpenAlex; never recommended.</span></div>` : ''}`;
+    renderLanes();
+    $('#wslens').addEventListener('input', e => { state.lens = e.target.value/100; $('#wslensv').textContent = e.target.value + '%'; renderLanes(); renderCenter(); });
+    $('#runbtn').addEventListener('click', runDiscovery);
+  }
+  s.querySelectorAll('[data-open]').forEach(a => a.addEventListener('click', () => openDoc(a.dataset.open)));
+}
+function renderLanes(){
+  const box = $('#lanesbox'); if (!box) return;
+  const laneSw = {Core:'var(--o1)', Linked:'var(--o2)', Bridges:'var(--o3)', Fresh:'var(--cand)'};
+  const laneSub = {Core:'≥ 2 seed links', Fresh:'≤ 18 months, < 2 links', Linked:'1 seed link', Bridges:'no citation link'};
+  let html = '';
+  ['Core','Fresh','Linked','Bridges'].forEach(L => {
+    const count = LANES.counts[L] || 0;
+    html += `<div class="lane"><div class="lane-h"><i class="sw" style="background:${laneSw[L]}"></i>${L} <small>${laneSub[L]}</small><span class="ct" data-count="${count}">${fmt(count)}</span></div>`;
+    if (L === 'Fresh' && !count) html += `<div class="lane-empty">0 in this run. Fresh papers come from query expansion (R4) and the Scout (R5), which this snapshot didn't run.</div>`;
+    else laneItems(L).forEach((p, i) => {
+      const pips = [1,2,3,4,5].map(n => `<i class="${p.out.includes(n) ? 'out' : p.inn.includes(n) ? 'in' : ''}" title="S${n}"></i>`).join('');
+      const isSaved = state.saved.includes(p.id);
+      html += `<button type="button" class="pc${state.sel === p.id ? ' sel' : ''}" data-pick="${esc(p.id)}"><span class="rk">${i+1}</span><span style="min-width:0"><span class="tt">${esc(p.t)}</span><span class="mt">${esc(p.a)} · ${p.y} · ${esc(p.v || p.k)} · ${fmt(p.c)} cites</span><span class="row"><span class="pips" aria-label="Seed links: cites ${p.out.length}, cited by ${p.inn.length}">${pips}</span>${isSaved ? '<span class="saved">in vault</span>' : ''}</span><span class="why">${esc(whyRanked(p, i+1))}</span></span></button>`;
+    });
+    html += '</div>';
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('[data-pick]').forEach(b => b.addEventListener('click', () => { state.sel = b.dataset.pick; state.tab = state.saved.includes(state.sel) ? 'doc' : 'preview'; if (state.saved.includes(state.sel)) state.open = 'lit:' + state.sel; renderAll(); }));
+}
+function renderStatus(){
+  const c = LANES.counts;
+  const sl = $('#status-l'), sr = $('#status-r'); if (!sl) return;
+  sl.textContent = `Run #1 · ${fmt(LANES.union)} candidates · Core ${fmt(c.Core||0)} · Fresh ${fmt(c.Fresh||0)} · Linked ${fmt(c.Linked||0)} · Bridges ${fmt(c.Bridges||0)} · Retracted ${fmt(c.Retracted||0)}`;
+  sr.textContent = `Vault ${SEEDS.length + 1 + state.saved.length} notes · ${isDark() ? 'Fluorescence' : 'Brightfield'}`;
+}
+function renderAll(){ renderFiles(); renderTabs(); renderCenter(); renderSide(); renderStatus(); }
+function runDiscovery(){
+  const steps = [...document.querySelectorAll('#steps .step')];
+  const counts = [...document.querySelectorAll('#side .ct')];
+  if (reduce){ return; }
+  steps.forEach(st => { if (st.classList.contains('done')) st.classList.remove('done'); });
+  counts.forEach(ct => ct.textContent = '0');
+  steps.slice(0,5).forEach((st, k) => setTimeout(() => { st.classList.add('live'); setTimeout(() => { st.classList.remove('live'); st.classList.add('done'); }, 300); }, 200 + k*320));
+  const t0 = performance.now();
+  (function up(t){ const p = Math.min(1, (t - t0 - 1500)/900); counts.forEach(ct => { const v = +ct.dataset.count; ct.textContent = fmt(Math.round(v*Math.max(0, 1 - Math.pow(1-p, 3)))); }); if (p < 1) requestAnimationFrame(up); })(t0);
+  if (state.tab === 'graph'){ drawGraph(true); }
+}
+
+/* ---------- vault graph ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+function hash(str){ let h = 2166136261; for (const ch of str){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h>>>0)/4294967295; }
+function drawGraph(animate){
+  const svg = $('#wsgraph'); if (!svg) return;
+  svg.innerHTML = '';
+  const W = 640, H = 460, cx = 300, cy = 225;
+  const sp = SEEDS.map((s,k) => { const a = -Math.PI/2 + k*2*Math.PI/5; return {x: cx + 74*Math.cos(a), y: cy + 74*Math.sin(a)}; });
+  const nodes = [];
+  ['Core','Linked','Bridges'].forEach(L => laneItems(L).forEach(p => nodes.push(p)));
+  state.saved.forEach(id => { if (!nodes.find(n => n.id === id)) nodes.push(POOL[id]); });
+  const pos = {};
+  nodes.forEach(p => {
+    const links = [...new Set([...p.out, ...p.inn])];
+    let x, y;
+    if (links.length){
+      let mx = 0, my = 0; links.forEach(n => { mx += sp[n-1].x; my += sp[n-1].y; }); mx /= links.length; my /= links.length;
+      let ang = links.length === 5 ? -0.3 : Math.atan2(my - cy, mx - cx);
+      ang += (hash(p.id) - .5) * .9;
+      const rad = links.length >= 5 ? 0 : links.length >= 3 ? 120 : links.length === 2 ? 150 : 190;
+      x = cx + rad*Math.cos(ang); y = cy + rad*Math.sin(ang);
+    } else {
+      const ang = 0.25 + hash(p.id) * 1.6; x = cx + 235*Math.cos(ang) + 40; y = cy + 180*Math.sin(ang) - 60;
+    }
+    pos[p.id] = {x, y, r: 4 + 1.6*Math.log10(p.c + 1)};
+  });
+  const ids = Object.keys(pos);
+  for (let it = 0; it < 70; it++){
+    ids.forEach((a,i) => { const A = pos[a];
+      ids.slice(i+1).forEach(b => { const B = pos[b]; const dx = B.x - A.x, dy = B.y - A.y; const d = Math.hypot(dx, dy) || .01; const min = A.r + B.r + 8; if (d < min){ const k = (min - d)/2, ux = dx/d, uy = dy/d; A.x -= ux*k; A.y -= uy*k; B.x += ux*k; B.y += uy*k; } });
+      sp.forEach(S => { const dx = A.x - S.x, dy = A.y - S.y, d = Math.hypot(dx, dy) || .01, min = A.r + 20; if (d < min){ A.x += dx/d*(min - d); A.y += dy/d*(min - d); } });
+      A.x = Math.max(16, Math.min(W - 16, A.x)); A.y = Math.max(16, Math.min(H - 40, A.y)); });
+  }
+  const gE = document.createElementNS(NS, 'g'), gN = document.createElementNS(NS, 'g'), gL = document.createElementNS(NS, 'g');
+  if (animate && !reduce) svg.classList.add('grow'); else svg.classList.remove('grow');
+  svg.append(gE, gN, gL);
+  nodes.forEach((p, k) => {
+    const P = pos[p.id];
+    [...new Set([...p.out, ...p.inn])].forEach(n => {
+      const l = document.createElementNS(NS, 'line'); const S = sp[n-1];
+      l.setAttribute('x1', S.x); l.setAttribute('y1', S.y); l.setAttribute('x2', P.x); l.setAttribute('y2', P.y);
+      l.setAttribute('class', 'ge' + (state.sel === p.id ? ' hot' : '')); if (animate) l.style.animationDelay = (300 + k*45) + 'ms'; gE.append(l);
+    });
+    const c = document.createElementNS(NS, 'circle');
+    const saved = state.saved.includes(p.id);
+    c.setAttribute('cx', P.x); c.setAttribute('cy', P.y); c.setAttribute('r', P.r);
+    c.setAttribute('class', 'gn ' + (saved ? 'nd-saved' : p.lane === 'Bridges' ? 'nd-bridge' : 'nd-ghost'));
+    c.setAttribute('tabindex', '0'); c.setAttribute('role', 'button'); c.setAttribute('aria-label', p.t);
+    if (animate) c.style.animationDelay = (380 + k*45) + 'ms';
+    const ti = document.createElementNS(NS, 'title'); ti.textContent = `${p.t} (${p.y}) · ${p.lane}`; c.append(ti);
+    const pick = () => { state.sel = p.id; if (saved){ state.open = 'lit:' + p.id; } renderSide(); drawGraph(); renderStatus(); renderTabs(); };
+    c.addEventListener('click', pick); c.addEventListener('keydown', e => { if (e.key === 'Enter') pick(); });
+    gN.append(c);
+    if (state.sel === p.id){ const ring = document.createElementNS(NS, 'circle'); ring.setAttribute('cx', P.x); ring.setAttribute('cy', P.y); ring.setAttribute('r', P.r + 4); ring.setAttribute('class', 'nd-sel'); gN.append(ring); }
+    if (saved || state.sel === p.id){ const t = document.createElementNS(NS, 'text'); t.setAttribute('x', P.x + P.r + 4); t.setAttribute('y', P.y + 3); t.setAttribute('class', 'glbl'); t.textContent = shortAu(p.a) + ' ' + p.y; gL.append(t); }
+  });
+  SEEDS.forEach((s, k) => {
+    const P = sp[k]; const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', P.x); c.setAttribute('cy', P.y); c.setAttribute('r', 12); c.setAttribute('class', 'nd-seed gn');
+    const ti = document.createElementNS(NS, 'title'); ti.textContent = 'S' + s.n + ' ' + s.t; c.append(ti);
+    c.addEventListener('click', () => openDoc('seed:' + s.n)); gN.append(c);
+    const t = document.createElementNS(NS, 'text'); t.setAttribute('x', P.x); t.setAttribute('y', P.y + 3.5); t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', 'glbl-seed'); t.style.fill = 'var(--surface)'; t.textContent = 'S' + s.n; gL.append(t);
+  });
+}
+
+$('#st-disc').addEventListener('click', () => { state.side = 'disc'; renderSide(); });
+$('#st-rel').addEventListener('click', () => { state.side = 'rel'; renderSide(); });
+$('#st-ref').addEventListener('click', () => { state.side = 'ref'; renderSide(); });
+$('#tb-graph').addEventListener('click', () => { state.tab = state.tab === 'graph' ? (state.sel && !state.saved.includes(state.sel) ? 'preview' : 'doc') : 'graph'; renderAll(); });
+$('#tb-disc').addEventListener('click', () => { state.side = 'disc'; renderSide(); });
+$('#tb-files').addEventListener('click', () => { openDoc('q'); });
+
+/* ---------- tooltip + tables ---------- */
+const tip = $('#tip');
+function showTip(e, val, label){
+  tip.textContent = ''; const b = document.createElement('b'); b.textContent = val; const s = document.createElement('span'); s.textContent = label; tip.append(b, s); tip.hidden = false;
+  let x, y; if (e.clientX != null && e.type !== 'focus'){ x = e.clientX + 12; y = e.clientY + 12; } else { const r = e.target.getBoundingClientRect(); x = r.right + 8; y = r.top; }
+  const w = tip.offsetWidth, h = tip.offsetHeight; if (x + w > innerWidth - 8) x = innerWidth - w - 8; if (y + h > innerHeight - 8) y = innerHeight - h - 8;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function hideTip(){ tip.hidden = true; }
+function hook(el, val, label, focusable){ if (focusable !== false){ el.setAttribute('tabindex', '0'); el.setAttribute('aria-label', label + ': ' + val); el.addEventListener('focus', e => showTip(e, val, label)); el.addEventListener('blur', hideTip); } el.classList.add('mark'); el.addEventListener('pointermove', e => showTip(e, val, label)); el.addEventListener('pointerleave', hideTip); }
+function fillTable(id, head, rows){
+  const t = $('#' + id); t.textContent = '';
+  const thead = document.createElement('thead'), tr = document.createElement('tr');
+  head.forEach((h, i) => { const th = document.createElement('th'); th.textContent = h; if (i) th.className = 'n'; tr.append(th); }); thead.append(tr); t.append(thead);
+  const tb = document.createElement('tbody');
+  rows.forEach(r => { const tr2 = document.createElement('tr'); r.forEach((c, i) => { const td = document.createElement('td'); td.textContent = c; if (i) td.className = 'n'; tr2.append(td); }); tb.append(tr2); });
+  t.append(tb);
+}
+document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { const t = $('#' + b.dataset.table); t.hidden = !t.hidden; b.textContent = t.hidden ? 'Show table' : 'Hide table'; }));
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; }
+function txt(parent, x, y, s, cls, anchor){ const t = el('text', {x, y, class: cls}, parent); if (anchor) t.setAttribute('text-anchor', anchor); t.textContent = s; return t; }
+function barPath(x0, y, w, h){ if (w <= 0) return ''; const r = Math.min(4, w/2, h/2); return `M${x0},${y} H${x0+w-r} Q${x0+w},${y} ${x0+w},${y+r} V${y+h-r} Q${x0+w},${y+h} ${x0+w-r},${y+h} H${x0} Z`; }
+
+/* grouped horizontal bars */
+function hbars(svgId, cfg){
+  const svg = $('#' + svgId); svg.textContent = '';
+  const W = 600, L = 196, R = 40, bh = 11, gapIn = 2, rowGap = 16;
+  const rowH = cfg.series.length*(bh + gapIn) - gapIn;
+  const H = 18 + cfg.cats.length*(rowH + rowGap) + 22;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const x = v => L + (W - L - R) * v / cfg.max;
+  const top = 10;
+  cfg.ticks.forEach(t => { el('line', {x1: x(t), x2: x(t), y1: top, y2: H - 22, class: t === 0 ? 'base-l' : 'grid-l'}, svg); txt(svg, x(t), H - 8, t + cfg.unit, 'ax', 'middle'); });
+  if (cfg.band){ const b = el('rect', {x: x(cfg.band[0]), y: top, width: Math.max(2, x(cfg.band[1]) - x(cfg.band[0])), height: H - 22 - top, fill: 'var(--line-2)', opacity: .45}, svg); hook(b, cfg.band[0] + '–' + cfg.band[1] + cfg.unit, 'Random pick (share of relevant papers in the pool)'); }
+  cfg.cats.forEach((c, i) => {
+    const y0 = top + 8 + i*(rowH + rowGap);
+    const lab = txt(svg, L - 10, y0 + rowH/2 + 4, c.label, 'cl' + (c.strong ? ' strong' : ''), 'end');
+    cfg.series.forEach((s, j) => {
+      const v = c.values[j], y = y0 + j*(bh + gapIn);
+      const w = x(v) - L;
+      const hit = el('rect', {x: L, y: y - 1, width: Math.max(W - L - R, 1), height: bh + 2, fill: 'transparent'}, svg);
+      if (w > 0){ const p = el('path', {d: barPath(L, y, w, bh), fill: s.color}, svg); hook(p, v + cfg.unit, `${c.label} · ${s.name}${c.notes ? ' · ' + c.notes[j] : ''}`); }
+      else { const p = el('rect', {x: L, y, width: 2, height: bh, fill: s.color}, svg); hook(p, v + cfg.unit, `${c.label} · ${s.name}${c.notes ? ' · ' + c.notes[j] : ''}`); }
+      hook(hit, v + cfg.unit, `${c.label} · ${s.name}${c.notes ? ' · ' + c.notes[j] : ''}`, false);
+      txt(svg, x(v) + 5, y + bh - 1.5, v + cfg.unit, 'vl');
+    });
+  });
+}
+hbars('chartA', {
+  max: 50, ticks: [0, 10, 20, 30, 40, 50], unit: '%',
+  series: [{name: 'Review A (2023)', color: 'var(--s1)'}, {name: 'Review B (2020)', color: 'var(--s2)'}],
+  cats: [
+    {label: 'R1 · references of seeds', values: [13, 27], notes: ['31 of 230', '24 of 88']},
+    {label: 'R2 · papers citing ≥2 seeds', values: [2, 10], notes: ['4 of 230', '9 of 88']},
+    {label: 'R3 · PubMed similar', values: [3, 9], notes: ['6 of 230', '8 of 88']},
+    {label: 'related_works (dropped)', values: [0, 0], notes: ['0 of 230', '0 of 88']},
+    {label: 'Union R1–R3', values: [16, 42], notes: ['36 of 230', '37 of 88'], strong: true},
+    {label: 'PubMed keyword top 100', values: [2, 0], notes: ['4 of 230', 'title query returned 0']},
+    {label: 'OpenAlex search top 100', values: [1, 6], notes: ['2 of 230', '5 of 88']}
+  ]
+});
+fillTable('tA', ['Route', 'Review A', 'Review B'], [['R1 references of seeds','13% (31/230)','27% (24/88)'],['R2 papers citing ≥2 seeds','2% (4/230)','10% (9/88)'],['R3 PubMed similar','3% (6/230)','9% (8/88)'],['OpenAlex related_works','0%','0%'],['Union R1–R3','16% (36/230)','42% (37/88)'],['PubMed keyword top 100','2% (4/230)','0% (0 hits)'],['OpenAlex search top 100','1% (2/230)','6% (5/88)']]);
+hbars('chartB', {
+  max: 50, ticks: [0, 10, 20, 30, 40, 50], unit: '%', band: [4.5, 5.2],
+  series: [{name: 'Review A (2023)', color: 'var(--s1)'}, {name: 'Review B (2020)', color: 'var(--s2)'}],
+  cats: [
+    {label: 'Seed links only', values: [40, 35], strong: true},
+    {label: 'Seed links, ties by text', values: [25, 20]},
+    {label: 'RRF(links, text)', values: [30, 15]},
+    {label: 'Citation count only', values: [0, 25]},
+    {label: 'Weighted blend', values: [5, 10]},
+    {label: 'Title text only', values: [5, 5]}
+  ]
+});
+fillTable('tB', ['Ranking', 'Review A', 'Review B'], [['Seed links only','40%','35%'],['Seed links, ties by title text','25%','20%'],['RRF(seed links, title text)','30%','15%'],['Citation count only','0%','25%'],['0.5 links + 0.4 text + 0.1 citations','5%','10%'],['Title text only','5%','5%'],['Random pick (base rate)','5.2%','4.5%']]);
+
+/* funnel: routes + lanes */
+(function(){
+  const svg = $('#chartE'); svg.textContent = '';
+  const W = 900, L = 170, R = 60, H = 230, max = 1000;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const x = v => L + (W - L - R) * v / max;
+  [0, 250, 500, 750, 1000].forEach(t => { el('line', {x1: x(t), x2: x(t), y1: 8, y2: 160, class: t === 0 ? 'base-l' : 'grid-l'}, svg); txt(svg, x(t), 176, fmt(t), 'ax', 'middle'); });
+  const routes = [['R1 · references of seeds', LANES.routes.R1], ['R2 · citing ≥2 seeds', LANES.routes.R2], ['R3 · PubMed similar', LANES.routes.R3]];
+  routes.forEach((r, i) => { const y = 14 + i*26; txt(svg, L - 10, y + 11, r[0], 'cl', 'end'); const p = el('path', {d: barPath(L, y, x(r[1]) - L, 14), fill: 'var(--s1)'}, svg); hook(p, fmt(r[1]) + ' candidates', r[0]); txt(svg, x(r[1]) + 6, y + 11, fmt(r[1]), 'vl'); });
+  const y = 100, h = 26;
+  txt(svg, L - 10, y + 17, `Pool after dedupe · ${fmt(LANES.union)}`, 'cl strong', 'end');
+  const segs = [['Core', LANES.counts.Core || 0, 'var(--o1)', 'var(--o1-ink)'], ['Linked', LANES.counts.Linked || 0, 'var(--o2)', 'var(--o2-ink)'], ['Bridges', LANES.counts.Bridges || 0, 'var(--o3)', 'var(--o3-ink)'], ['Retracted', LANES.counts.Retracted || 0, 'var(--crit)', '#fff']];
+  let cur = L;
+  segs.forEach((s, i) => {
+    const w = (W - L - R) * s[1] / max; const last = i === segs.length - 1;
+    const gap = last ? 0 : 2; const ww = Math.max(w - gap, s[1] ? 1.5 : 0);
+    let shape;
+    if (last && ww > 0) shape = el('path', {d: barPath(cur, y, ww, h), fill: s[2]}, svg);
+    else shape = el('rect', {x: cur, y, width: ww, height: h, fill: s[2]}, svg);
+    hook(shape, fmt(s[1]) + ' papers', s[0] + ' lane');
+    const label = `${s[0]} ${fmt(s[1])}`;
+    if (ww > label.length*6.6 + 12){ const t = txt(svg, cur + 8, y + 17, label, 'vl'); t.style.fill = s[3]; }
+    else if (s[0] === 'Retracted'){ txt(svg, cur + ww + 6, y + 17, '⚠ Retracted ' + fmt(s[1]), 'vl'); }
+    cur += w;
+  });
+  txt(svg, L, 206, 'Next (planned, not measured): embed + rerank the pool → judge top 40 Core + 10 Fresh/Bridges → verify every quote', 'ax');
+  el('rect', {x: L, y: 214, width: W - L - R, height: 1, fill: 'var(--line)'}, svg);
+})();
+fillTable('tE', ['Stage', 'Papers'], [['R1 references of seeds', fmt(LANES.routes.R1)], ['R2 citing ≥2 seeds', fmt(LANES.routes.R2)], ['R3 PubMed similar', fmt(LANES.routes.R3)], ['Pool after dedupe', fmt(LANES.union)], ['Core', fmt(LANES.counts.Core||0)], ['Fresh', fmt(LANES.counts.Fresh||0)], ['Linked', fmt(LANES.counts.Linked||0)], ['Bridges', fmt(LANES.counts.Bridges||0)], ['Retracted', fmt(LANES.counts.Retracted||0)]]);
+
+/* storage dumbbell on a log axis (MB) */
+(function(){
+  const svg = $('#chartC'); svg.textContent = '';
+  const W = 600, L = 150, R = 56, H = 236;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const lo = Math.log10(10), hi = Math.log10(2e6);
+  const x = mb => L + (W - L - R) * (Math.log10(mb) - lo) / (hi - lo);
+  const ticks = [[10,'10 MB'],[100,'100 MB'],[1000,'1 GB'],[1e4,'10 GB'],[1e5,'100 GB'],[1e6,'1 TB']];
+  ticks.forEach(t => { el('line', {x1: x(t[0]), x2: x(t[0]), y1: 8, y2: H - 26, class: 'grid-l'}, svg); txt(svg, x(t[0]), H - 10, t[1], 'ax', 'middle'); });
+  const rows = [['Demo day', 50, 100, '50 MB', '0.1 GB'], ['Researcher-year', 500, 1300, '0.5 GB', '1.3 GB'], ['Lab of 50', 8000, 20000, '8 GB', '20 GB'], ['All of PubMed', 3e5, 1e6, '300 GB', '~1 TB']];
+  rows.forEach((r, i) => {
+    const y = 30 + i*48;
+    txt(svg, L - 12, y + 4, r[0], 'cl', 'end');
+    el('line', {x1: x(r[1]), x2: x(r[2]), y1: y, y2: y, stroke: 'var(--line-2)', 'stroke-width': 2}, svg);
+    const a = el('circle', {cx: x(r[1]), cy: y, r: 5, fill: 'var(--o3)', stroke: 'var(--surface)', 'stroke-width': 2}, svg); hook(a, r[3], r[0] + ' · abstracts only');
+    const b = el('circle', {cx: x(r[2]), cy: y, r: 5, fill: 'var(--o1)', stroke: 'var(--surface)', 'stroke-width': 2}, svg); hook(b, r[4], r[0] + ' · with open-access full text');
+    txt(svg, x(r[1]), y - 10, r[3], 'vl', 'middle');
+    txt(svg, x(r[2]), y + 19, r[4], 'vl', 'middle');
+  });
+})();
+fillTable('tC', ['Scenario', 'Abstracts only', 'With OA full text'], [['Demo day (~6k papers)','~50 MB','~0.1 GB'],['One researcher, one year (~60k)','~0.5 GB','~1.3 GB'],['Lab of 50 (~1M)','~8 GB','~20 GB'],['All of PubMed (~38M)','~300 GB','~1 TB']]);
+
+/* vector thresholds on a log axis */
+(function(){
+  const svg = $('#chartD'); svg.textContent = '';
+  const W = 600, L = 20, R = 20, H = 236;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const lo = 3, hi = 9;
+  const x = v => L + (W - L - R) * (Math.log10(v) - lo) / (hi - lo);
+  const zones = [[1e3, 1e5, 'var(--o3)', 'No vector DB', 'exact search in memory'], [1e5, 1e7, 'var(--o2)', 'Embedded index', 'LanceDB or pgvector'], [1e7, 1e9, 'var(--o1)', 'Distributed', 'LanceDB at scale, Qdrant, Milvus']];
+  const by = 58, bh = 18;
+  zones.forEach((z, i) => {
+    const r = el('rect', {x: x(z[0]) + (i ? 1 : 0), y: by, width: x(z[1]) - x(z[0]) - (i ? 2 : 0) - (i === 2 ? 0 : 1), height: bh, fill: z[2]}, svg); hook(r, z[3], `${fmt(z[0])}–${fmt(z[1])} vectors · ${z[4]}`);
+    txt(svg, (x(z[0]) + x(z[1]))/2, 24, z[3], 'cl strong', 'middle');
+    txt(svg, (x(z[0]) + x(z[1]))/2, 42, z[4], 'ax', 'middle');
+  });
+  [[1e3,'1k'],[1e4,'10k'],[1e5,'100k'],[1e6,'1M'],[1e7,'10M'],[1e8,'100M'],[1e9,'1B']].forEach(t => { el('line', {x1: x(t[0]), x2: x(t[0]), y1: by + bh, y2: by + bh + 5, class: 'base-l'}, svg); txt(svg, x(t[0]), by + bh + 17, t[1], 'ax', 'middle'); });
+  const marks = [[2e3, 'one run\'s pool', 1], [6e3, 'demo day', 0], [6e4, 'researcher-year', 0], [2.8e5, '+ full-text chunks', 1], [4.6e6, 'lab of 50 + full text', 0], [1.78e8, 'all of PubMed + full text', 1]];
+  marks.forEach(m => {
+    const mx = x(m[0]), row = m[2] ? 1 : 0; const ly = 128 + row*44;
+    el('line', {x1: mx, x2: mx, y1: by + bh + 22, y2: ly - 14, stroke: 'var(--line-2)', 'stroke-width': 1}, svg);
+    const d = el('circle', {cx: mx, cy: ly - 10, r: 4, fill: 'var(--fg)', stroke: 'var(--surface)', 'stroke-width': 2}, svg); hook(d, fmt(Math.round(m[0])) + ' vectors', m[1]);
+    const anchor = mx < 70 ? 'start' : mx > W - 90 ? 'end' : 'middle';
+    txt(svg, mx, ly + 6, m[1], 'vl', anchor);
+    txt(svg, mx, ly + 20, fmt(Math.round(m[0])), 'ax', anchor);
+  });
+})();
+fillTable('tD', ['Scenario', 'Vectors'], [['One run\'s candidate pool','~2,000'],['Demo day','~6,000'],['One researcher, one year (abstracts)','~60,000'],['… plus full-text chunks','~280,000'],['Lab of 50, with full text','~4,600,000'],['All of PubMed, with full text','~178,000,000'],['Threshold: embedded index','100,000'],['Threshold: distributed','10,000,000']]);
+
+/* why-ranked example from the real top paper */
+(function(){ const p = laneItems('Core')[0]; $('#whyex').textContent = whyRanked(p, 1); })();
+
+/* ---------- board ---------- */
+const CARDS = {
+  P0: [['F-00','Scaffold: Vite + Vue + Pinia client, Hono server, shared zod, Dockerfile; deploy v1','D','60m'],['F-01','Contracts + SQLite store (Drizzle) + raw cache','A','60m'],['F-02','Pipeline v1: resolve, abstracts (OpenAlex → PubMed), R1–R3, lanes, SSE','A','75m'],['F-03','Embeddings + rerank + Nemotron judge + quote verification','A','75m',1],['F-04','Zettlr shell: three panes, styles, themes, icons, file tree, tabs, status bar','B','75m'],['F-05','Markdown editor (CM6 + Zettlr renderers) + vault in IndexedDB + wikilinks','B','75m'],['F-06','Discover tab: question, seeds, step trail, lanes with evidence','C','75m'],['F-07','Graph view (Zettlr d3): notes + candidate ghost nodes','C','60m'],['F-08','Demo mode ?demo=1 + prod smoke test','D','30m',1]],
+  P1: [['F-09','Add to vault: literature notes + BibTeX / CSL JSON export','C','45m'],['F-10','Why ranked here + Lens re-sort from facet scores','C A','40m'],['F-11','Eval harness on the full pipeline; numbers for the pitch','D','60m'],['F-12','Scout agent (R5) + agent trace in the UI','D','60m'],['F-13','Tavily ingestion: classify, extract IDs, resolve, web sources','D','45m'],['F-14','R4 query expansion from facets','A','30m'],['F-15','👍/👎 with reason chips + grow again','A C','45m'],['F-16','Related tab (backlinks) + References tab','B','45m'],['F-17','Retraction flag + date check on citation links','A','15m']],
+  P2: [['F-18','Europe PMC XML full text → chunks → quotes','A','45m'],['F-19','Clusters + blind-spot view','A C','45m'],['F-20','Seed import from .bib / .ris / CSL JSON','B','40m'],['F-21','PaperTrail as an MCP server','D','30m'],['F-22','ClinicalTrials.gov links','D','30m']],
+  P3: [['F-23','PDF (GROBID or Docling) + OCR worker as a Nebius job','—','later'],['F-24','Postgres + object storage + LanceDB','—','later'],['F-25','Vault sync per user','—','later']]
+};
+const titles = {P0: ['P0 · Demo path', 'must have'], P1: ['P1 · Extra points', 'value order'], P2: ['P2 · If time allows', 'cut first'], P3: ['P3 · After the event', 'roadmap']};
+$('#boardcols').innerHTML = Object.keys(CARDS).map(p => `<div class="col ${p.toLowerCase()}"><div class="col-h"><b>${titles[p][0]}</b><span class="muted" style="font-size:12px">${titles[p][1]} · ${CARDS[p].length}</span></div>${CARDS[p].map(c => `<div class="card${c[4] ? ' never' : ''}"><div class="h"><span class="id">${c[0]}</span><span class="est">${c[3]}</span></div><p>${esc(c[1])}</p><div class="lns">${c[2] === '—' ? '' : c[2].split(' ').map(l => `<span class="ln ${l}">${l}</span>`).join('')}</div></div>`).join('')}</div>`).join('');
+
+/* ---------- gantt ---------- */
+const T0 = 13*60, T1 = 20*60 + 15;
+const gp = hm => { const [h, m] = hm.split(':').map(Number); return ((h*60 + m) - T0)/(T1 - T0)*100; };
+const ROWS = [
+  ['Phase', '', [['13:05','13:30','Kickoff','ph'],['13:30','15:15','Build 1 · P0','ph'],['15:15','16:30','Build 2','ph'],['16:30','17:30','Harden','ph'],['17:30','18:00','Ship','ph'],['18:00','18:30','Buffer','ph'],['18:30','20:00','Dinner + rehearsal','ph'],['20:00','20:15','Demo','ph']]],
+  ['A', 'BE / AI', [['13:05','13:30','keys + model checks','A'],['13:30','14:15','F-01 store','A'],['14:15','15:15','F-02 routes + lanes','A'],['15:15','16:15','F-03 judge + verify','A'],['16:15','16:30','F-17','A'],['16:30','17:30','timeouts, caching','A'],['17:30','18:00','support','A']]],
+  ['B', 'Workspace', [['13:05','13:30','copy Zettlr assets','B'],['13:30','14:45','F-04 shell','B'],['14:45','16:00','F-05 editor + vault','B'],['16:00','16:30','F-16','B'],['16:30','17:30','polish','B'],['17:30','18:00','screenshots','B']]],
+  ['C', 'Discovery UI', [['13:05','13:30','skeleton on fixtures','C'],['13:30','14:45','F-06 Discover tab','C'],['14:45','15:45','F-07 graph','C'],['15:45','16:30','F-09 + F-10','C'],['16:30','17:30','wow polish','C'],['17:30','18:00','recording','C']]],
+  ['D', 'Infra · eval', [['13:05','13:30','F-00 scaffold','D'],['13:30','14:15','deploy v1','D'],['14:15','14:45','F-08 demo','D'],['14:45','15:15','F-13','D'],['15:15','15:35','v2','D'],['15:35','16:30','F-12 Scout','D'],['16:30','17:15','F-11 eval','D'],['17:15','17:30','review','D'],['17:30','18:00','v3 + submit','D']]]
+];
+const MARKS = [['13:30','G1 + G2'],['15:15','Sync'],['16:30','Freeze'],['17:30','Code freeze'],['18:00','Submit','hard'],['18:30','Deadline','hard'],['20:00','Demo','hard']];
+let ticks = ''; for (let t = T0; t <= 20*60; t += 30){ ticks += `<span style="left:${(t - T0)/(T1 - T0)*100}%">${Math.floor(t/60)}:${pad(t%60)}</span>`; }
+$('#gantt').innerHTML = `<div class="g-axis"><span></span><div class="track">${ticks}</div></div>` +
+  ROWS.map(r => `<div class="g-row"><span class="who">${r[0]}<small>${r[1]}</small></span><div class="track">${r[2].map(b => `<div class="blk ${b[3]}" style="left:${gp(b[0])}%;width:calc(${gp(b[1]) - gp(b[0])}% - 3px)" title="${b[0]}–${b[1]} ${esc(b[2])}">${esc(b[2])}</div>`).join('')}</div></div>`).join('') +
+  `<div class="g-marks">${MARKS.map(m => `<div class="gm ${m[2] || ''}" style="left:${gp(m[0])}%"><span>${m[1]}</span></div>`).join('')}<div class="gm now" id="nowmark" hidden><span>Now</span></div></div>`;
+function placeNow(){
+  const nm = $('#nowmark'); if (!nm) return; const c = cest(new Date());
+  if (c.date !== '2026-10-18'){ nm.hidden = true; return; }
+  const p = ((c.h*60 + c.m) - T0)/(T1 - T0)*100; if (p < 0 || p > 100){ nm.hidden = true; return; }
+  nm.hidden = false; nm.style.left = p + '%';
+}
+
+/* ---------- copy ---------- */
+$('#copybtn').addEventListener('click', () => {
+  const t = $('#deploycode').innerText;
+  navigator.clipboard.writeText(t).then(() => { $('#copybtn').textContent = 'Copied'; setTimeout(() => $('#copybtn').textContent = 'Copy', 1400); })
+    .catch(() => { const r = document.createRange(); r.selectNodeContents($('#deploycode')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); $('#copybtn').textContent = 'Selected'; });
+});
+
+/* ---------- boot ---------- */
+state.sel = laneItems('Core')[0].id; state.tab = 'preview'; state.open = 'q';
+renderAll(); syncTheme(); tick(); setInterval(tick, 30000);
+})();
+</script>
