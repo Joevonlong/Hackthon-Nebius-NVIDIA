@@ -5,3 +5,4 @@ D-18 (14:20): MVP runs locally on the laptop (pnpm build && PORT=3030 pnpm start
 D-19 (14:45): Token Factory has no Qwen3-Reranker; the rerank stage falls back to embedding similarity with the question and labels it.
 D-20 (15:10): Library mode — vault as one topic, multi-source search, labels, evidence-backed quality score (docs/LIBRARY_SPEC.md). Google Scholar only through SerpAPI.
 D-21/D-22 (15:25): Scholar dropped, Tavily high priority; defaults top-N 30 / threshold 0.55 / abstract-only LLM read. CR-1 confirmed.
+D-23 (15:35): Library replaces Discover in the UI; seeds in notes = knownPapers; /api/runs kept server-side without UI; demo replays a Library recording.
