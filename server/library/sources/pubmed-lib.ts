@@ -1,5 +1,8 @@
 // Owner: lane L1. PubMed for Library mode: esearch (relevance) → efetch XML with PublicationType + MeSH.
 // GETs go through the raw cache + 'pubmed' gate (≤3 req/s) in server/data/http.ts.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { dataDir } from '../../data/db'
 import { cachedGet, mapLimit } from '../../data/http'
 import { decodeXml } from '../../sources/pubmed'
 
@@ -79,21 +82,34 @@ export function parsePubmedXml(xml: string): PubmedRecord[] {
 
 /** esearch, relevance-sorted. Returns PMIDs best first. */
 export async function esearch(term: string, retmax = 40): Promise<{ pmids: string[]; url: string }> {
-  const r = await cachedGet('pubmed', euUrl('esearch', { db: 'pubmed', term, sort: 'relevance', retmax, retmode: 'json' }), { timeoutMs: 20000, retries: 2 })
+  const r = await cachedGet('pubmed', euUrl('esearch', { db: 'pubmed', term, sort: 'relevance', retmax, retmode: 'json' }), { timeoutMs: 20000, retries: 4 })
   const j = JSON.parse(r.body)
   return { pmids: (j?.esearchresult?.idlist ?? []).map(String), url: r.url }
 }
 
-/** efetch records, 200 PMIDs per request. Failed chunks are skipped (reported via onError). */
+export const EFETCH_CHUNK = 100
+
+/** efetch records, ≤100 PMIDs per request, 3 requests in parallel (the 'pubmed' gate keeps ≤3 req/s). PMIDs are sorted so
+ *  the chunk URLs — and so the raw-cache keys — do not depend on the order sources answered in. Failed chunks are skipped (onError). */
 export async function efetch(pmids: string[], onError?: (e: unknown) => void): Promise<Map<string, PubmedRecord>> {
-  const uniq = [...new Set(pmids.filter(Boolean))]
-  const chunks: string[][] = []
-  for (let i = 0; i < uniq.length; i += 200) chunks.push(uniq.slice(i, i + 200))
+  const all = [...new Set(pmids.filter(Boolean))].sort((a, b) => Number(a) - Number(b))
   const out = new Map<string, PubmedRecord>()
-  await mapLimit(chunks, 1, async c => {
+  // per-record cache (parsed records, ${DATA_DIR}/raw/pubmed-rec/<pmid>.json): a warm build whose PMID set shifted by a few
+  // ids still needs no request; the raw efetch XML of each chunk stays in the raw cache as before
+  const recDir = join(dataDir(), 'raw', 'pubmed-rec')
+  for (const p of all) {
+    const f = join(recDir, `${p}.json`)
+    if (existsSync(f)) try { out.set(p, JSON.parse(readFileSync(f, 'utf8'))) } catch { /* refetch */ }
+  }
+  const uniq = all.filter(p => !out.has(p))
+  const chunks: string[][] = []
+  for (let i = 0; i < uniq.length; i += EFETCH_CHUNK) chunks.push(uniq.slice(i, i + EFETCH_CHUNK))
+  await mapLimit(chunks, 3, async c => {
     try {
-      const r = await cachedGet('pubmed', euUrl('efetch', { db: 'pubmed', id: c.join(','), retmode: 'xml' }), { timeoutMs: 45000, retries: 2 })
-      for (const rec of parsePubmedXml(r.body)) out.set(rec.pmid, rec)
+      const r = await cachedGet('pubmed', euUrl('efetch', { db: 'pubmed', id: c.join(','), retmode: 'xml' }), { timeoutMs: 30000, retries: 3 })
+      const recs = parsePubmedXml(r.body)
+      try { mkdirSync(recDir, { recursive: true }); for (const rec of recs) writeFileSync(join(recDir, `${rec.pmid}.json`), JSON.stringify(rec)) } catch { /* best effort */ }
+      for (const rec of recs) out.set(rec.pmid, rec)
     } catch (e) { onError?.(e) }
   })
   return out

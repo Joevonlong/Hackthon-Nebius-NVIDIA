@@ -46,10 +46,11 @@ export async function citedByWorks(budget: OaBudget, wid: string, n = 50): Promi
 
 /** Batched lookup by a filter key, ≤50 values per request. Failed chunks are reported, not thrown. */
 async function batch(budget: OaBudget, path: string, key: string, values: string[], select: string, onError?: (e: unknown) => void): Promise<any[]> {
-  const uniq = [...new Set(values.filter(Boolean))]
+  // sorted: chunk URLs (= raw-cache keys) must not depend on the order sources answered in, or warm builds miss the cache
+  const uniq = [...new Set(values.filter(Boolean))].sort()
   const chunks: string[][] = []
   for (let i = 0; i < uniq.length; i += 50) chunks.push(uniq.slice(i, i + 50))
-  const res = await mapLimit(chunks, 4, async c => {
+  const res = await mapLimit(chunks, 6, async c => {
     try { return (await get(budget, path, { filter: `${key}:${c.join('|')}`, 'per-page': 50, select })).data.results ?? [] }
     catch (e) { onError?.(e); return [] }
   })

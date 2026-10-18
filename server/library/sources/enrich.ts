@@ -7,7 +7,7 @@ import { invertedIndexToText, mapWork, shortId } from '../../sources/openalex'
 import type { EnrichedRecord } from '../types'
 import { authorsBy, type OaBudget, sourcesBy, worksBy } from './openalex-lib'
 import { attachWork, type Cand, recordKey } from './normalize'
-import { efetch } from './pubmed-lib'
+import { efetch, type PubmedRecord } from './pubmed-lib'
 
 type AuthorInfo = EnrichedRecord['authors'][number]
 type VenueInfo = EnrichedRecord['venue']
@@ -16,20 +16,13 @@ export interface EnrichStats { works: number; venues: number; authors: number; p
 
 const errMsg = (e: unknown) => String((e as Error)?.message ?? e).slice(0, 160)
 
-/** Fills missing OpenAlex works and PubMed records in place. */
+/** Fills missing OpenAlex works and PubMed records in place. PubMed efetch for already-known PMIDs runs in parallel with the
+ *  OpenAlex works lookup; a second (small) efetch covers PMIDs learned from those works. */
 export async function fillWorksAndPubmed(cands: Cand[], budget: OaBudget, st: EnrichStats): Promise<void> {
-  const need = cands.filter(c => c.ids.openalex && !c.work)
-  if (need.length) {
-    const ws = await worksBy(budget, 'openalex_id', need.map(c => c.ids.openalex!), e => st.errors.push('openalex works: ' + errMsg(e)))
-    const byId = new Map(ws.map(w => [shortId(w.id), w]))
-    for (const c of need) { const w = byId.get(c.ids.openalex!); if (w) { attachWork(c, w); st.works++ } }
-  }
-  const pm = cands.filter(c => c.ids.pmid && !c.pubmed)
-  if (pm.length) {
-    const recs = await efetch(pm.map(c => c.ids.pmid!), e => st.errors.push('pubmed efetch: ' + errMsg(e)))
+  const applyPubmed = (pm: Cand[], recs: Map<string, PubmedRecord>) => {
     for (const c of pm) {
       const r = recs.get(c.ids.pmid!)
-      if (!r) continue
+      if (!r || c.pubmed) continue
       c.pubmed = r; st.pubmed++
       if (!c.title) c.title = r.title
       if (!c.year) c.year = r.year
@@ -39,6 +32,21 @@ export async function fillWorksAndPubmed(cands: Cand[], budget: OaBudget, st: En
       if (!c.venue) c.venue = r.journal
     }
   }
+  const onPmErr = (e: unknown) => st.errors.push('pubmed efetch: ' + errMsg(e))
+  const pm1 = cands.filter(c => c.ids.pmid && !c.pubmed)
+  const need = cands.filter(c => c.ids.openalex && !c.work)
+  const [, recs1] = await Promise.all([
+    (async () => {
+      if (!need.length) return
+      const ws = await worksBy(budget, 'openalex_id', need.map(c => c.ids.openalex!), e => st.errors.push('openalex works: ' + errMsg(e)))
+      const byId = new Map(ws.map(w => [shortId(w.id), w]))
+      for (const c of need) { const w = byId.get(c.ids.openalex!); if (w) { attachWork(c, w); st.works++ } }
+    })(),
+    pm1.length ? efetch(pm1.map(c => c.ids.pmid!), onPmErr) : Promise.resolve(new Map<string, PubmedRecord>()),
+  ])
+  applyPubmed(pm1, recs1)
+  const pm2 = cands.filter(c => c.ids.pmid && !c.pubmed && !recs1.has(c.ids.pmid))
+  if (pm2.length) applyPubmed(pm2, await efetch(pm2.map(c => c.ids.pmid!), onPmErr))
 }
 
 function pickAuthorIds(w: any): string[] {
@@ -51,23 +59,23 @@ function pickAuthorIds(w: any): string[] {
 /** Venue + author lookups, abstract waterfall, then the final records. */
 export async function enrich(cands: Cand[], budget: OaBudget, st: EnrichStats): Promise<EnrichedRecord[]> {
   const works = cands.filter(c => c.work)
+  // abstract waterfall, last step: Europe PMC by DOI for whatever is still missing — independent of venues / authors, so in parallel
+  const absOf = (c: Cand) => invertedIndexToText(c.work?.abstract_inverted_index) || c.pubmed?.abstract || c.arxiv?.summary || c.europepmc?.abstract || null
+  const missing = cands.filter(c => !absOf(c) && c.ids.doi).slice(0, 200)
   const [sources, authors] = await Promise.all([
     sourcesBy(budget, [...new Set(works.map(c => shortId(c.work.primary_location?.source?.id)).filter(Boolean))], e => st.errors.push('openalex sources: ' + errMsg(e))),
     authorsBy(budget, [...new Set(works.flatMap(c => pickAuthorIds(c.work)))], e => st.errors.push('openalex authors: ' + errMsg(e))),
+    (async () => {
+      if (!missing.length) return
+      try {
+        const m = await abstractsByDoi(missing.map(c => c.ids.doi!))
+        for (const c of missing) { const a = m.get(c.ids.doi!.toLowerCase()); if (a) { c.europepmc = { abstract: a }; st.epmcAbstracts++ } }
+      } catch (e) { st.errors.push('europepmc abstracts: ' + errMsg(e)) }
+    })(),
   ])
   const srcMap = new Map(sources.map(s => [shortId(s.id), s]))
   const authMap = new Map(authors.map(a => [shortId(a.id), a]))
   st.venues = srcMap.size; st.authors = authMap.size
-
-  // abstract waterfall, last step: Europe PMC by DOI for whatever is still missing
-  const absOf = (c: Cand) => invertedIndexToText(c.work?.abstract_inverted_index) || c.pubmed?.abstract || c.arxiv?.summary || c.europepmc?.abstract || null
-  const missing = cands.filter(c => !absOf(c) && c.ids.doi).slice(0, 200)
-  if (missing.length) {
-    try {
-      const m = await abstractsByDoi(missing.map(c => c.ids.doi!))
-      for (const c of missing) { const a = m.get(c.ids.doi!.toLowerCase()); if (a) { c.europepmc = { abstract: a }; st.epmcAbstracts++ } }
-    } catch (e) { st.errors.push('europepmc abstracts: ' + errMsg(e)) }
-  }
   return cands.map(c => toRecord(c, srcMap, authMap))
 }
 

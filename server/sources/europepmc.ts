@@ -7,11 +7,11 @@ const clean = (s: string) => s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').tri
 
 /** DOI (lowercased) → abstract, 25 DOIs per OR query. */
 export async function abstractsByDoi(dois: string[]): Promise<Map<string, string>> {
-  const uniq = [...new Set(dois.filter(Boolean).map(d => d.toLowerCase()))]
+  const uniq = [...new Set(dois.filter(Boolean).map(d => d.toLowerCase()))].sort() // stable chunk URLs = stable cache keys
   const chunks: string[][] = []
   for (let i = 0; i < uniq.length; i += 25) chunks.push(uniq.slice(i, i + 25))
   const out = new Map<string, string>()
-  await mapLimit(chunks, 2, async c => {
+  await mapLimit(chunks, 4, async c => {
     const u = new URL(BASE)
     u.searchParams.set('query', c.map(d => `DOI:"${d}"`).join(' OR '))
     u.searchParams.set('resultType', 'core')
