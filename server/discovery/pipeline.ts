@@ -72,7 +72,7 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
 
   // ---- resolve seeds --------------------------------------------------------------------------------
   const seeds = await stage<Seed[]>(run, 'resolve', [], async () => {
-    const r = await resolveSeeds(seedInputs)
+    const r = await resolveSeeds(seedInputs, { fallback: async () => null }) // the discovery graph routes need OpenAlex W-ids
     for (const q of r.requests) prov.push({ paperId: q.paperId, route: 'seed', api: 'openalex', requestUrl: q.url, rawHash: q.hash })
     const message = r.errors.length ? r.errors.map(e => `${e.input}: ${e.message}`).join('; ') : undefined
     return { value: r.seeds, count: r.seeds.length, message }

@@ -16,7 +16,10 @@ export function kindOf(rec: EnrichedRecord): Kind {
   if (has(pt, /^meta-analysis$/i) || /\bmeta-analy[sz]is\b/.test(title)) return 'meta-analysis'
   if (has(pt, /^systematic review$/i) || /\bsystematic review\b/.test(title)) return 'systematic-review'
   if (has(pt, /^review$/i) || type === 'review' || cr === 'review') return 'review'
-  if (['editorial', 'letter', 'erratum', 'comment'].includes(type) || has(pt, /^(editorial|letter|comment)$/i)) return 'editorial'
+  // Q2-9: editorial only from an explicit editorial type — OpenAlex type 'editorial' or PubMed Editorial / Comment.
+  // Letters (e.g. STTT "Letter" research articles), errata and title/venue wording never make a paper an editorial.
+  if (type === 'editorial' || has(pt, /^(editorial|comment)$/i)) return 'editorial'
+  if (type === 'erratum' || cr === 'erratum' || has(pt, /^published erratum$/i)) return 'other'
   if (type === 'book' || cr === 'book' || cr === 'monograph') return 'book'
   if (type === 'book-chapter' || cr === 'book-chapter') return 'book-chapter'
   if (type === 'dataset' || cr === 'dataset') return 'dataset'
