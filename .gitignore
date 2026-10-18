@@ -13,3 +13,4 @@ dist/
 *.sqlite-*
 .docker-deploy/
 /logs/
+/workspace/

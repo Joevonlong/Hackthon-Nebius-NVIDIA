@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest'
+import { parseSeedText } from './seed-import'
+
+describe('seed file import (D-36)', () => {
+  it('reads DOIs, PMIDs and arXiv ids from BibTeX', () => {
+    const bib = `@article{a, title={X}, doi = {10.1126/science.aad0501}, pmid={27124452}}
+@article{b, doi = "https://doi.org/10.1016/j.cell.2018.10.038",}
+@misc{c, eprint = {1706.03762v5}, archivePrefix={arXiv}}`
+    const r = parseSeedText('refs.bib', bib)
+    expect(r.format).toBe('bibtex')
+    expect(r.ids).toEqual(['10.1126/science.aad0501', 'PMID:27124452', '10.1016/j.cell.2018.10.038', 'arXiv:1706.03762'])
+  })
+  it('reads RIS DO and AN tags', () => {
+    const r = parseSeedText('x.ris', 'TY  - JOUR\nTI  - A\nDO  - 10.1038/nature12345\nAN  - 31234567\nER  - \n')
+    expect(r.format).toBe('ris')
+    expect(r.ids).toEqual(['10.1038/nature12345', 'PMID:31234567'])
+  })
+  it('reads CSL JSON', () => {
+    const r = parseSeedText('x.json', JSON.stringify([{ DOI: '10.1000/abc' }, { PMID: '12345678' }, { URL: 'https://arxiv.org/abs/2101.00001' }]))
+    expect(r.ids).toEqual(['10.1000/abc', 'PMID:12345678', 'arXiv:2101.00001'])
+  })
+  it('takes the DOI / PMID column of a CSV, or id-looking cells', () => {
+    expect(parseSeedText('x.csv', 'Title,DOI,Year\n"A, b",10.1000/a,2020\nB,,2021\n').ids).toEqual(["10.1000/a"])
+    expect(parseSeedText('x.csv', 'title;id\nA;W2741809807\nB;31234567\n').ids).toEqual(['W2741809807', 'PMID:31234567'])
+  })
+  it('reads a plain text list and dedupes', () => {
+    expect(parseSeedText('x.txt', '10.1000/A\n10.1000/a\n31234567\narXiv:2101.00001').ids).toEqual(["10.1000/A", 'arXiv:2101.00001', 'PMID:31234567'])
+  })
+})

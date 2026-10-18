@@ -45,10 +45,14 @@ export function rescore(papers: LibPaper[], rule: PassRule & { weights?: Weights
     const { components, total } = combine(p.components, rule.weights)
     return { ...p, components, total }
   })
-  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total)
+  // same order as server/library/score.ts: the cut is taken by total (ties: title), then excluded last, passed first,
+  // total desc, title — so client ranks match the server's and the chat's after re-weighting.
+  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
   const cut = passCut(next.filter(p => !p.excluded).length, rule.topPercent)
   // D-38: an LLM read with relevance 0–1 of 3 can never pass (same rule as server/library/score.ts offTopicByLlm).
-  next.forEach((p, i) => { p.rank = i + 1; p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 && !(p.llmRead && p.llmRead.relevance <= 1) })
+  next.forEach((p, i) => { p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 && !(p.llmRead && p.llmRead.relevance <= 1) })
+  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
+  next.forEach((p, i) => { p.rank = i + 1 })
   return next
 }
 

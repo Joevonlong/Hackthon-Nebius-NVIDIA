@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// Library sidebar (lanes L3, U1; D-20/D-23): research question + Build (F-51), seeds, pass rule (F-49), controls,
-// stage trail, goals, sources, top results with verdicts (F-47).
+// Library sidebar (lanes L3, U1, W2; D-20/D-23/D-33/D-35/D-36): research question switcher, question box + Build (F-51),
+// seeds of the current question (F-62), History (F-61), pass rule (F-49), controls, stage trail, goals, sources, top results.
 import { computed, ref, watch } from 'vue'
 import { SourceName } from '@shared/library'
-import { useLibrary, LIB_STAGE_LABEL, SOURCE_LABEL, UI_SOURCES } from '../stores/library'
-import { useVault, questionNote, QUESTION_PATH } from '../stores/vault'
+import { useLibrary, lastOpened, LIB_SETTINGS_KEY, LIB_STAGE_LABEL, SOURCE_LABEL, UI_SOURCES } from '../stores/library'
+import { useVault } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName } from '../stores/vault-utils'
 import { COMPONENT_KEYS, COMPONENT_META, f2, weightSum, type ComponentKey } from './score'
@@ -14,37 +14,70 @@ import Verdict from './Verdict.vue'
 import PassRule from './PassRule.vue'
 import WhyRelevant from './WhyRelevant.vue'
 import CountUp from '../discover/CountUp.vue'
+import QuestionSwitcher from './questions/QuestionSwitcher.vue'
+import SeedPanel from './seeds/SeedPanel.vue'
+import HistoryList from './history/HistoryList.vue'
 
 const lib = useLibrary()
 const vault = useVault()
 const ui = useUi()
 
 const running = computed(() => lib.status === 'running')
-const seedText = ref('')
-const seedsOpen = ref(false)
+const seedsOpen = ref(true)
+const historyOpen = ref(true)
 const delay = (i: number) => ({ '--i': i })
-const seedCount = computed(() => vault.notes.filter(n => n.kind === 'seed').length)
+const cur = computed(() => vault.currentQuestion)
+const seedCount = computed(() => cur.value ? vault.seedsIn(cur.value.id).length : 0)
 const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'demo' ? 'Replay of a recorded real run' : lib.mode === 'live' ? 'live' : '')
-const QUESTION_PLACEHOLDER = 'Which single-cell methods help study melanoma immune cells?'
+const QUESTION_PLACEHOLDER = 'Type your research question'
 
-// F-51: the research question box. Starts from Notes/Question.md; Build writes it back (question paragraph only).
+// F-51 / D-33: the question box edits the CURRENT question's Questions/<name>/Question.md (question paragraph only).
 const question = ref('')
 let touched = false
-const syncQuestion = () => { if (!touched) question.value = readQuestion(vault.byPath(QUESTION_PATH)?.content) }
-watch(() => [vault.ready, vault.byPath(QUESTION_PATH)?.content], syncQuestion, { immediate: true })
-const seedsBox = ref<HTMLTextAreaElement | null>(null)
-function openSeeds() { seedsOpen.value = true; setTimeout(() => seedsBox.value?.focus(), 350) }
-async function build() {
-  const q = question.value.trim()
-  if (!q || running.value) return
-  const ex = vault.byPath(QUESTION_PATH)
-  if (ex) await vault.upsert({ path: ex.path, kind: ex.kind, title: ex.title, paperId: ex.paperId, content: writeQuestion(ex.content, q) })
-  else await vault.upsert(questionNote(q))
+const syncQuestion = () => { if (!touched) question.value = readQuestion(cur.value ? vault.byPath(cur.value.path)?.content : '') }
+watch(() => [vault.ready, cur.value?.path, cur.value ? vault.byPath(cur.value.path)?.content : ''], syncQuestion, { immediate: true })
+watch(() => cur.value?.id, () => { touched = false; syncQuestion() })
+async function saveQuestion() {
+  const q = question.value.trim(); const c = cur.value
+  if (!q || !c) return
+  const ex = vault.byPath(c.path)
+  if (ex && readQuestion(ex.content) !== q) await vault.upsert({ path: ex.path, kind: ex.kind, title: ex.title, paperId: ex.paperId, content: writeQuestion(ex.content, q) })
   touched = false
+}
+async function build() {
+  if (!question.value.trim() || running.value || !cur.value) return
+  await saveQuestion()
   ui.openLibrary()
   await lib.start()
 }
 const onQuestionKey = (e: KeyboardEvent) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void build() } }
+
+// D-35: History of the current question; the last opened library of that question reopens (also after a reload, Q-1).
+async function reopenFor(qid: string | null) {
+  await lib.loadHistory(qid)
+  if (lib.status === 'running' || lib.mode === 'demo' || lib.mode === 'mock') return
+  if (lib.libraryId && lib.questionId === qid) return
+  const last = lastOpened(qid)
+  if (!last || !lib.history.some(h => h.libraryId === last)) { if (lib.questionId !== qid) lib.reset(); return }
+  // openStored restores this library's saved pass rule / weights / filters / topK (Q-1); chat history is keyed by libraryId
+  if (await lib.openStored(last, qid)) { if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary({ meta: { libraryId: last, questionId: qid } }) }
+  else if (lib.questionId !== qid) lib.reset()
+}
+watch(() => [vault.ready, vault.current] as const, ([ready, q]) => { if (ready) void reopenFor(q ?? null) }, { immediate: true })
+// CR-6: Back / Forward to a Library entry that showed another saved library reloads that library (no rebuild).
+watch(() => ui.restoreSeq, () => {
+  const meta = ui.restoring?.entry.meta as { libraryId?: unknown; questionId?: unknown } | undefined
+  const id = typeof meta?.libraryId === 'string' ? meta.libraryId : null
+  if (!id || id === lib.libraryId || lib.status === 'running') return
+  const qid = typeof meta?.questionId === 'string' ? meta.questionId : vault.current
+  if (qid && qid !== vault.current && vault.questions.some(q => q.id === qid)) vault.setCurrent(qid)
+  void lib.openStored(id, qid ?? null)
+})
+// Q-1: remember the pass rule, weights, filters and topK per library so a reload restores them.
+watch(() => lib.libraryId && lib.status === 'done' ? JSON.stringify({ weights: lib.weights, topPercent: lib.topPercent, threshold: lib.threshold, filters: lib.filters, topK: lib.topK }) : null, v => {
+  if (!v || !lib.libraryId || lib.mode !== 'live') return
+  try { localStorage.setItem(LIB_SETTINGS_KEY(lib.libraryId), v) } catch { /* storage blocked */ }
+})
 
 const toggleSource = (s: SourceName) => {
   const i = lib.sources.indexOf(s)
@@ -54,7 +87,6 @@ const llmLowest = computed(() => COMPONENT_KEYS.filter(k => k !== 'llm').every(k
 const share = (k: ComponentKey) => { const s = weightSum(lib.weights); return s > 0 ? lib.weights[k] / s : 0 }
 const topKModel = computed({ get: () => lib.topK, set: (v: number) => { lib.topK = Math.max(5, Math.min(200, Math.round(Number(v) || 30))) } })
 
-async function addSeeds() { await lib.addSeeds(seedText.value); if (!lib.seedErrors.length) seedText.value = '' }
 function openNote(path: string) { const n = vault.byPath(path); if (n) ui.openNote(n.path, noteName(n.path)) }
 const goalEvidence = (i: number) => lib.goals?.evidence[i] || null
 // J-4: the Tavily row stays visible even before (or without) Tavily calls.
@@ -68,39 +100,46 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
     <header class="block rv" :style="delay(0)">
       <div class="eyebrow">Research library<span v-if="modeLabel" class="mode" :class="lib.mode">{{ modeLabel }}</span></div>
       <h2 class="title">Library</h2>
-      <p class="prose">The whole vault is one research topic. An agent reads all {{ vault.notes.length }} notes, derives goals, searches every source, labels and scores each paper with evidence, and returns the best {{ lib.topK }}.</p>
+      <p class="prose">One research question is one folder. An agent reads only that folder ({{ cur ? vault.notesIn(cur.id).length : 0 }} notes, {{ seedCount }} seeds), derives goals, searches every source, labels and scores each paper with evidence, and returns the best {{ lib.topK }}.</p>
     </header>
 
+    <QuestionSwitcher class="rv" :style="delay(1)" />
+
+    <template v-if="cur">
     <section class="block rv" :style="delay(1)">
-      <div class="eyebrow"><label for="rq">Research question</label><span class="sub">saved to {{ QUESTION_PATH }}</span></div>
-      <textarea id="rq" v-model="question" class="qbox ask" rows="3" :placeholder="QUESTION_PLACEHOLDER" :disabled="running" @input="touched = true" @keydown="onQuestionKey" />
+      <div class="eyebrow"><label for="rq">Research question</label><span class="sub">saved to {{ cur.path }}</span></div>
+      <textarea id="rq" v-model="question" class="qbox ask" rows="3" :placeholder="QUESTION_PLACEHOLDER" :disabled="running" @input="touched = true" @blur="saveQuestion" @keydown="onQuestionKey" />
       <div class="runrow">
         <button class="pill primary" type="button" :class="{ busy: running }" :disabled="running || !question.trim()" @click="build">
           <i v-if="running" class="dot live" />{{ running ? 'Building library…' : 'Build library' }}
         </button>
         <button v-if="lib.status === 'done' || lib.papers.length" class="pill" type="button" @click="ui.openLibrary()">Open results</button>
       </div>
-      <p v-if="!seedCount" class="small hint">No seed papers yet. <button type="button" class="lnk inl" @click="openSeeds">Add seed papers</button> so results link to papers you trust.</p>
+      <p v-if="!seedCount" class="small hint">No seed papers for this question yet. Add some below so results link to papers you trust.</p>
       <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
       <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="pill" type="button" @click="build">Retry</button></div>
     </section>
 
     <section class="block rv" :style="delay(1)">
       <button type="button" class="eyebrow tog" :aria-expanded="seedsOpen" @click="seedsOpen = !seedsOpen">
-        <span class="plus" :class="{ open: seedsOpen }" aria-hidden="true" />Add seed papers<span class="sub">{{ seedCount }} seed notes</span>
+        <span class="plus" :class="{ open: seedsOpen }" aria-hidden="true" />Seed papers<span class="sub">{{ seedCount }} in {{ cur.name }}/seeds</span>
       </button>
       <div class="more" :class="{ open: seedsOpen }"><div class="more-in"><div class="stack">
-        <textarea ref="seedsBox" v-model="seedText" class="qbox mono" rows="4" spellcheck="false" placeholder="One DOI, PMID, arXiv or OpenAlex id per line" :disabled="lib.seedBusy" />
-        <div class="runrow">
-          <button class="pill" type="button" :disabled="lib.seedBusy || !seedText.trim()" @click="addSeeds">{{ lib.seedBusy ? 'Resolving…' : 'Add to Seeds/' }}</button>
-          <small class="faint">Their ids become known papers for the next build.</small>
-        </div>
-        <ul v-if="lib.seedAdded.length || lib.seedErrors.length" class="seedres">
-          <li v-for="p in lib.seedAdded" :key="p"><button type="button" class="lnk" @click="openNote(p)">{{ noteName(p) }}</button></li>
-          <li v-for="(e, i) in lib.seedErrors" :key="'e' + i" class="bad">{{ e.input ? e.input + ': ' : '' }}{{ e.message }}</li>
-        </ul>
+        <SeedPanel :question="cur.id" />
       </div></div></div>
     </section>
+
+    <section class="block rv" :style="delay(2)">
+      <button type="button" class="eyebrow tog" :aria-expanded="historyOpen" @click="historyOpen = !historyOpen">
+        <span class="plus" :class="{ open: historyOpen }" aria-hidden="true" />History<span class="sub">{{ lib.history.length }} saved librar{{ lib.history.length === 1 ? 'y' : 'ies' }} for this question</span>
+      </button>
+      <div class="more" :class="{ open: historyOpen }"><div class="more-in"><div class="stack">
+        <HistoryList :question-id="cur.id" />
+      </div></div></div>
+    </section>
+    </template>
+
+    <template v-if="cur">
 
     <section class="block rv" :style="delay(2)">
       <div class="eyebrow"><label for="topk">Papers to return</label></div>
@@ -205,6 +244,7 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
       <button type="button" class="pill ghost" @click="ui.openLibrary()">All {{ lib.top.length }} with filters and evidence →</button>
     </section>
     <section v-else-if="lib.status === 'idle'" class="empty rv" :style="delay(7)">No library yet. Type your research question above and press <b>Build library</b>. Seed papers are optional; they let the graph component link results to your own papers.</section>
+    </template>
   </div>
 </template>
 

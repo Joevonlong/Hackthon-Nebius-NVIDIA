@@ -41,6 +41,18 @@ describe('library score', () => {
     expect(reweighted.map(p => p.paper.id)).not.toEqual(r.map(p => p.paper.id))
   })
 
+  it('ranks like the server: excluded last, passed first, total desc, then title (deterministic ties)', () => {
+    const req = LibraryRequest.parse({ notes: [{ path: 'Notes/Question.md', title: 'Question', content: 'melanoma immune cells' }] })
+    const base = buildMockLibrary(req, 'tie').papers.slice(0, 8)
+    const tied = base.map((p, i) => ({ ...p, total: i < 4 ? 0.7 : 0.6, excluded: i === 0 ? 'retracted' : null, paper: { ...p.paper, title: ['d', 'b', 'c', 'a', 'h', 'f', 'g', 'e'][i] } }))
+    const a = rescore(tied, { topPercent: 25, threshold: 0 })
+    const b = rescore([...tied].reverse(), { topPercent: 25, threshold: 0 })
+    expect(a.map(p => p.paper.title)).toEqual(b.map(p => p.paper.title))
+    expect(a.map(p => p.paper.title)).toEqual(['a', 'b', 'c', 'e', 'f', 'g', 'h', 'd'])
+    expect(a.filter(p => p.passed).map(p => p.paper.title)).toEqual(['a', 'b']) // ceil(7 × 25%) = 2
+    expect(a.map(p => p.rank)).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+  })
+
   it('verdict names the top 2 strengths and the main weakness', () => {
     const p = { total: 0.8, components: [comp('relevance', 0.9, 0.3), comp('venue', 0.88, 0.15), comp('citations', 0.6, 0.18), comp('authors', 0.3, 0.12), comp('llm', null, 0.1)] } as unknown as LibPaper
     const v = verdict(p)

@@ -5,10 +5,10 @@
 // D-27: passed = rank within the top X% of the scored, non-excluded papers AND total ≥ the minimum score; re-computed
 // in the browser whenever weights, the pass rule or the filters change. Lane U2's chat uses applyProposal() / currentSettings().
 import { defineStore } from 'pinia'
-import { DEFAULT_WEIGHTS, LibPaper, LibraryEvent, LibraryRequest, SourceName, type Filters, type Goals, type Proposal, type Weights } from '@shared/library'
+import { DEFAULT_WEIGHTS, LibPaper, LibraryEvent, LibraryRequest, LibrarySummary, SourceName, type Filters, type Goals, type Proposal, type Weights } from '@shared/library'
 import { Seed } from '@shared/contracts'
-import { useVault } from './vault'
-import { noteName } from './vault-utils'
+import { useVault, seedsFolder } from './vault'
+import { noteName, parseFrontMatter } from './vault-utils'
 import { buildSeedNote, firstAuthor, lastName } from '../discover/literatureNote'
 import { matchesFilters, passCut, rescore, sameWeights } from '../library/score'
 
@@ -48,6 +48,19 @@ function parse(raw: string): LibraryEvent | null {
 const httpMessage = (what: string, status: number) =>
   status === 404 ? `${what} → 404: the server has no such route or library.` : status >= 500 ? `${what} → ${status}: the server failed.` : `${what} → ${status}.`
 const netMessage = (what: string) => `${what}: the server is unreachable (network error). Is it running?`
+/** D-36: one row of the seed table (status of the last add / import attempt for that input). */
+export interface SeedRow { input: string; status: 'resolved' | 'not found' | 'duplicate'; path?: string; message?: string }
+/** D-35: the last opened library per question (localStorage; '' = no question). */
+const LAST_KEY = (q: string | null) => `papertrail:lastLibrary:${q ?? ''}`
+export const lastOpened = (q: string | null) => { try { return localStorage.getItem(LAST_KEY(q)) } catch { return null } }
+/** Q-1: the viewer's pass rule / weights / filters / topK per library (restored when the library is reopened). */
+export const LIB_SETTINGS_KEY = (id: string) => `papertrail:libSettings:${id}`
+const setLastOpened =(q: string | null, id: string | null) => { try { if (id) localStorage.setItem(LAST_KEY(q), id); else localStorage.removeItem(LAST_KEY(q)) } catch { /* private mode */ } }
+/** Seed note front matter -> table fields. */
+export function seedInfo(content: string): { title: string; year: string; id: string; label: string } {
+  const { data } = parseFrontMatter(content)
+  return { title: data.title || '', year: data.year || '', id: data.doi || (data.pmid ? 'PMID:' + data.pmid : '') || data.paper_id || '', label: data.seed || '' }
+}
 
 export const useLibrary = defineStore('library', {
   state: () => ({
@@ -79,6 +92,10 @@ export const useLibrary = defineStore('library', {
     passedOnly: false, filterSource: '' as '' | SourceName,
     // seeds (D-23)
     seedBusy: false, seedAdded: [] as string[], seedErrors: [] as { input: string; message: string }[],
+    seedRows: [] as SeedRow[], seedQuestion: null as string | null, importNote: null as string | null,
+    // D-33 / D-35: the question this library belongs to + saved history
+    questionId: null as string | null,
+    history: [] as LibrarySummary[], historyBusy: false, historyError: null as string | null,
   }),
   getters: {
     /** Scholar skipped for lack of SERPAPI_KEY (reported by a source call or the search stage message). */
@@ -88,7 +105,21 @@ export const useLibrary = defineStore('library', {
     /** Every scored paper with the current weights and pass rule applied, ranked (excluded last). */
     papers(): LibPaper[] {
       const base = this.allPapers.length ? this.allPapers : this.streamed
-      return rescore(base, { topPercent: this.topPercent, threshold: this.threshold, weights: this.reweighted ? this.weights : undefined })
+      const out = rescore(base, { topPercent: this.topPercent, threshold: this.threshold, weights: this.reweighted ? this.weights : undefined })
+      // D-27 is a rule over the WHOLE library: when only part of it is loaded (streamed top, or a demo replay that keeps
+      // 150 of 599), keep the server's recorded passed flags instead of re-cutting the partial set.
+      if (!this.complete) {
+        const server = new Map(base.map(p => [p.paper.id, p.passed]))
+        for (const p of out) p.passed = !!server.get(p.paper.id) && !p.excluded
+        out.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
+        out.forEach((p, i) => { p.rank = i + 1 })
+      }
+      return out
+    },
+    /** True when every scored paper of the library is loaded (then the pass rule is re-applied in the browser). */
+    complete(): boolean {
+      const n = this.allPapers.length || this.streamed.length
+      return !this.total || n >= this.total
     },
     /** Alias kept for older callers (App.vue status line). */
     scored(): LibPaper[] { return this.papers },
@@ -102,8 +133,9 @@ export const useLibrary = defineStore('library', {
     passedTop(): LibPaper[] { return this.top.filter(p => p.passed && !p.excluded) },
     /** Every passed paper in the filtered view (the graph layer). */
     passedAll(): LibPaper[] { return this.view.filter(p => p.passed && !p.excluded) },
-    eligibleCount(): number { return this.papers.filter(p => !p.excluded).length },
-    passedCount(): number { return this.papers.filter(p => p.passed).length },
+    eligibleCount(): number { return this.complete ? this.papers.filter(p => !p.excluded).length : this.total },
+    /** D-27 passed count (top X% of the non-excluded papers AND total >= the minimum score); the server's count while the library is partial. */
+    passedCount(): number { return this.complete ? this.papers.filter(p => p.passed).length : this.passed },
     /** Number of papers inside the top X% (before the minimum score). */
     cutCount(): number { return passCut(this.eligibleCount, this.topPercent) },
     /** Papers the pile has beyond what was streamed: true when topK exceeds what we hold. */
@@ -142,6 +174,7 @@ export const useLibrary = defineStore('library', {
       this.libraryId = null; this.status = 'idle'; this.mode = null; this.notice = null; this.error = null; this.runRequest = null
       this.goals = null; this.calls = []; this.stages = freshStages(); this.streamed = []; this.allPapers = []
       this.total = 0; this.passed = 0; this.ms = null; this.dir = null; this.rankBefore = null; this.lastApplied = null
+      this.questionId = null
     },
     resetWeights() { this.weights = { ...DEFAULT_WEIGHTS } },
 
@@ -167,15 +200,19 @@ export const useLibrary = defineStore('library', {
     },
     clearFilters() { this.filters = {} },
 
+    /** D-33: ONLY the current question folder's notes (Question.md, its seeds/ = knownPapers, the user's notes there). */
     request(): LibraryRequest {
-      const notes = useVault().notes.map(n => ({ path: n.path, title: n.title, content: n.content }))
-      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent, sources: this.sources, weights: { ...this.weights } })
+      const vault = useVault()
+      const q = vault.currentQuestion
+      const notes = (q ? vault.notesIn(q.id) : []).map(n => ({ path: n.path, title: n.title, content: n.content }))
+      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent, sources: this.sources, weights: { ...this.weights }, questionId: q?.id, questionName: q?.name })
     },
 
     async start() {
       this.reset()
       let req: LibraryRequest
-      try { req = this.request() } catch { this.status = 'error'; this.error = 'The vault has no notes to read. Write at least one note first.'; return }
+      try { req = this.request() } catch { this.status = 'error'; this.error = 'No research question selected. Create a research question first.'; return }
+      this.questionId = req.questionId ?? null
       this.status = 'running'
       const my = ++this.runCount
       if (import.meta.env.DEV && param('mock')) return this.runMock(req)
@@ -241,7 +278,7 @@ export const useLibrary = defineStore('library', {
         case 'papers': this.streamed = ev.papers; this.total = ev.total; this.passed = ev.passed; break
         case 'done':
           this.status = 'done'; this.total = ev.total; this.passed = ev.passed; this.ms = ev.ms; this.dir = ev.dir
-          if (this.mode !== 'demo') this.libraryId = ev.libraryId
+          if (this.mode !== 'demo') { this.libraryId = ev.libraryId; setLastOpened(this.questionId, ev.libraryId); void this.loadHistory(this.questionId) }
           for (const st of this.stages) if (st.status === 'start') st.status = 'done'
           if (!this.runRequest) this.runRequest = { topK: this.topK, threshold: this.threshold, sources: [...this.sources], weights: { ...this.weights } }
           void this.loadAll()
@@ -269,9 +306,13 @@ export const useLibrary = defineStore('library', {
      * D-23: "Add seed papers" — resolves DOIs / PMIDs / arXiv ids (POST /api/seeds/resolve) and writes seed notes
      * 'Seeds/S<n> <shortName>.md' so their ids become knownPapers in the next library build.
      */
-    async addSeeds(text: string) {
+    async addSeeds(text: string, question?: string) {
+      const vault = useVault()
+      const q = question ?? vault.current
+      if (!q) { this.seedErrors = [{ input: '', message: 'Create a research question first: seeds belong to one question.' }]; return }
       const inputs = [...new Set(text.split(/[\n,;\s]+/).map(s => s.trim()).filter(s => s.length >= 3))].slice(0, 50)
       this.seedErrors = []; this.seedAdded = []
+      if (this.seedQuestion !== q) { this.seedRows = []; this.seedQuestion = q }
       if (!inputs.length) { this.seedErrors = [{ input: '', message: 'Paste at least one DOI, PMID, arXiv or OpenAlex id.' }]; return }
       this.seedBusy = true
       let out: { seeds: Seed[]; errors: { input: string; message: string }[] }
@@ -290,19 +331,115 @@ export const useLibrary = defineStore('library', {
         this.seedErrors = [{ input: '', message: e instanceof TypeError ? netMessage('POST /api/seeds/resolve') : (e as Error).message }]
         return
       }
-      const vault = useVault()
-      let n = vault.notes.filter(x => x.kind === 'seed').reduce((m, x) => Math.max(m, Number(x.path.match(/^Seeds\/S(\d+)/)?.[1] || 0)), 0)
+      // D-36: seeds live in Questions/<q>/seeds/ and are never shared across questions (duplicate = already in THIS question)
+      const dir = seedsFolder(q)
+      const mine = () => vault.seedsIn(q)
+      let n = mine().reduce((m, x) => Math.max(m, Number(x.path.split('/').pop()!.match(/^S(\d+)/)?.[1] || 0)), 0)
+      const rows: SeedRow[] = []
       for (const s of out.seeds) {
-        const existing = vault.byPaper(s.id)
-        if (existing) { this.seedAdded.push(existing.path); continue }
+        const existing = mine().find(x => x.paperId === s.id)
+        if (existing) { rows.push({ input: s.input, status: 'duplicate', path: existing.path, message: 'already a seed of this question' }); continue }
         n++
         const note = buildSeedNote({ ...s, n, label: 'S' + n })
-        await vault.upsert({ ...note, kind: 'seed', paperId: s.id })
-        this.seedAdded.push(note.path)
+        const path = `${dir}/${note.path.split('/').pop()}`
+        await vault.upsert({ ...note, path, kind: 'seed', paperId: s.id })
+        this.seedAdded.push(path)
+        rows.push({ input: s.input, status: 'resolved', path })
       }
+      for (const e of out.errors) rows.push({ input: e.input, status: 'not found', message: e.message })
+      this.seedRows = [...rows, ...this.seedRows.filter(r => !rows.some(x => x.input === r.input))].slice(0, 60)
       this.seedErrors = out.errors
       this.seedBusy = false
     },
+
+    /** D-36: uploads a .bib / .ris / CSL JSON / .csv / .txt / .pdf to POST /api/seeds/import, then resolves the ids found. */
+    async importSeedFile(file: File, question?: string) {
+      this.importNote = null; this.seedErrors = []
+      const q = question ?? useVault().current
+      if (this.seedQuestion !== q) { this.seedRows = []; this.seedQuestion = q }
+      const fd = new FormData(); fd.append('file', file)
+      this.seedBusy = true
+      let body: { ids?: string[]; format?: string; note?: string; error?: string }
+      try {
+        const res = await fetch('/api/seeds/import', { method: 'POST', body: fd })
+        body = await res.json().catch(() => ({ error: httpMessage('POST /api/seeds/import', res.status) }))
+        if (!res.ok) throw new Error(body.error || httpMessage('POST /api/seeds/import', res.status))
+      } catch (e) {
+        this.seedBusy = false
+        this.seedErrors = [{ input: file.name, message: e instanceof TypeError ? netMessage('POST /api/seeds/import') : (e as Error).message }]
+        return
+      }
+      this.seedBusy = false
+      const ids = body.ids || []
+      this.importNote = `${file.name} (${body.format}): ${ids.length} id${ids.length === 1 ? '' : 's'} found${body.note ? ' · ' + body.note : ''}`
+      if (ids.length) await this.addSeeds(ids.join('\n'), question)
+    },
+
+    // ---- D-35: History ----
+    async loadHistory(questionId: string | null) {
+      this.historyBusy = true; this.historyError = null
+      try {
+        const res = await fetch(`/api/libraries?questionId=${encodeURIComponent(questionId ?? '')}`)
+        if (!res.ok) throw new Error(httpMessage('GET /api/libraries', res.status))
+        const body = await res.json() as { libraries?: unknown[] }
+        this.history = (body.libraries || []).map(x => LibrarySummary.safeParse(x)).filter(r => r.success).map(r => r.data!)
+      } catch (e) { this.historyError = e instanceof TypeError ? netMessage('GET /api/libraries') : (e as Error).message }
+      finally { this.historyBusy = false }
+    },
+    /** Loads a stored library into the results without rebuilding. */
+    async openStored(id: string, questionId: string | null) {
+      const url = `/api/library/${encodeURIComponent(id)}`
+      let body: { goals?: Goals | null; papers?: unknown[]; request?: { topK?: number; threshold?: number; topPercent?: number; sources?: SourceName[]; weights?: Weights } }
+      try {
+        const res = await fetch(url)
+        if (!res.ok) { if (res.status === 404) setLastOpened(questionId, null); throw new Error(httpMessage('GET ' + url, res.status)) }
+        body = await res.json()
+      } catch (e) { this.historyError = e instanceof TypeError ? netMessage('GET ' + url) : (e as Error).message; return false }
+      this.reset()
+      ++this.runCount
+      const ok: LibPaper[] = []
+      for (const p of body.papers || []) { const r = LibPaper.safeParse(p); if (r.success) ok.push(r.data) }
+      const rq = body.request || {}
+      if (rq.topK) this.topK = rq.topK
+      if (rq.threshold != null) this.threshold = rq.threshold
+      if (rq.topPercent != null) this.topPercent = rq.topPercent
+      this.runRequest = { topK: rq.topK ?? this.topK, threshold: rq.threshold ?? this.threshold, sources: rq.sources ?? [...this.sources], weights: rq.weights ?? { ...this.weights } }
+      this.weights = { ...this.runRequest.weights }
+      this.libraryId = id; this.questionId = questionId; this.mode = 'live'; this.status = 'done'
+      this.goals = body.goals ?? null
+      this.allPapers = ok; this.streamed = ok.slice(0, this.topK)
+      this.total = ok.length; this.passed = ok.filter(p => p.passed).length
+      for (const st of this.stages) st.status = 'done'
+      // Q-1: the settings the viewer last used on this library win over the build's
+      try {
+        const s = JSON.parse(localStorage.getItem(LIB_SETTINGS_KEY(id)) || 'null') as Partial<LibSettings> & { topK?: number } | null
+        if (s && typeof s === 'object') {
+          if (s.weights) this.weights = { ...this.weights, ...s.weights }
+          if (typeof s.topPercent === 'number') this.topPercent = s.topPercent
+          if (typeof s.threshold === 'number') this.threshold = s.threshold
+          if (s.filters && typeof s.filters === 'object') this.filters = s.filters
+          if (typeof s.topK === 'number') this.topK = s.topK
+        }
+      } catch { /* storage blocked */ }
+      setLastOpened(questionId, id)
+      return true
+    },
+    async renameStored(id: string, name: string) {
+      if (isDemoParam()) { this.historyError = 'Demo mode (?demo=1) is read-only: nothing is written to your workspace.'; return }
+      const res = await fetch(`/api/library/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }).catch(() => null)
+      if (!res?.ok) { this.historyError = res ? httpMessage('PATCH /api/library/' + id, res.status) : netMessage('PATCH /api/library'); return }
+      const r = LibrarySummary.safeParse(await res.json())
+      if (r.success) { const i = this.history.findIndex(h => h.libraryId === id); if (i >= 0) this.history[i] = r.data }
+    },
+    async deleteStored(id: string, questionId: string | null) {
+      if (isDemoParam()) { this.historyError = 'Demo mode (?demo=1) is read-only: nothing is written to your workspace.'; return }
+      const res = await fetch(`/api/library/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null)
+      if (!res?.ok) { this.historyError = res ? httpMessage('DELETE /api/library/' + id, res.status) : netMessage('DELETE /api/library'); return }
+      this.history = this.history.filter(h => h.libraryId !== id)
+      if (lastOpened(questionId) === id) setLastOpened(questionId, null)
+      if (this.libraryId === id) this.reset()
+    },
+    exportUrl(id: string) { return `/api/library/${encodeURIComponent(id)}/export` },
 
     /** The per-paper JSON file (GET /api/library/:id/papers/:paperId); the dev mock serves it from memory. */
     async fetchPaperJson(paperId: string): Promise<unknown> {

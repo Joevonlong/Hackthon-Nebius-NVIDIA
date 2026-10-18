@@ -14,11 +14,108 @@ import { withRun } from '../trace'
 import { createLibraryState, emitLib, getLibraryState, runLibrary, subscribeLib } from '../library/pipeline'
 import { gather } from '../library/sources'
 import { fixtureGather } from '../library/fixtures'
-import { isSafeId, readLibrary, readPaperFile } from '../library/store'
+import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, renameLibrary, trashLibrary } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
+import { parseSeedPdf, parseSeedText } from '../library/seed-import'
+import { createQuestion, deleteNote, listNotes, listQuestions, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
+
+// ---- D-35: History (lane W2) ----
+library.get('/libraries', c => {
+  const q = c.req.query('questionId')
+  // ?questionId=  (empty) → libraries without a question ("Earlier libraries"); absent → all
+  return c.json({ libraries: listLibraries(q === undefined ? undefined : q === '' ? null : q) })
+})
+
+library.patch('/library/:id', async c => {
+  const id = c.req.param('id')
+  if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
+  const body = await c.req.json().catch(() => null) as { name?: unknown } | null
+  if (!body || typeof body.name !== 'string') return c.json({ error: 'Body must be { name: string }' }, 400)
+  const r = renameLibrary(id, body.name)
+  return r ? c.json(r) : c.json({ error: 'library not found' }, 404)
+})
+
+library.delete('/library/:id', c => {
+  const id = c.req.param('id')
+  if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
+  return trashLibrary(id) ? c.json({ ok: true }) : c.json({ error: 'library not found' }, 404)
+})
+
+library.get('/library/:id/export', c => {
+  const id = c.req.param('id')
+  if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
+  const r = exportLibrary(id)
+  if (!r) return c.json({ error: 'library not found' }, 404)
+  const qid = (r.library as { questionId?: string | null })?.questionId
+  writeExport(qid, `${id}.json`, JSON.stringify(r, null, 2)) // D-37: a copy in <question>/exports/
+  c.header('content-disposition', `attachment; filename="${id}.json"`)
+  return c.json(r)
+})
+
+// ---- D-37: question folders on disk (WORKSPACE_DIR/<question>/…), lane W2 ----
+library.get('/questions', c => c.json({ questions: listQuestions(), root: 'workspace' }))
+
+library.post('/questions', async c => {
+  const body = await c.req.json().catch(() => null) as { id?: unknown; content?: unknown } | null
+  if (!body || typeof body.id !== 'string' || typeof body.content !== 'string') return c.json({ error: 'Body must be { id, content }' }, 400)
+  const r = createQuestion(body.id, body.content.slice(0, 200_000))
+  if (r === 'exists') return c.json({ error: 'a question folder with that name exists' }, 409)
+  return r ? c.json(r) : c.json({ error: 'bad question name' }, 400)
+})
+
+library.patch('/questions/:id', async c => {
+  const id = decodeURIComponent(c.req.param('id'))
+  const body = await c.req.json().catch(() => null) as { name?: unknown } | null
+  if (!body || typeof body.name !== 'string') return c.json({ error: 'Body must be { name }' }, 400)
+  const r = renameQuestion(id, body.name)
+  if (r === 'exists') return c.json({ error: 'a question folder with that name exists' }, 409)
+  return r ? c.json({ ok: true, id: body.name }) : c.json({ error: 'question not found or bad name' }, 404)
+})
+
+library.delete('/questions/:id', c => {
+  const id = decodeURIComponent(c.req.param('id'))
+  return trashQuestion(id) ? c.json({ ok: true }) : c.json({ error: 'question not found' }, 404)
+})
+
+library.get('/questions/:id/notes', c => {
+  const notes = listNotes(decodeURIComponent(c.req.param('id')))
+  return notes ? c.json({ notes }) : c.json({ error: 'question not found' }, 404)
+})
+
+// note path = everything after /notes/ (e.g. seeds/S1%20Tirosh%202016.md)
+const notePath = (url: string) => decodeURIComponent(new URL(url).pathname.replace(/^.*?\/notes\//, ''))
+library.put('/questions/:id/notes/*', async c => {
+  const body = await c.req.json().catch(() => null) as { content?: unknown } | null
+  if (!body || typeof body.content !== 'string' || body.content.length > 2_000_000) return c.json({ error: 'Body must be { content: string }' }, 400)
+  return writeNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url), body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
+})
+
+library.delete('/questions/:id/notes/*', c => {
+  return deleteNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url)) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
+})
+
+// ---- D-36: seed file import (lane W2). multipart field "file"; ids are resolved by the client via POST /api/seeds/resolve ----
+const MAX_SEED_FILE = 25 * 1024 * 1024
+library.post('/seeds/import', async c => {
+  const form = await c.req.parseBody().catch(() => null)
+  const file = form?.file
+  if (!file || typeof file === 'string') return c.json({ error: 'Send a multipart form with a "file" field.' }, 400)
+  if (file.size > MAX_SEED_FILE) return c.json({ error: 'File is larger than 25 MB.' }, 413)
+  const name = file.name || 'upload'
+  try {
+    if (/\.pdf$/i.test(name) || file.type === 'application/pdf') {
+      const r = await parseSeedPdf(new Uint8Array(await file.arrayBuffer()))
+      return c.json({ file: name, format: r.format, ids: r.ids, note: r.ids.length ? undefined : 'No DOI or arXiv id on the first 2 pages.' })
+    }
+    const r = parseSeedText(name, await file.text())
+    return c.json({ file: name, format: r.format, ids: r.ids })
+  } catch (e) {
+    return c.json({ error: `Could not read ${name}: ${(e as Error).message?.slice(0, 200)}` }, 422)
+  }
+})
 
 const useFixture = () => process.env.LIBRARY_FIXTURE === '1'
 
