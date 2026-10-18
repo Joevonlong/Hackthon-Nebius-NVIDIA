@@ -38,7 +38,7 @@ export async function fillWorksAndPubmed(cands: Cand[], budget: OaBudget, st: En
   const [, recs1] = await Promise.all([
     (async () => {
       if (!need.length) return
-      const ws = await worksBy(budget, 'openalex_id', need.map(c => c.ids.openalex!), e => st.errors.push('openalex works: ' + errMsg(e)))
+      const ws = await worksBy(budget, 'openalex_id', need.map(c => c.ids.openalex!), e => st.errors.push('openalex works: ' + errMsg(e)), 'fill-works')
       const byId = new Map(ws.map(w => [shortId(w.id), w]))
       for (const c of need) { const w = byId.get(c.ids.openalex!); if (w) { attachWork(c, w); st.works++ } }
     })(),

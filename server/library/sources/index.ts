@@ -2,7 +2,7 @@
 // One failing source never fails gather(): every call is wrapped, timed, and reported through onCall.
 import type { Goals, Hit, LibraryRequest, SourceName } from '@shared/library'
 import { mapLimit } from '../../data/http'
-import { getWork } from '../../sources/openalex'
+import { getWork, mapWork } from '../../sources/openalex'
 import { similar } from '../../sources/pubmed'
 import { trace } from '../../trace'
 import type { EnrichedRecord, SourceCall } from '../types'
@@ -10,7 +10,8 @@ import { type ArxivEntry, arxivByIds, arxivQuery, arxivSearch } from './arxiv'
 import { enrich, type EnrichStats, fillWorksAndPubmed } from './enrich'
 import { epmcByDoi, epmcByTitle } from './europepmc-lib'
 import { arxivDoi, attachWork, capPile, type Cand, dedupe, newCand, parseKnownId, sameTitle } from './normalize'
-import { citedByWorks, OaBudget, openalexBlocked, searchTitle, searchWorks, worksBy } from './openalex-lib'
+import { entityStats } from './openalex-entities'
+import { batchLog, breakerLog, citedByWorks, OaBudget, openalexBlocked, searchTitle, searchWorks, workFor, worksBy } from './openalex-lib'
 import { efetch, esearch } from './pubmed-lib'
 import { hasSerpApiKey, scholarSearch } from './scholar'
 import { hasTavilyKey, TavilyBudget, tavilyLib } from './tavily-lib'
@@ -71,12 +72,13 @@ export function groupQueries<T extends { text: string }>(qs: T[], keyOf: (q: T) 
   return [...m.values()]
 }
 
-export interface GatherStats { ms: Record<string, number>; stragglers: string[]; raw: number; deduped: number; capped: number; dropped: { noTitle: number; unresolvedWeb: number }; openalexRequests: number; tavilyCalls: number; enrich: EnrichStats }
+export interface GatherStats { ms: Record<string, number>; stragglers: string[]; raw: number; deduped: number; capped: number; dropped: { noTitle: number; unresolvedWeb: number }; openalexRequests: number; tavilyCalls: number; enrich: EnrichStats; openalexCache?: { served: number; notFound: number; requested: number; batches: number; requests: number; skipped: number; breaker: { stage: string; until: string }[] } }
 export let lastGatherStats: GatherStats | null = null
 
 export async function gather(goals: Goals, req: LibraryRequest, onCall: (c: SourceCall) => void): Promise<EnrichedRecord[]> {
   const enabled = new Set<SourceName>(req.sources)
   const budget = new OaBudget(120)
+  const ec0 = { ...entityStats }, bl0 = batchLog.length, br0 = breakerLog.length
   const tb = new TavilyBudget(25)
   const cands: Cand[] = []
   const unresolvedWeb: Cand[] = [] // Tavily / Scholar hits with no identifier, resolved by title later
@@ -185,7 +187,13 @@ export async function gather(goals: Goals, req: LibraryRequest, onCall: (c: Sour
       let doi: string | null = id.kind === 'doi' ? id.value : id.kind === 'arxiv' ? arxivDoi(id.value) : null
       await call('openalex', `resolve known paper ${k.raw}`, async () => {
         const ref = id.kind === 'arxiv' ? { kind: 'doi' as const, value: arxivDoi(id.value) } : { kind: id.kind as 'openalex' | 'doi' | 'pmid', value: id.value }
-        const f = await getWork(ref) // A1 helper: same cache as discovery mode
+        // entity cache first (any earlier batch / search that saw this work), then the A1 helper's URL cache (same as discovery mode)
+        let f: { value: { id: string; referencedWorks: string[]; pmid: string | null; doi: string | null } } | null = null
+        try {
+          const w = await workFor(budget, ref.kind === 'openalex' ? 'openalex_id' : ref.kind, ref.value, 'known-paper')
+          if (w) f = { value: mapWork(w) }
+        } catch { /* breaker open / request failed: the URL cache below may still have it */ }
+        if (!f) f = await getWork(ref)
         if (!f) return 0
         wid = f.value.id; refs = f.value.referencedWorks; pmid = pmid ?? f.value.pmid; doi = doi ?? f.value.doi
         return 1
@@ -240,8 +248,8 @@ export async function gather(goals: Goals, req: LibraryRequest, onCall: (c: Sour
   const byIds = async () => {
     const doiNeed = [...new Set(noOa.flatMap(c => [c.ids.doi, c.ids.arxiv ? arxivDoi(c.ids.arxiv) : undefined]).filter((x): x is string => !!x))]
     const [byDoi, byPmid] = await Promise.all([
-      worksBy(budget, 'doi', doiNeed, e => errors.push('openalex doi: ' + errMsg(e))),
-      worksBy(budget, 'pmid', [...new Set(noOa.filter(c => !c.ids.doi).map(c => c.ids.pmid).filter((x): x is string => !!x))], e => errors.push('openalex pmid: ' + errMsg(e))),
+      worksBy(budget, 'doi', doiNeed, e => errors.push('openalex doi: ' + errMsg(e)), 'resolve-doi'),
+      worksBy(budget, 'pmid', [...new Set(noOa.filter(c => !c.ids.doi).map(c => c.ids.pmid).filter((x): x is string => !!x))], e => errors.push('openalex pmid: ' + errMsg(e)), 'resolve-pmid'),
     ])
     const doiMap = new Map(byDoi.map(w => [String(w.doi ?? '').toLowerCase().replace(/^https?:\/\/doi\.org\//, ''), w]))
     const pmidMap = new Map(byPmid.map(w => [String(w.ids?.pmid ?? '').split('/').pop(), w]))
@@ -313,7 +321,9 @@ export async function gather(goals: Goals, req: LibraryRequest, onCall: (c: Sour
   const records = await enrich(pile, budget, st)
   ms.enrich = Date.now() - t3
   ms.total = Date.now() - tStart
-  lastGatherStats = { ms, stragglers, raw: rawCount, deduped, capped, dropped: { noTitle: before - pile.length, unresolvedWeb: droppedWeb }, openalexRequests: budget.used, tavilyCalls: tb.used, enrich: st }
+  lastGatherStats = { ms, stragglers, raw: rawCount, deduped, capped, dropped: { noTitle: before - pile.length, unresolvedWeb: droppedWeb }, openalexRequests: budget.used, tavilyCalls: tb.used, enrich: st,
+    openalexCache: (() => { const bs = batchLog.slice(bl0); return { served: entityStats.served - ec0.served, notFound: entityStats.negativeServed - ec0.negativeServed, requested: entityStats.requested - ec0.requested,
+      batches: bs.length, requests: bs.reduce((a, b) => a + b.requests, 0), skipped: bs.reduce((a, b) => a + b.skipped, 0), breaker: breakerLog.slice(br0).map(b => ({ stage: b.stage, until: b.until })) } })() }
   trace('events', { type: 'library_gather', ...lastGatherStats, errors: st.errors.slice(0, 20) })
   return records
 }
