@@ -38,7 +38,8 @@ export function pct(sorted: number[], x: number): number {
   return lo / sorted.length
 }
 export function ordinal(p: number): string {
-  const n = Math.max(0, Math.min(100, Math.round(p * 100)))
+  // floor (with float slack) so 0.9994 reads 99th, not 100th; only p = 1 reads 100th
+  const n = Math.max(0, Math.min(100, p >= 1 ? 100 : Math.floor(p * 100 + 1e-9)))
   const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'
   return `${n}${s}`
 }

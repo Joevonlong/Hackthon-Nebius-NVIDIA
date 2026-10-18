@@ -20,6 +20,8 @@ describe('percentiles', () => {
     expect(ordinal(0.92)).toBe('92nd')
     expect(ordinal(0.11)).toBe('11th')
     expect(ordinal(0.01)).toBe('1st')
+    expect(ordinal(0.9994)).toBe('99th')
+    expect(ordinal(1)).toBe('100th')
   })
 })
 
@@ -29,7 +31,7 @@ describe('relevance', () => {
     const ctx = buildContext(items, testGoals(), NOW)
     const c = relevanceComponent(items[1], ctx)
     expect(c.value).toBeCloseTo(0.5)
-    expect(c.evidence[0].text).toMatch(/best match: subtopic 'T cell states' cos 0\.50 \(67th pct of 3\)/)
+    expect(c.evidence[0].text).toMatch(/best match: subtopic 'T cell states' cos 0\.50 \(66th pct of 3\)/)
     expect(c.evidence[0].source?.url).toBe('https://openalex.org/W2')
     expect(relevanceComponent(item(mkRecord('W9'), null), ctx).value).toBeNull()
   })
