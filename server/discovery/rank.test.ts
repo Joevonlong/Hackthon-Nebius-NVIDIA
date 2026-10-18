@@ -116,7 +116,7 @@ describe('whyRanked', () => {
     expect(whyRanked(c, 5)).toBe('#1 · Core · cites all 5 seeds · 0 citations · 2026 · routes R2')
     const d = cand({ rank: 2, routes: ['R1', 'R2'], paper: { year: 2019, citedByCount: 1522 }, features: { ...cand().features, links: 4, out: [1, 2], in: [3, 4] },
       judgement: { model: 'm', relevance: 3, facets: { topic: 3, method: 3, population: 3 }, paperType: 'primary', why: '', quote: 'q', quoteRef: null, verified: true, uncertainty: '', seedLinks: [] } })
-    expect(whyRanked(d, 5, 0.92)).toBe('#2 · Core · cites S1, S2 · cited by S3, S4 · 1522 citations · 2019 · routes R1, R2 · reranker 92nd pct · judge 3/3 verified')
+    expect(whyRanked(d, 5, 0.92)).toBe('#2 · Core · cites S1, S2 · cited by S3, S4 · 1522 citations · 2019 · routes R1, R2 · question match 92nd pct · judge 3/3 verified')
     expect(CandidateSchema.safeParse({ ...d, whyRanked: whyRanked(d, 5) }).success).toBe(true)
   })
 })
