@@ -10,7 +10,14 @@ const lib = useLibrary()
 const uid = Math.random().toString(36).slice(2, 7)
 const topPct = computed({ get: () => lib.topPercent, set: (v: number) => { lib.topPercent = Math.max(1, Math.min(100, Math.round(Number(v) || 25))) } })
 const floor = computed({ get: () => lib.threshold, set: (v: number) => { lib.threshold = Math.max(0, Math.min(1, Number(v) || 0)) } })
-const limitedBy = computed(() => lib.eligibleCount && lib.passedCount < lib.cutCount ? 'minimum score' : 'top X%')
+// Fewer than the cut pass when papers in the cut fall below the floor, or the LLM read gated them off-topic (D-38).
+const limitedBy = computed(() => {
+  if (!lib.eligibleCount || lib.passedCount >= lib.cutCount) return 'top X%'
+  const cut = lib.papers.filter(p => !p.excluded).slice(0, lib.cutCount)
+  const gated = cut.filter(p => p.llmRead && p.llmRead.relevance <= 1).length
+  const low = cut.filter(p => p.total < lib.threshold).length
+  return gated && low ? `minimum score and the off-topic gate (${gated} gated)` : gated ? `off-topic gate (${gated} papers the LLM read rated off-topic)` : 'minimum score'
+})
 </script>
 
 <template>
