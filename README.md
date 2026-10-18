@@ -171,9 +171,15 @@ Checks: `pnpm gate` (typecheck + tests + build). Nebius Serverless deploy: `scri
 |---|---|---|---|
 | 🏆 **Hackathon winner** | Nebius & NVIDIA Hackathon | Healthcare & Life Sciences · Research Paper Discovery | 2026-10-18 |
 
-## Team
+## Authors
 
-_TBD (names and roles)_.
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/Joevonlong"><img src="https://github.com/Joevonlong.png?size=100" width="80" alt="Joevonlong"><br><sub><b>@Joevonlong</b></sub></a></td>
+    <td align="center"><a href="https://github.com/xingran815"><img src="https://github.com/xingran815.png?size=100" width="80" alt="xingran815"><br><sub><b>@xingran815</b></sub></a></td>
+    <td align="center"><a href="https://github.com/Lumberj3ck"><img src="https://github.com/Lumberj3ck.png?size=100" width="80" alt="Lumberj3ck"><br><sub><b>@Lumberj3ck</b></sub></a></td>
+  </tr>
+</table>
 
 ## License
 
