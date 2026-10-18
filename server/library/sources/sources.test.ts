@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import type { Goals } from '@shared/library'
 import { parseArxivAtom, arxivQuery } from './arxiv'
 import { toRecord } from './enrich'
-import { keywordGroups, planQueries } from './index'
+import { groupQueries, keywordGroups, planQueries, queryKey } from './index'
 import { capPile, dedupe, newCand, parseKnownId, sameTitle, titleSimilarity, recordKey } from './normalize'
 import { parsePubmedXml } from './pubmed-lib'
 import { mapScholar } from './scholar'
@@ -191,5 +191,15 @@ describe('SerpAPI Scholar + Tavily mapping', () => {
     expect(cleanWebTitle('Dissecting the multicellular ecosystem - PubMed')).toBe('Dissecting the multicellular ecosystem')
     const w = mapWebHit({ url: 'https://pubmed.ncbi.nlm.nih.gov/27124452/', title: 'X - PubMed', content: '' }, 2)
     expect(w).toMatchObject({ pmid: '27124452', rank: 3, title: 'X' })
+  })
+})
+
+describe('query dedupe (PERF)', () => {
+  it('groups queries with the same word set, keeps every plan for provenance', () => {
+    expect(queryKey('Melanoma single-cell T cells')).toBe(queryKey('T cells, single-cell melanoma'))
+    const qs = [{ text: 'melanoma T cells' }, { text: 'T cells melanoma' }, { text: 'macrophages melanoma' }]
+    const g = groupQueries(qs, q => queryKey(q.text))
+    expect(g.map(x => x.length)).toEqual([2, 1])
+    expect(g[0][0]).toBe(qs[0])
   })
 })
