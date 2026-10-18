@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Grill"
-  short_description: "Narrow a hackathon idea to one customer and pain"
-  default_prompt: "Use $hack-grill to narrow our hackathon idea to one customer, one painful moment, and a locked pitch."
-policy:
-  allow_implicit_invocation: true

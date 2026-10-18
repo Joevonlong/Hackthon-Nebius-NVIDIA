@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "license": "GPL-3.0-or-later",
+  "author": "JonvonLong (https://github.com/Joevonlong)",
   "type": "module",
   "engines": {
     "node": ">=22"

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Video"
-  short_description: "Hackathon demo video, 30s teaser, and README GIF"
-  default_prompt: "Use $hack-video to storyboard, capture, and render our hackathon demo video, teaser, and README GIF."
-policy:
-  allow_implicit_invocation: true

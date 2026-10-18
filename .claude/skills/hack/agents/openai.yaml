@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Captain"
-  short_description: "Hackathon status, next step, and who does what"
-  default_prompt: "Use $hack to show where our hackathon stands, what blocks the next gate, and what each of us should do next."
-policy:
-  allow_implicit_invocation: true
