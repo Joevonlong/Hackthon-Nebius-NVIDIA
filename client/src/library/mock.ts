@@ -1,4 +1,4 @@
-// Dev mock of the Library stream (lane L3). Used with ?mock=1 or when /api/library is missing.
+// Dev mock of the Library stream (lane L3). Dev builds only, with ?mock=1 (never a fallback, R-3.1).
 // Papers are real OpenAlex records from docs/data/melanoma-multi-seed-citers.json (494 papers citing ≥2 seeds) and
 // docs/data/melanoma-lanes-snapshot.json. Citation counts, venues, authors and seed links are real; every value the
 // fixture does not hold (venue/author h-index, embeddings, LLM grades) is replaced by a rule computed within this
@@ -270,7 +270,7 @@ export function buildMockLibrary(req: LibraryRequest, libraryId: string): { goal
       c.evidence = [{ text: `not assessed: outside the top ${req.llmReadTopK} pre-scored papers` }]
     }
   }
-  const scored = rescore(papers, req.weights, req.threshold)
+  const scored = rescore(papers, { weights: req.weights, topPercent: req.topPercent, threshold: req.threshold })
 
   const calls: Extract<LibraryEvent, { type: 'source' }>[] = []
   const by = (s: SourceName) => scored.filter(p => p.labels.sources.includes(s)).length

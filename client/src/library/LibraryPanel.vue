@@ -1,14 +1,18 @@
 <script setup lang="ts">
-// Library sidebar (lane L3, D-20/D-23): seeds, controls, run, stage trail, goals, sources, top results.
-import { computed, ref } from 'vue'
+// Library sidebar (lanes L3, U1; D-20/D-23): research question + Build (F-51), seeds, pass rule (F-49), controls,
+// stage trail, goals, sources, top results with verdicts (F-47).
+import { computed, ref, watch } from 'vue'
 import { SourceName } from '@shared/library'
-import { useLibrary, LIB_STAGE_LABEL, SOURCE_LABEL } from '../stores/library'
-import { useVault } from '../stores/vault'
+import { useLibrary, LIB_STAGE_LABEL, SOURCE_LABEL, UI_SOURCES } from '../stores/library'
+import { useVault, questionNote, QUESTION_PATH } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName } from '../stores/vault-utils'
 import { COMPONENT_KEYS, COMPONENT_META, f2, weightSum, type ComponentKey } from './score'
+import { readQuestion, writeQuestion } from './question'
 import { shortTitle } from '../discover/literatureNote'
-import ScoreBar from './ScoreBar.vue'
+import Verdict from './Verdict.vue'
+import PassRule from './PassRule.vue'
+import WhyRelevant from './WhyRelevant.vue'
 import CountUp from '../discover/CountUp.vue'
 
 const lib = useLibrary()
@@ -20,7 +24,27 @@ const seedText = ref('')
 const seedsOpen = ref(false)
 const delay = (i: number) => ({ '--i': i })
 const seedCount = computed(() => vault.notes.filter(n => n.kind === 'seed').length)
-const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'live' ? 'live' : '')
+const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'demo' ? 'Replay of a recorded real run' : lib.mode === 'live' ? 'live' : '')
+const QUESTION_PLACEHOLDER = 'Which single-cell methods help study melanoma immune cells?'
+
+// F-51: the research question box. Starts from Notes/Question.md; Build writes it back (question paragraph only).
+const question = ref('')
+let touched = false
+const syncQuestion = () => { if (!touched) question.value = readQuestion(vault.byPath(QUESTION_PATH)?.content) }
+watch(() => [vault.ready, vault.byPath(QUESTION_PATH)?.content], syncQuestion, { immediate: true })
+const seedsBox = ref<HTMLTextAreaElement | null>(null)
+function openSeeds() { seedsOpen.value = true; setTimeout(() => seedsBox.value?.focus(), 350) }
+async function build() {
+  const q = question.value.trim()
+  if (!q || running.value) return
+  const ex = vault.byPath(QUESTION_PATH)
+  if (ex) await vault.upsert({ path: ex.path, kind: ex.kind, title: ex.title, paperId: ex.paperId, content: writeQuestion(ex.content, q) })
+  else await vault.upsert(questionNote(q))
+  touched = false
+  ui.openLibrary()
+  await lib.start()
+}
+const onQuestionKey = (e: KeyboardEvent) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void build() } }
 
 const toggleSource = (s: SourceName) => {
   const i = lib.sources.indexOf(s)
@@ -30,11 +54,12 @@ const llmLowest = computed(() => COMPONENT_KEYS.filter(k => k !== 'llm').every(k
 const share = (k: ComponentKey) => { const s = weightSum(lib.weights); return s > 0 ? lib.weights[k] / s : 0 }
 const topKModel = computed({ get: () => lib.topK, set: (v: number) => { lib.topK = Math.max(5, Math.min(200, Math.round(Number(v) || 30))) } })
 
-function run() { ui.openLibrary(); void lib.start() }
 async function addSeeds() { await lib.addSeeds(seedText.value); if (!lib.seedErrors.length) seedText.value = '' }
 function openNote(path: string) { const n = vault.byPath(path); if (n) ui.openNote(n.path, noteName(n.path)) }
 const goalEvidence = (i: number) => lib.goals?.evidence[i] || null
-const callsBySource = computed(() => SourceName.options.map(s => ({ s, calls: lib.calls.filter(c => c.source === s) })).filter(x => x.calls.length))
+// J-4: the Tavily row stays visible even before (or without) Tavily calls.
+const callsBySource = computed(() => SourceName.options.map(s => ({ s, calls: lib.calls.filter(c => c.source === s) })).filter(x => x.calls.length || x.s === 'tavily'))
+const tavilyFound = computed(() => lib.papers.filter(p => p.hits.some(h => h.source === 'tavily')).length)
 const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live' : st === 'error' ? 'err' : st === 'skipped' ? 'skip' : 'pend'
 </script>
 
@@ -47,11 +72,25 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
     </header>
 
     <section class="block rv" :style="delay(1)">
+      <div class="eyebrow"><label for="rq">Research question</label><span class="sub">saved to {{ QUESTION_PATH }}</span></div>
+      <textarea id="rq" v-model="question" class="qbox ask" rows="3" :placeholder="QUESTION_PLACEHOLDER" :disabled="running" @input="touched = true" @keydown="onQuestionKey" />
+      <div class="runrow">
+        <button class="pill primary" type="button" :class="{ busy: running }" :disabled="running || !question.trim()" @click="build">
+          <i v-if="running" class="dot live" />{{ running ? 'Building library…' : 'Build library' }}
+        </button>
+        <button v-if="lib.status === 'done' || lib.papers.length" class="pill" type="button" @click="ui.openLibrary()">Open results</button>
+      </div>
+      <p v-if="!seedCount" class="small hint">No seed papers yet. <button type="button" class="lnk inl" @click="openSeeds">Add seed papers</button> so results link to papers you trust.</p>
+      <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
+      <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="pill" type="button" @click="build">Retry</button></div>
+    </section>
+
+    <section class="block rv" :style="delay(1)">
       <button type="button" class="eyebrow tog" :aria-expanded="seedsOpen" @click="seedsOpen = !seedsOpen">
         <span class="plus" :class="{ open: seedsOpen }" aria-hidden="true" />Add seed papers<span class="sub">{{ seedCount }} seed notes</span>
       </button>
       <div class="more" :class="{ open: seedsOpen }"><div class="more-in"><div class="stack">
-        <textarea v-model="seedText" class="qbox mono" rows="4" spellcheck="false" placeholder="One DOI, PMID, arXiv or OpenAlex id per line" :disabled="lib.seedBusy" />
+        <textarea ref="seedsBox" v-model="seedText" class="qbox mono" rows="4" spellcheck="false" placeholder="One DOI, PMID, arXiv or OpenAlex id per line" :disabled="lib.seedBusy" />
         <div class="runrow">
           <button class="pill" type="button" :disabled="lib.seedBusy || !seedText.trim()" @click="addSeeds">{{ lib.seedBusy ? 'Resolving…' : 'Add to Seeds/' }}</button>
           <small class="faint">Their ids become known papers for the next build.</small>
@@ -69,19 +108,15 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
         <input id="topk" v-model.number="topKModel" type="range" min="5" max="200" step="1" aria-label="Papers to return (slider)" />
         <input v-model.number="topKModel" type="number" min="5" max="200" class="num" aria-label="Papers to return" />
       </div>
-      <div class="eyebrow gap"><label for="thr">Threshold</label><span class="sub">total score needed to join the citation graph</span></div>
-      <div class="pair">
-        <input id="thr" v-model.number="lib.threshold" type="range" min="0" max="1" step="0.01" />
-        <b class="num ro">{{ f2(lib.threshold) }}</b>
-      </div>
+      <div class="eyebrow gap">Pass rule<span class="sub">passed papers join the citation graph</span></div>
+      <PassRule dense />
     </section>
 
     <section class="block rv" :style="delay(3)">
       <div class="eyebrow">Sources</div>
       <div class="chips">
-        <button v-for="s in SourceName.options" :key="s" type="button" class="chip" :aria-pressed="lib.sources.includes(s)" :disabled="running" @click="toggleSource(s)"
-                :title="s === 'scholar' ? 'Google Scholar runs only via SerpAPI when SERPAPI_KEY is set (never scraped)' : 'Search ' + SOURCE_LABEL[s]">
-          <span class="roll"><span>{{ SOURCE_LABEL[s] }}</span><span aria-hidden="true">{{ SOURCE_LABEL[s] }}</span></span><small v-if="s === 'scholar' && lib.scholarSkipped" class="need">needs SERPAPI_KEY</small>
+        <button v-for="s in UI_SOURCES" :key="s" type="button" class="chip" :aria-pressed="lib.sources.includes(s)" :disabled="running" @click="toggleSource(s)" :title="'Search ' + SOURCE_LABEL[s]">
+          <span class="roll"><span>{{ SOURCE_LABEL[s] }}</span><span aria-hidden="true">{{ SOURCE_LABEL[s] }}</span></span>
         </button>
       </div>
     </section>
@@ -91,24 +126,13 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
         <button type="button" class="reset" @click="lib.resetWeights()">reset to defaults</button></div>
       <div class="weights">
         <div v-for="k in COMPONENT_KEYS" :key="k" class="w" :class="{ low: k === 'llm' }">
-          <label :for="'w-' + k"><i :style="{ background: COMPONENT_META[k].color }" />{{ COMPONENT_META[k].label }}</label>
+          <label :for="'w-' + k">{{ COMPONENT_META[k].label }}</label>
           <input :id="'w-' + k" v-model.number="lib.weights[k]" type="range" min="0" max="0.5" step="0.01" />
           <b class="num ro" :title="`raw weight ${f2(lib.weights[k])} · share of the total ${Math.round(share(k) * 100)}%`">{{ f2(lib.weights[k]) }}</b>
         </div>
         <p class="small" :class="llmLowest ? 'faint' : 'warnline'">{{ llmLowest ? 'LLM read has the lowest weight, by design.' : 'The LLM read is weighted above another signal; the spec keeps it lowest.' }}</p>
       </div>
-      <p v-if="lib.reweighted && lib.status === 'done'" class="notice small">Scores re-computed in the browser with your weights and threshold (same rule as the server). Run again to search with them.</p>
-    </section>
-
-    <section class="block rv" :style="delay(5)">
-      <div class="runrow">
-        <button class="pill primary" type="button" :class="{ busy: running }" :disabled="running || !vault.notes.length" @click="run">
-          <i v-if="running" class="dot live" />{{ running ? 'Building library…' : 'Build library from vault' }}
-        </button>
-        <button v-if="lib.status === 'done' || lib.papers.length" class="pill" type="button" @click="ui.openLibrary()">Open results</button>
-      </div>
-      <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
-      <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="pill" type="button" @click="run">Try again</button></div>
+      <p v-if="lib.reweighted && lib.status === 'done'" class="notice small">Scores re-computed in the browser with your weights (same rule as the server). Build again to search with them.</p>
     </section>
 
     <section v-if="lib.status !== 'idle'" class="block rv" :style="delay(6)">
@@ -155,11 +179,12 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
     </section>
 
     <section v-if="lib.calls.length" class="block rv" :style="delay(11)">
-      <div class="eyebrow">Source calls<span class="sub">{{ lib.calls.length }} calls</span></div>
+      <div class="eyebrow">Source calls<span class="sub">{{ lib.calls.length }} calls · Tavily {{ lib.calls.filter(c => c.source === 'tavily').length }} · {{ tavilyFound }} papers found via Tavily</span></div>
       <table class="calls">
         <thead><tr><th>source</th><th>query</th><th>n</th><th>ms</th></tr></thead>
         <tbody>
           <template v-for="g in callsBySource" :key="g.s">
+            <tr v-if="!g.calls.length"><td>{{ SOURCE_LABEL[g.s] }}</td><td class="qry faint">{{ lib.sources.includes(g.s) ? (running ? 'waiting for web search…' : 'no calls in this build') : 'source switched off' }}</td><td class="n">0</td><td class="n" /></tr>
             <tr v-for="(c, i) in g.calls" :key="g.s + i" :class="{ bad: c.error }">
               <td>{{ i === 0 ? SOURCE_LABEL[c.source] : '' }}</td>
               <td class="qry" :title="c.query">{{ c.query }}<small v-if="c.error" class="err">{{ c.error }}</small></td>
@@ -171,14 +196,15 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
     </section>
 
     <section v-if="lib.top.length" class="block rv" :style="delay(12)">
-      <div class="eyebrow">Top papers<span class="sub"><CountUp :value="lib.top.length" /> of <CountUp :value="lib.total" /> scored · <CountUp :value="lib.passedTop.length" /> passed</span></div>
+      <div class="eyebrow">Top papers<span class="sub"><CountUp :value="lib.passedCount" /> of <CountUp :value="lib.eligibleCount" /> pass · showing <CountUp :value="Math.min(8, lib.top.length)" /></span></div>
       <button v-for="(p, i) in lib.top.slice(0, 8)" :key="p.paper.id" type="button" class="card rv" :style="delay(13 + i)" @click="ui.openLibPaper(p.paper.id, shortTitle(p.paper))">
         <span class="rk">#{{ p.rank }}</span><span class="tt">{{ p.paper.title }}</span>
-        <ScoreBar :paper="p" :threshold="lib.threshold" />
+        <Verdict :paper="p" compact :move="lib.rankMove(p.paper.id, p.rank)" />
+        <WhyRelevant :paper="p" compact />
       </button>
       <button type="button" class="pill ghost" @click="ui.openLibrary()">All {{ lib.top.length }} with filters and evidence →</button>
     </section>
-    <section v-else-if="lib.status === 'idle'" class="empty rv" :style="delay(7)">No library yet. Set the controls and press <b>Build library from vault</b>. Seed papers are optional; they let the graph component link results to your own papers.</section>
+    <section v-else-if="lib.status === 'idle'" class="empty rv" :style="delay(7)">No library yet. Type your research question above and press <b>Build library</b>. Seed papers are optional; they let the graph component link results to your own papers.</section>
   </div>
 </template>
 
@@ -213,6 +239,10 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
 .stack{display:flex;flex-direction:column;gap:8px;padding-top:4px}
 .qbox{font:.7rem/1.45 var(--font-mono);border:1px solid var(--ink-26);border-radius:10px;padding:9px 11px;background:var(--paper);color:var(--ink);resize:vertical;width:100%}
 .qbox:focus{outline:none;border-color:var(--ink-64)}
+.qbox.ask{font:500 .86rem/1.45 var(--font-sans);border-radius:12px;padding:10px 12px}
+.qbox.ask::placeholder{color:var(--ink-38)}
+.hint{color:var(--ink-64)}
+.lnk.inl{font:600 .72rem var(--font-sans);color:var(--ink);word-break:normal}
 .seedres{margin:0;padding-left:16px;font-size:.72rem}
 .seedres .bad{color:var(--accent)}
 .pair{display:flex;align-items:center;gap:10px}
@@ -288,7 +318,7 @@ blockquote{margin:4px 0 2px;padding:1px 0 1px 10px;border-left:1px solid var(--i
 .card:hover{border-color:var(--ink-46);background:var(--ink-8);transform:translateY(-1px)}
 .card .rk{font:700 .6rem var(--font-mono);letter-spacing:.04em;border:1px solid var(--ink-26);border-radius:99px;padding:3px 7px;color:var(--ink-64)}
 .card .tt{font-size:.76rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.card :deep(.sb){grid-column:1 / -1}
+.card :deep(.vd),.card :deep(.wr){grid-column:1 / -1}
 .empty{font-size:.78rem;line-height:1.55;color:var(--ink-55);border:1px dashed var(--ink-26);border-radius:12px;padding:12px 14px;margin-top:18px}
 .empty b{color:var(--ink)}
 .mono{font-family:var(--font-mono)}

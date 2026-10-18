@@ -12,7 +12,7 @@ import { useVault, type Note } from '../stores/vault'
 import { useDiscovery } from '../stores/discovery'
 import { useUi } from '../stores/ui'
 import { extractLinks, noteName, resolveLink } from '../stores/vault-utils'
-import { shortTitle } from '../discover/literatureNote'
+import { firstAuthor, lastName, shortTitle } from '../discover/literatureNote'
 
 type Kind = 'seed' | 'lit' | 'note' | 'ghost' | 'bridge' | 'lib'
 interface GNode extends d3.SimulationNodeDatum { id: string; kind: Kind; label: string; sub: string; note?: Note; cand?: Candidate; lib?: LibPaper; component?: string }
@@ -22,8 +22,13 @@ const MAX_GHOSTS = 25
 const MAX_LIB = 60
 const vault = useVault(), disc = useDiscovery(), ui = useUi(), lib = useLibrary()
 
-// Library papers that passed the threshold (D-20/D-23: the candidate layer). Papers already kept as notes show as notes.
-const libNodes = computed(() => lib.passedTop.filter(p => !vault.byPaper(p.paper.id)).slice(0, MAX_LIB))
+// Library papers that pass the rule (D-20/D-23/D-27: the candidate layer). Papers already kept as notes show as notes.
+const libNodes = computed(() => lib.passedAll.filter(p => !vault.byPaper(p.paper.id)).slice(0, MAX_LIB))
+// F-45: library node radius ∝ total score (4 px at 0 → 16 px at 1); vault notes keep their fixed size. Read live from
+// the store so a re-score resizes nodes without re-running the layout.
+const libRadius = (total: number) => 4 + 12 * Math.max(0, Math.min(1, total))
+const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, libRadius(p.total)])))
+const SCALE = [0.5, 0.75, 1]
 /** Vault note for a known paper id (OpenAlex id, DOI, PMID or arXiv id): by note.paperId, else by the id in its text. */
 function noteForPaper(id: string): Note | undefined {
   const k = id.toLowerCase()
@@ -81,10 +86,11 @@ const data = computed(() => {
   const libIds = new Set(libNodes.value.map(p => p.paper.id))
   for (const p of libNodes.value) {
     const id = 'lib:' + p.paper.id
-    nodes.set(id, { id, kind: 'lib', label: shortTitle(p.paper), sub: `Library #${p.rank} · score ${p.total.toFixed(2)} · ${p.paper.title}`, lib: p })
+    nodes.set(id, { id, kind: 'lib', label: `${lastName(firstAuthor(p.paper))} ${p.paper.year ?? ''}`.trim(), // J-5: short "Author Year"
+       sub: `Library #${p.rank} · score ${p.total.toFixed(2)} · ${p.paper.title}`, lib: p })
     DG.addVertex(id, p.paper.title)
   }
-  for (const p of [...libNodes.value, ...lib.passedTop.filter(x => vault.byPaper(x.paper.id))]) {
+  for (const p of [...libNodes.value, ...lib.passedAll.filter(x => vault.byPaper(x.paper.id))]) {
     const from = libIds.has(p.paper.id) ? 'lib:' + p.paper.id : 'note:' + vault.byPaper(p.paper.id)!.path
     for (const r of p.relations) {
       if (r.type !== 'cites' && r.type !== 'cited_by') continue
@@ -132,6 +138,7 @@ let ringA = 0
 const pos = new Map<string, { x: number; y: number; vx?: number; vy?: number }>()
 const st = new Map<string, NState>()
 const R: Record<Kind, number> = { seed: 9, lit: 6.5, note: 5, ghost: 5.5, bridge: 5.5, lib: 6 }
+const rad = (n: GNode) => n.kind === 'lib' ? (libR.value.get(n.id) ?? R.lib) : R[n.kind]
 const BLOOM_MS = 900, BLOOM_TOTAL = 2400
 const easeOutExpo = (t: number) => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t)
 const idOf = (e: string | GNode) => typeof e === 'string' ? e : e.id
@@ -220,7 +227,7 @@ function render(animate: boolean, replay = false) {
       exit => exit.remove(),
     )
   nodeSel.attr('aria-label', d => d.label)
-  nodeSel.select('circle').attr('r', d => R[d.kind]).attr('class', d => 'nd nd-' + d.kind)
+  nodeSel.select('circle').attr('r', d => rad(d)).attr('class', d => 'nd nd-' + d.kind)
   nodeSel.select<SVGTextElement>('text').text(d => d.label.length > 28 ? d.label.slice(0, 27) + '…' : d.label)
   nodeSel
     .on('click', (_e, d) => { openNode(d); focusOn(d) })
@@ -229,7 +236,7 @@ function render(animate: boolean, replay = false) {
     .on('blur', () => setActive(null))
     .on('mouseenter', (e: MouseEvent, d) => {
       const r = wrap.value!.getBoundingClientRect()
-      tip.value = { x: e.clientX - r.left + 14, y: e.clientY - r.top + 14, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} ≥ ${lib.threshold.toFixed(2)} · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
+      tip.value = { x: e.clientX - r.left + 14, y: e.clientY - r.top + 14, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} · passed (top ${lib.topPercent}%, ≥ ${lib.threshold.toFixed(2)}) · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
       setActive(d.id)
     })
     .on('mousemove', (e: MouseEvent) => { if (tip.value) { const r = wrap.value!.getBoundingClientRect(); tip.value = { ...tip.value, x: e.clientX - r.left + 14, y: e.clientY - r.top + 14 } } })
@@ -244,7 +251,7 @@ function render(animate: boolean, replay = false) {
     sim = d3.forceSimulation<GNode, GLink>(nodes)
       .force('link', forceLink)
       .force('charge', d3.forceManyBody<GNode>().strength(d => d.kind === 'seed' ? -260 : -110))
-      .force('collide', d3.forceCollide<GNode>(d => R[d.kind] + 4))
+      .force('collide', d3.forceCollide<GNode>(d => rad(d) + 4))
       .force('x', d3.forceX<GNode>().strength(0.06))
       .force('y', d3.forceY<GNode>().strength(0.06))
   } else {
@@ -328,13 +335,13 @@ function frame(nowT: number) {
     const order = [...cur].sort((p, q) => score(q) - score(p))
     function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
     const placed: { x0: number; y0: number; x1: number; y1: number; id?: string }[] = cur.map(n => {
-      const s = st.get(n.id); const r = (R[n.kind] + 1) * transform.k
+      const s = st.get(n.id); const r = (rad(n) + 1) * transform.k
       return s ? { x0: sx(s.x) - r, y0: sy(s.y) - r, x1: sx(s.x) + r, y1: sy(s.y) + r, id: n.id } : { x0: 0, y0: 0, x1: 0, y1: 0, id: n.id }
     })
     for (const n of order) {
       const s = st.get(n.id); if (!s) continue
       const lw = approx(n.label.length > 28 ? n.label.slice(0, 28) : n.label), lh = 13
-      const x0 = sx(s.x) + (R[n.kind] + 4) * transform.k, y0 = sy(s.y) - lh / 2
+      const x0 = sx(s.x) + (rad(n) + 4) * transform.k, y0 = sy(s.y) - lh / 2
       const box = { x0, y0, x1: x0 + lw, y1: y0 + lh }
       const clash = placed.some(p => p.id !== n.id && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
       const show = n.id === active || !clash
@@ -350,9 +357,9 @@ function frame(nowT: number) {
     const breathe = reduce ? 1 : 1 + 0.05 * Math.sin(nowT / 1000 * 0.9 + s.ph)
     const g = this as SVGGElement
     const c = g.firstChild as SVGCircleElement, t = g.lastChild as SVGTextElement
-    c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(R[n.kind] * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
+    c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(rad(n) * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
     c.style.opacity = String(Math.min(1, e * 1.5) * s.dim)
-    t.setAttribute('x', String(s.x + R[n.kind] + 4 / transform.k)); t.setAttribute('y', String(s.y + 3.6 / transform.k))
+    t.setAttribute('x', String(s.x + rad(n) + 4 / transform.k)); t.setAttribute('y', String(s.y + 3.6 / transform.k))
     t.style.opacity = String(Math.min(1, e * 1.5) * s.dim * s.lbl)
     t.classList.toggle('on', n.id === active)
   })
@@ -423,7 +430,11 @@ watch(signature, () => render(true))
     <div class="g-legend">
       <span><i class="d seed" />Seed note · {{ counts.seed }}</span>
       <span><i class="d note" />Note · {{ counts.lit + counts.note }}</span>
-      <span><i class="d lib" />Library ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
+      <span><i class="d lib" />Library · passed top {{ lib.topPercent }}%, ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
+      <span v-if="counts.lib" class="scale" aria-label="Library node size is proportional to the total score: 4 px at 0, 16 px at 1">
+        <svg :width="SCALE.length * 34 + 4" height="34" aria-hidden="true"><g v-for="(v, i) in SCALE" :key="v"><circle class="sc" :cx="i * 34 + 17" cy="17" :r="libRadius(v)" /></g></svg>
+        <span class="sclbl">size ∝ score · <template v-for="(v, i) in SCALE" :key="v">{{ i ? ' · ' : '' }}{{ v.toFixed(2) }}</template><br>4 px at 0 → 16 px at 1 · vault notes fixed</span>
+      </span>
       <span v-if="counts.ghost"><i class="d ghost" />Candidate · {{ counts.ghost }}</span>
     </div>
     <div class="corner">
@@ -459,6 +470,9 @@ svg:active{cursor:grabbing}
 .g-legend .d.note{background:var(--ink-64);width:7px;height:7px;margin:0 1px}
 .g-legend .d.lib{border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
 .g-legend .d.ghost{border:1.2px solid var(--ink-64);background:var(--paper)}
+.g-legend .scale{gap:8px;align-items:center}
+.g-legend .sc{fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.2}
+.g-legend .sclbl{letter-spacing:.06em;line-height:1.5;text-transform:none}
 .corner{position:absolute;right:18px;bottom:16px;z-index:2;display:flex;gap:8px}
 .icon-btn{width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--ink-26);background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:background .4s var(--reveal),border-color .4s var(--reveal),transform .4s var(--reveal)}
 .icon-btn:hover{background:var(--ink-8);border-color:var(--ink-46)}
