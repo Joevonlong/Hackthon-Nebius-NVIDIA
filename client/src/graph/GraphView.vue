@@ -9,6 +9,7 @@ import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../stores/library'
 import DirectedGraph from './directed-graph'
 import { buildCitationEdges, notePaperKeys, paperKeys, type PoolPaper } from './edges'
+import { radiusAt, scoreScale } from './score-scale'
 import { useVault, type Note } from '../stores/vault'
 import { useDiscovery } from '../stores/discovery'
 import { useUi } from '../stores/ui'
@@ -29,22 +30,17 @@ const vault = useVault(), disc = useDiscovery(), ui = useUi(), lib = useLibrary(
 // CR-10: "kept as a note" matches any id form (OpenAlex id, DOI, PMID, arXiv), not only note.paperId.
 const noteIdKeys = computed(() => new Set(vault.notes.flatMap(n => notePaperKeys({ paperId: n.paperId, content: n.content, seed: n.kind === 'seed' }))))
 const libNodes = computed(() => lib.passedAll.filter(p => !vault.byPaper(p.paper.id) && !paperKeys(p.paper).some(k => noteIdKeys.value.has(k))).slice(0, MAX_LIB))
-// F-45: library node radius ∝ total score (4 px at 0 → 16 px at 1); vault notes keep their fixed size. Read live from
-// the store so a re-score resizes nodes without re-running the layout.
-const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
-const libRadius = (total: number) => 4 + 12 * clamp01(total)
-const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, libRadius(p.total)])))
-// CR-12: fill follows the same score domain as the radius (0 → lightest blue, 1 → darkest blue), so size and colour agree.
-// The ramp itself is CSS (--ramp-lo / --ramp-hi, per theme); each node only carries its position t on it.
-const libT = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, clamp01(p.total)])))
-const rampPct = (t: number) => Math.round(clamp01(t) * 100) + '%'
-/** Measured min–max total score of the drawn library nodes (legend). */
-const scoreRange = computed(() => {
-  const ts = libNodes.value.map(p => p.total)
-  return ts.length ? { min: Math.min(...ts), max: Math.max(...ts) } : null
-})
+// F-45 + CR-12 (decided 18:20): library node size AND blue fill follow the total score over the drawn nodes' min–max score
+// (lowest drawn → 5 px, lightest blue; highest → 18 px, darkest blue; all equal → middle size and colour). One mapping
+// (score-scale.ts) drives both, so they always agree; vault notes keep their fixed size. Read live from the store so a
+// re-score resizes and recolours nodes without re-running the layout. The ramp itself is CSS (--ramp-lo / --ramp-hi, per
+// theme); each node only carries its position t on it.
+const scoreRange = computed(() => scoreScale(libNodes.value.map(p => p.total)))
+const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, scoreRange.value!.radius(p.total)])))
+const libT = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, scoreRange.value!.t(p.total)])))
+const rampPct = (t: number) => Math.round(Math.max(0, Math.min(1, t)) * 100) + '%'
 const legendEl = ref<HTMLDivElement | null>(null)
-const SCALE = [0.5, 0.75, 1]
+const SCALE = [0, 0.5, 1] // legend sample positions on the drawn range
 const wrap = ref<HTMLDivElement | null>(null)
 const svgEl = ref<SVGSVGElement | null>(null)
 const tip = ref<{ x: number; y: number; title: string; sub: string } | null>(null)
@@ -504,14 +500,9 @@ watch(signature, () => render(true))
       <span><i class="d seed" />Seed note · {{ counts.seed }}</span>
       <span><i class="d note" />Note · {{ counts.lit + counts.note }}</span>
       <span><i class="d lib" />Library · passed top {{ lib.topPercent }}%, ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
-      <span v-if="counts.lib" class="scale" aria-label="Library node size is proportional to the total score: 4 px at 0, 16 px at 1">
-        <svg :width="SCALE.length * 34 + 4" height="34" aria-hidden="true"><g v-for="(v, i) in SCALE" :key="v"><circle class="sc" :style="{ '--t': rampPct(v) }" :cx="i * 34 + 17" cy="17" :r="libRadius(v)" /></g></svg>
-        <span class="sclbl">size and blue ∝ score · <template v-for="(v, i) in SCALE" :key="v">{{ i ? ' · ' : '' }}{{ v.toFixed(2) }}</template><br>4 px at 0 → 16 px at 1 · vault notes fixed</span>
-      </span>
-      <span v-if="scoreRange" class="ramp" :aria-label="`Library node colour: light blue = lowest score, dark blue = highest; drawn nodes score ${scoreRange.min.toFixed(2)} to ${scoreRange.max.toFixed(2)}`">
-        {{ scoreRange.min.toFixed(2) }}
-        <i class="bar" :style="{ '--a': rampPct(scoreRange.min), '--b': rampPct(scoreRange.max) }" />
-        {{ scoreRange.max.toFixed(2) }} · score range drawn
+      <span v-if="counts.lib && scoreRange" class="scale" :aria-label="scoreRange.flat ? `All drawn library papers score ${scoreRange.min.toFixed(2)}: middle size and colour` : `Library node size and colour follow the score: ${scoreRange.min.toFixed(2)} light and small to ${scoreRange.max.toFixed(2)} dark and big, among the drawn papers`">
+        <svg :width="(scoreRange.flat ? 1 : SCALE.length) * 40 + 4" height="40" aria-hidden="true"><g v-for="(v, i) in (scoreRange.flat ? [0.5] : SCALE)" :key="v"><circle class="sc" :style="{ '--t': rampPct(v) }" :cx="i * 40 + 20" cy="20" :r="radiusAt(v)" /></g></svg>
+        <span class="sclbl"><template v-if="scoreRange.flat">size and colour = score · all drawn papers score {{ scoreRange.min.toFixed(2) }} (middle size and colour)</template><template v-else>size and colour = score, {{ scoreRange.min.toFixed(2) }} (light/small) → {{ scoreRange.max.toFixed(2) }} (dark/big) among the drawn papers</template><br><i v-if="!scoreRange.flat" class="bar" />vault notes fixed</span>
       </span>
       <span v-if="counts.ghost"><i class="d ghost" />Candidate · {{ counts.ghost }}</span>
       <span class="lgi" title="Citation link between two papers (one cites the other)"><svg width="22" height="8" aria-hidden="true"><line class="lg cite" x1="1" y1="4" x2="21" y2="4" /></svg>Citation · {{ edgeCounts.cite }}</span>
@@ -555,12 +546,11 @@ svg:active{cursor:grabbing}
 .g-legend .d.seed{background:var(--ink)}
 .g-legend .d.note{background:var(--ink-64);width:7px;height:7px;margin:0 1px}
 .g-legend .d.lib{border:1px solid var(--ramp-stroke);background:color-mix(in oklch,var(--ramp-hi) 60%,var(--ramp-lo))}
-.g-legend .ramp{gap:7px}
-.g-legend .ramp .bar{display:inline-block;width:72px;height:9px;border-radius:2px;border:1px solid var(--ramp-stroke);background:linear-gradient(in oklch to right,color-mix(in oklch,var(--ramp-hi) var(--a),var(--ramp-lo)),color-mix(in oklch,var(--ramp-hi) var(--b),var(--ramp-lo)))}
+.g-legend .sclbl .bar{display:inline-block;vertical-align:middle;width:72px;height:8px;margin-right:8px;border-radius:2px;border:1px solid var(--ramp-stroke);background:linear-gradient(in oklch to right,var(--ramp-lo),var(--ramp-hi))}
 .g-legend .d.ghost{border:1.2px solid var(--ink-64);background:var(--paper)}
 .g-legend .scale{gap:8px;align-items:center}
 .g-legend .sc{fill:color-mix(in oklch,var(--ramp-hi) var(--t,50%),var(--ramp-lo));stroke:var(--ramp-stroke);stroke-width:1}
-.g-legend .sclbl{letter-spacing:.06em;line-height:1.5;text-transform:none}
+.g-legend .sclbl{display:block;max-width:300px;letter-spacing:.06em;line-height:1.5;text-transform:none}
 .corner{position:absolute;right:18px;bottom:16px;z-index:2;display:flex;gap:8px}
 .icon-btn{width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--ink-26);background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:background .4s var(--reveal),border-color .4s var(--reveal),transform .4s var(--reveal)}
 .icon-btn:hover{background:var(--ink-8);border-color:var(--ink-46)}
