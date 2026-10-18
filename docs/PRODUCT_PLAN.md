@@ -269,3 +269,10 @@ Note: three build agents were started at 15:15 before this confirmation step; th
 2. LLM read: abstract only for now (D-22).
 3. Defaults: top-N 30, threshold 0.55 (D-22).
 4. Placement: **Library replaces Discover** (D-23, 15:35).
+
+### CR-1 status (16:00)
+F-30…F-35, F-37 done and merged (main `ff3055f`); live run in the UI against the real backend: 94 s, 599 papers scored, top 30 shown with labels, score bars and evidence; no console errors. F-36 trace: `logs/runs/<libraryId>/` + `data/library/<libraryId>/papers/*.json`.
+Open findings (need a decision before changing):
+1. Threshold 0.55 passes 500–553 of 599 (median total 0.67), so it barely filters. Option: calibrate the threshold as a percentile of the pile, or raise the default to ~0.75.
+2. The `subtopics` label lists every subtopic for most papers (match rule too loose).
+3. F-38 Library demo recording and F-39 story updates not started.
