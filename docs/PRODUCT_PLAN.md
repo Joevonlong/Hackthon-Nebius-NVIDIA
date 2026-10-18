@@ -424,3 +424,10 @@ Problem: the graph view drew no edges. Cause 1: it ignored `paper.referencedWork
 - **E-1 Citation edges (client graph + graph.json):** paper→paper edges from OpenAlex `referenced_works` among the drawn library papers; edges to seed / vault notes matched by any id (OpenAlex id, DOI, PMID, arXiv). Legend + edge count in the graph header; hover highlights a node's edges. `graph.json` on disk gets the same edges.
 - **E-2 Europe PMC fallback (server):** after scoring, passed papers with a PMID and no OpenAlex references get their reference list from Europe PMC (`/MED/<pmid>/references`, free, no key), time-boxed and cached; matched references become `relations` (cites) and edges. Traced to `references.jsonl`.
 - **E-3 Final graph test:** after every feature is merged, a final QA run screenshots the graph view (edges visible, counts) on the final build.
+
+## 23. CR-11 · "Why this score" as a chart (user, 17:58; confirmed)
+Readers should get the score at a glance, not by reading text.
+- **V-1 Score donut** (report card in the paper view): each coloured slice = what one component adds to the total (weight share × value); grey = points missed; centre = letter grade + total. One fixed colour per component, used everywhere.
+- **V-2 Value bars** next to the donut: one bar per component, length = value 0–1, label = value and weight share; not-assessed components show a dotted empty bar with "not assessed". The existing text rows (rule + evidence with links) stay below, folded.
+- **V-3 Small donut** in the tile hover popover; **V-4 mini stacked bar** (contributions, same colours) on every tile and table row, so the list is scannable.
+- Values come from the paper's stored components after rescoring (live weights); no new data.
