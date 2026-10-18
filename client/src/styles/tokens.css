@@ -22,3 +22,19 @@ html,body,#app{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--font-body)}
 button{font-family:inherit}
 :focus-visible{outline:2px solid var(--seed);outline-offset:1px}
+/* D-24: IMS Dictionary design language for the graph view and the Library sidebar. Paper and ink follow the theme;
+   greys are one ink at alpha tiers; --accent marks papers above the threshold. */
+:root{
+  --paper:#EAEAE8; --paper-2:#F2F2F0; --ink:#1A1A19; --accent:#BF3468;
+  --reveal:cubic-bezier(.16,1,.3,1); --drawer:cubic-bezier(.32,.72,0,1);
+  --font-sans:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --paper:#0E0F10; --paper-2:#161718; --ink:#ECECE8; --accent:#3EDF8A; }}
+:root[data-theme="dark"]{ --paper:#0E0F10; --paper-2:#161718; --ink:#ECECE8; --accent:#3EDF8A; }
+:root{
+  --ink-86:color-mix(in oklch,var(--ink) 86%,transparent); --ink-80:color-mix(in oklch,var(--ink) 80%,transparent);
+  --ink-64:color-mix(in oklch,var(--ink) 64%,transparent); --ink-55:color-mix(in oklch,var(--ink) 55%,transparent);
+  --ink-46:color-mix(in oklch,var(--ink) 46%,transparent); --ink-38:color-mix(in oklch,var(--ink) 38%,transparent);
+  --ink-26:color-mix(in oklch,var(--ink) 26%,transparent); --ink-16:color-mix(in oklch,var(--ink) 16%,transparent);
+  --ink-8:color-mix(in oklch,var(--ink) 8%,transparent); --hair:var(--ink-16);
+}

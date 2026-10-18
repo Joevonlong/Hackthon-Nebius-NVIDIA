@@ -9,6 +9,7 @@ import { noteName } from '../stores/vault-utils'
 import { COMPONENT_KEYS, COMPONENT_META, f2, weightSum, type ComponentKey } from './score'
 import { shortTitle } from '../discover/literatureNote'
 import ScoreBar from './ScoreBar.vue'
+import CountUp from '../discover/CountUp.vue'
 
 const lib = useLibrary()
 const vault = useVault()
@@ -16,6 +17,8 @@ const ui = useUi()
 
 const running = computed(() => lib.status === 'running')
 const seedText = ref('')
+const seedsOpen = ref(false)
+const delay = (i: number) => ({ '--i': i })
 const seedCount = computed(() => vault.notes.filter(n => n.kind === 'seed').length)
 const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'live' ? 'live' : '')
 
@@ -37,81 +40,92 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
 
 <template>
   <div class="side">
-    <section class="block">
-      <h4>Library <small>the whole vault is one research topic</small><span v-if="modeLabel" class="mode" :class="lib.mode">{{ modeLabel }}</span></h4>
-      <p class="muted small">An agent reads all {{ vault.notes.length }} notes, derives goals, searches every source, labels and scores each paper with evidence, and returns the best {{ lib.topK }}.</p>
+    <header class="block rv" :style="delay(0)">
+      <div class="eyebrow">Research library<span v-if="modeLabel" class="mode" :class="lib.mode">{{ modeLabel }}</span></div>
+      <h2 class="title">Library</h2>
+      <p class="prose">The whole vault is one research topic. An agent reads all {{ vault.notes.length }} notes, derives goals, searches every source, labels and scores each paper with evidence, and returns the best {{ lib.topK }}.</p>
+    </header>
+
+    <section class="block rv" :style="delay(1)">
+      <button type="button" class="eyebrow tog" :aria-expanded="seedsOpen" @click="seedsOpen = !seedsOpen">
+        <span class="plus" :class="{ open: seedsOpen }" aria-hidden="true" />Add seed papers<span class="sub">{{ seedCount }} seed notes</span>
+      </button>
+      <div class="more" :class="{ open: seedsOpen }"><div class="more-in"><div class="stack">
+        <textarea v-model="seedText" class="qbox mono" rows="4" spellcheck="false" placeholder="One DOI, PMID, arXiv or OpenAlex id per line" :disabled="lib.seedBusy" />
+        <div class="runrow">
+          <button class="pill" type="button" :disabled="lib.seedBusy || !seedText.trim()" @click="addSeeds">{{ lib.seedBusy ? 'Resolving…' : 'Add to Seeds/' }}</button>
+          <small class="faint">Their ids become known papers for the next build.</small>
+        </div>
+        <ul v-if="lib.seedAdded.length || lib.seedErrors.length" class="seedres">
+          <li v-for="p in lib.seedAdded" :key="p"><button type="button" class="lnk" @click="openNote(p)">{{ noteName(p) }}</button></li>
+          <li v-for="(e, i) in lib.seedErrors" :key="'e' + i" class="bad">{{ e.input ? e.input + ': ' : '' }}{{ e.message }}</li>
+        </ul>
+      </div></div></div>
     </section>
 
-    <details class="block seeds">
-      <summary><b>Add seed papers</b> <small>{{ seedCount }} seed notes in the vault</small></summary>
-      <textarea v-model="seedText" class="qbox mono" rows="4" spellcheck="false" placeholder="One DOI, PMID, arXiv or OpenAlex id per line" :disabled="lib.seedBusy" />
-      <div class="runrow">
-        <button class="btn" type="button" :disabled="lib.seedBusy || !seedText.trim()" @click="addSeeds">{{ lib.seedBusy ? 'Resolving…' : 'Add to Seeds/' }}</button>
-        <small class="muted">Their ids become known papers for the next build.</small>
-      </div>
-      <ul v-if="lib.seedAdded.length || lib.seedErrors.length" class="seedres">
-        <li v-for="p in lib.seedAdded" :key="p"><button type="button" class="lnk" @click="openNote(p)">{{ noteName(p) }}</button></li>
-        <li v-for="(e, i) in lib.seedErrors" :key="'e' + i" class="bad">{{ e.input ? e.input + ': ' : '' }}{{ e.message }}</li>
-      </ul>
-    </details>
-
-    <section class="block">
-      <h4><label for="topk">Papers to return</label></h4>
+    <section class="block rv" :style="delay(2)">
+      <div class="eyebrow"><label for="topk">Papers to return</label></div>
       <div class="pair">
         <input id="topk" v-model.number="topKModel" type="range" min="5" max="200" step="1" aria-label="Papers to return (slider)" />
         <input v-model.number="topKModel" type="number" min="5" max="200" class="num" aria-label="Papers to return" />
       </div>
-      <h4><label for="thr">Threshold <small>total score needed to join the citation graph</small></label></h4>
+      <div class="eyebrow gap"><label for="thr">Threshold</label><span class="sub">total score needed to join the citation graph</span></div>
       <div class="pair">
         <input id="thr" v-model.number="lib.threshold" type="range" min="0" max="1" step="0.01" />
         <b class="num ro">{{ f2(lib.threshold) }}</b>
       </div>
+    </section>
 
-      <h4>Sources</h4>
-      <div class="srcs">
-        <button v-for="s in SourceName.options" :key="s" type="button" class="src" :aria-pressed="lib.sources.includes(s)" :disabled="running" @click="toggleSource(s)"
+    <section class="block rv" :style="delay(3)">
+      <div class="eyebrow">Sources</div>
+      <div class="chips">
+        <button v-for="s in SourceName.options" :key="s" type="button" class="chip" :aria-pressed="lib.sources.includes(s)" :disabled="running" @click="toggleSource(s)"
                 :title="s === 'scholar' ? 'Google Scholar runs only via SerpAPI when SERPAPI_KEY is set (never scraped)' : 'Search ' + SOURCE_LABEL[s]">
-          {{ SOURCE_LABEL[s] }}<small v-if="s === 'scholar' && lib.scholarSkipped" class="need">needs SERPAPI_KEY</small>
+          <span class="roll"><span>{{ SOURCE_LABEL[s] }}</span><span aria-hidden="true">{{ SOURCE_LABEL[s] }}</span></span><small v-if="s === 'scholar' && lib.scholarSkipped" class="need">needs SERPAPI_KEY</small>
         </button>
       </div>
+    </section>
 
-      <h4>Weights <small>sum {{ f2(weightSum(lib.weights)) }} · normalized when scoring</small>
-        <button type="button" class="reset" @click="lib.resetWeights()">reset to defaults</button></h4>
+    <section class="block rv" :style="delay(4)">
+      <div class="eyebrow">Weights<span class="sub">sum {{ f2(weightSum(lib.weights)) }} · normalized when scoring</span>
+        <button type="button" class="reset" @click="lib.resetWeights()">reset to defaults</button></div>
       <div class="weights">
         <div v-for="k in COMPONENT_KEYS" :key="k" class="w" :class="{ low: k === 'llm' }">
           <label :for="'w-' + k"><i :style="{ background: COMPONENT_META[k].color }" />{{ COMPONENT_META[k].label }}</label>
           <input :id="'w-' + k" v-model.number="lib.weights[k]" type="range" min="0" max="0.5" step="0.01" />
           <b class="num ro" :title="`raw weight ${f2(lib.weights[k])} · share of the total ${Math.round(share(k) * 100)}%`">{{ f2(lib.weights[k]) }}</b>
         </div>
-        <p class="small" :class="llmLowest ? 'muted' : 'warnline'">{{ llmLowest ? 'LLM read has the lowest weight, by design.' : 'The LLM read is weighted above another signal; the spec keeps it lowest.' }}</p>
+        <p class="small" :class="llmLowest ? 'faint' : 'warnline'">{{ llmLowest ? 'LLM read has the lowest weight, by design.' : 'The LLM read is weighted above another signal; the spec keeps it lowest.' }}</p>
       </div>
       <p v-if="lib.reweighted && lib.status === 'done'" class="notice small">Scores re-computed in the browser with your weights and threshold (same rule as the server). Run again to search with them.</p>
-
-      <div class="runrow">
-        <button class="btn primary" type="button" :class="{ busy: running }" :disabled="running || !vault.notes.length" @click="run">
-          {{ running ? 'Building library…' : 'Build library from vault' }}
-        </button>
-        <button v-if="lib.status === 'done' || lib.papers.length" class="btn" type="button" @click="ui.openLibrary()">Open results</button>
-      </div>
-      <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
-      <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="btn" type="button" @click="run">Try again</button></div>
     </section>
 
-    <section v-if="lib.status !== 'idle'" class="block">
-      <h4>Steps <small v-if="lib.ms != null">{{ (lib.ms / 1000).toFixed(1) }} s</small></h4>
+    <section class="block rv" :style="delay(5)">
+      <div class="runrow">
+        <button class="pill primary" type="button" :class="{ busy: running }" :disabled="running || !vault.notes.length" @click="run">
+          <i v-if="running" class="dot live" />{{ running ? 'Building library…' : 'Build library from vault' }}
+        </button>
+        <button v-if="lib.status === 'done' || lib.papers.length" class="pill" type="button" @click="ui.openLibrary()">Open results</button>
+      </div>
+      <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
+      <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="pill" type="button" @click="run">Try again</button></div>
+    </section>
+
+    <section v-if="lib.status !== 'idle'" class="block rv" :style="delay(6)">
+      <div class="eyebrow">Steps<span v-if="lib.ms != null" class="sub num-m">{{ (lib.ms / 1000).toFixed(1) }} s</span></div>
       <div class="steps">
         <span v-for="st in lib.stages" :key="st.name" class="step" :class="stageCls(st.status)" :title="st.message || st.status">
-          <i />{{ LIB_STAGE_LABEL[st.name] }}<b v-if="st.count != null">{{ st.count.toLocaleString('en') }}</b>
+          <i class="dot" />{{ LIB_STAGE_LABEL[st.name] }}<b v-if="st.count != null">{{ st.count.toLocaleString('en') }}</b>
         </span>
       </div>
     </section>
 
-    <section v-if="lib.status === 'running' && !lib.goals" class="block"><div class="skel" /><div class="skel" /></section>
+    <section v-if="lib.status === 'running' && !lib.goals" class="block rv" :style="delay(7)"><div class="skel" /><div class="skel" /></section>
 
-    <section v-if="lib.goals" class="block card">
-      <h4>Goals <small>{{ lib.goals.model ? 'planner ' + lib.goals.model : 'no planner model (mock / fallback)' }}</small></h4>
+    <section v-if="lib.goals" class="block rv" :style="delay(7)">
+      <div class="eyebrow">Goals<span class="sub">{{ lib.goals.model ? 'planner ' + lib.goals.model : 'no planner model (mock / fallback)' }}</span></div>
       <p class="topic">{{ lib.goals.topic }}</p>
-      <p class="q">{{ lib.goals.question }}</p>
+      <p class="prose">{{ lib.goals.question }}</p>
       <ol class="goals">
         <li v-for="(g, i) in lib.goals.goals" :key="i">
           {{ g }}
@@ -119,20 +133,29 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
             <blockquote>“{{ goalEvidence(i)!.quote }}”</blockquote>
             <button type="button" class="lnk" @click="openNote(goalEvidence(i)!.notePath)">{{ goalEvidence(i)!.notePath }}</button>
           </template>
-          <small v-else class="muted"> · no verified quote from the notes</small>
+          <small v-else class="faint"> · no verified quote from the notes</small>
         </li>
       </ol>
-      <h4>Subtopics</h4>
-      <ul class="subs"><li v-for="s in lib.goals.subtopics" :key="s.name"><b>{{ s.name }}</b> <code>{{ s.query }}</code></li></ul>
-      <h4>Keywords</h4>
-      <div class="kw"><span v-for="k in lib.goals.keywords" :key="k">{{ k }}</span></div>
-      <h4>Known papers in the vault <small>{{ lib.goals.knownPapers.length }}</small></h4>
-      <p v-if="!lib.goals.knownPapers.length" class="muted small">None: add seed papers above so the graph component can link to them.</p>
-      <div v-else class="kw mono"><span v-for="k in lib.goals.knownPapers" :key="k">{{ k }}</span></div>
     </section>
 
-    <section v-if="lib.calls.length" class="block">
-      <h4>Sources <small>{{ lib.calls.length }} calls</small></h4>
+    <section v-if="lib.goals" class="block rv" :style="delay(8)">
+      <div class="eyebrow">Subtopics</div>
+      <ul class="subs"><li v-for="s in lib.goals.subtopics" :key="s.name"><b>{{ s.name }}</b> <code>{{ s.query }}</code></li></ul>
+    </section>
+
+    <section v-if="lib.goals" class="block rv" :style="delay(9)">
+      <div class="eyebrow">Keywords</div>
+      <div class="chips"><span v-for="k in lib.goals.keywords" :key="k" class="chip static">{{ k }}</span></div>
+    </section>
+
+    <section v-if="lib.goals" class="block rv" :style="delay(10)">
+      <div class="eyebrow">Known papers in the vault<span class="sub">{{ lib.goals.knownPapers.length }}</span></div>
+      <p v-if="!lib.goals.knownPapers.length" class="faint small">None: add seed papers above so the graph component can link to them.</p>
+      <div v-else class="chips mono"><span v-for="k in lib.goals.knownPapers" :key="k" class="chip static">{{ k }}</span></div>
+    </section>
+
+    <section v-if="lib.calls.length" class="block rv" :style="delay(11)">
+      <div class="eyebrow">Source calls<span class="sub">{{ lib.calls.length }} calls</span></div>
       <table class="calls">
         <thead><tr><th>source</th><th>query</th><th>n</th><th>ms</th></tr></thead>
         <tbody>
@@ -147,94 +170,127 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
       </table>
     </section>
 
-    <section v-if="lib.top.length" class="block">
-      <h4>Top papers <small>{{ lib.top.length }} of {{ lib.total.toLocaleString('en') }} scored · {{ lib.passedTop.length }} passed</small></h4>
-      <button v-for="p in lib.top.slice(0, 8)" :key="p.paper.id" type="button" class="mini" @click="ui.openLibPaper(p.paper.id, shortTitle(p.paper))">
+    <section v-if="lib.top.length" class="block rv" :style="delay(12)">
+      <div class="eyebrow">Top papers<span class="sub"><CountUp :value="lib.top.length" /> of <CountUp :value="lib.total" /> scored · <CountUp :value="lib.passedTop.length" /> passed</span></div>
+      <button v-for="(p, i) in lib.top.slice(0, 8)" :key="p.paper.id" type="button" class="card rv" :style="delay(13 + i)" @click="ui.openLibPaper(p.paper.id, shortTitle(p.paper))">
         <span class="rk">#{{ p.rank }}</span><span class="tt">{{ p.paper.title }}</span>
         <ScoreBar :paper="p" :threshold="lib.threshold" />
       </button>
-      <button type="button" class="more" @click="ui.openLibrary()">All {{ lib.top.length }} with filters and evidence →</button>
+      <button type="button" class="pill ghost" @click="ui.openLibrary()">All {{ lib.top.length }} with filters and evidence →</button>
     </section>
-    <section v-else-if="lib.status === 'idle'" class="empty">No library yet. Set the controls and press <b>Build library from vault</b>. Seed papers are optional; they let the graph component link results to your own papers.</section>
+    <section v-else-if="lib.status === 'idle'" class="empty rv" :style="delay(7)">No library yet. Set the controls and press <b>Build library from vault</b>. Seed papers are optional; they let the graph component link results to your own papers.</section>
   </div>
 </template>
 
 <style scoped>
-.side{padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto;height:100%;min-height:0;contain:size;background:var(--surface);color:var(--fg)}
-.block{display:flex;flex-direction:column;gap:6px}
-h4{margin:4px 0 0;font:500 10.5px/1.3 var(--font-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-h4 small{letter-spacing:0;text-transform:none;font-size:10.5px;margin-left:4px}
-.mode{margin-left:auto;letter-spacing:0;text-transform:none;border:1px solid var(--warn);color:var(--warn);border-radius:99px;padding:1px 6px}
-.mode.live{border-color:var(--ok);color:var(--ok)}
-.small{font-size:11.5px;margin:0}
-.muted{color:var(--muted)}
-.qbox{font:11.5px/1.4 var(--font-mono);border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface-2);color:var(--fg);resize:vertical;width:100%}
-.seeds summary{cursor:pointer;font-size:12.5px}
-.seeds summary small{color:var(--muted);font-weight:400}
-.seeds[open]{gap:6px}
-.seedres{margin:0;padding-left:16px;font-size:11.5px}
-.seedres .bad{color:var(--crit)}
-.pair{display:flex;align-items:center;gap:8px}
-.pair input[type=range],.w input{flex:1;accent-color:var(--cand);min-width:0}
-.num{width:58px;font:600 12px var(--font-mono);font-variant-numeric:tabular-nums;border:1px solid var(--line);border-radius:5px;padding:3px 5px;background:var(--surface-2);color:var(--fg)}
-.num.ro{border-color:transparent;background:transparent;text-align:right;width:40px;cursor:help}
-.srcs{display:flex;flex-wrap:wrap;gap:4px}
-.src{font:500 11.5px var(--font-body);border:1px solid var(--line-2);border-radius:99px;padding:4px 9px;background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;gap:5px;align-items:center}
-.src[aria-pressed="true"]{border-color:var(--seed);color:var(--fg);background:var(--seed-soft)}
-.src:disabled{opacity:.6;cursor:default}
-.need{font:500 9.5px var(--font-mono);color:var(--warn)}
-.reset{margin-left:auto;border:0;background:transparent;color:var(--seed);font:500 11px var(--font-body);text-transform:none;letter-spacing:0;cursor:pointer;padding:0}
-.weights{display:flex;flex-direction:column;gap:2px}
-.w{display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:6px;font-size:12px}
+.side{padding:20px 18px 40px;display:flex;flex-direction:column;gap:0;overflow-y:auto;overflow-x:hidden;height:100%;min-height:0;contain:size;background:var(--paper-2);color:var(--ink);font-family:var(--font-sans);-webkit-font-smoothing:antialiased}
+.rv{animation:revealFade .66s var(--reveal) both;animation-delay:calc(var(--i,0) * 52ms)}
+@keyframes revealFade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ruleGrow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@keyframes titleReveal{from{opacity:0;transform:translateY(14px);letter-spacing:-.06em}to{opacity:1;transform:none;letter-spacing:-.035em}}
+.block{position:relative;display:flex;flex-direction:column;gap:10px;padding:18px 0 4px;min-width:0}
+.block::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:var(--hair);transform-origin:left;animation:ruleGrow .9s var(--reveal) both;animation-delay:calc(var(--i,0) * 52ms + 120ms)}
+.block:first-child{padding-top:0}.block:first-child::before{display:none}
+.eyebrow{font:700 .6rem/1.3 var(--font-sans);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-46);display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0}
+.eyebrow.gap{margin-top:8px}
+.eyebrow .sub{letter-spacing:.02em;text-transform:none;font-weight:500;font-size:.68rem;color:var(--ink-38)}
+.eyebrow .sub .cu{color:var(--ink-64)}
+.num-m{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.title{margin:0;font:700 2rem/1 var(--font-sans);letter-spacing:-.035em;color:var(--ink);animation:titleReveal .8s var(--reveal) both}
+.prose{margin:0;font-size:.8rem;line-height:1.55;color:var(--ink-64)}
+.small{font-size:.72rem;margin:0}
+.faint{color:var(--ink-46)}
+.mode{margin-left:auto;letter-spacing:.02em;text-transform:none;font-weight:600;border:1px solid var(--ink-26);color:var(--ink-64);border-radius:99px;padding:2px 8px}
+.mode.live{border-color:var(--accent);color:var(--accent)}
+.tog{background:none;border:0;padding:0;cursor:pointer;text-align:left;font-family:inherit;width:100%;align-items:center;color:var(--ink-64)}
+.tog:hover{color:var(--ink)}
+.plus{width:10px;height:10px;position:relative;flex:none;align-self:center}
+.plus::before,.plus::after{content:"";position:absolute;left:0;top:4.5px;width:10px;height:1px;background:currentColor;transition:transform .35s var(--drawer)}
+.plus::after{transform:rotate(90deg)}.plus.open::after{transform:rotate(0)}
+.more{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s var(--drawer)}
+.more.open{grid-template-rows:1fr}
+.more-in{overflow:hidden;min-height:0}
+.stack{display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.qbox{font:.7rem/1.45 var(--font-mono);border:1px solid var(--ink-26);border-radius:10px;padding:9px 11px;background:var(--paper);color:var(--ink);resize:vertical;width:100%}
+.qbox:focus{outline:none;border-color:var(--ink-64)}
+.seedres{margin:0;padding-left:16px;font-size:.72rem}
+.seedres .bad{color:var(--accent)}
+.pair{display:flex;align-items:center;gap:10px}
+input[type=range]{flex:1;min-width:0;accent-color:var(--ink);height:14px;margin:0}
+.num{width:58px;font:600 .72rem var(--font-mono);font-variant-numeric:tabular-nums;border:1px solid var(--ink-26);border-radius:99px;padding:4px 8px;background:transparent;color:var(--ink);text-align:right}
+.num.ro{border-color:transparent;width:36px;padding:0;cursor:help}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 .72rem/1 var(--font-sans);border:1px solid var(--ink-26);border-radius:99px;padding:6px 11px;background:transparent;color:var(--ink-80);cursor:pointer;display:inline-flex;gap:6px;align-items:center;transition:border-color .2s,background .2s,color .2s}
+.chip:hover:not(:disabled){border-color:var(--ink-64)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.chip:disabled{opacity:.55;cursor:default}
+.chip[aria-pressed="true"]:disabled{opacity:1;background:var(--ink-16);border-color:var(--ink-26);color:var(--ink-80)}
+.chip.static{cursor:default;padding:5px 10px;font-size:.68rem;color:var(--ink-80)}
+.chips.mono .chip{font-family:var(--font-mono);font-size:.64rem}
+.roll{display:inline-grid;overflow:hidden;line-height:1.15}
+.roll>span{grid-area:1/1;transition:transform .4s var(--reveal)}
+.roll>span:last-child{transform:translateY(110%)}
+.chip:hover:not(:disabled) .roll>span:first-child{transform:translateY(-110%)}
+.chip:hover:not(:disabled) .roll>span:last-child{transform:none}
+.need{font:500 .56rem var(--font-mono);opacity:.8}
+.reset{margin-left:auto;border:0;background:transparent;color:var(--ink-64);font:500 .68rem var(--font-sans);text-transform:none;letter-spacing:0;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:3px}
+.reset:hover{color:var(--ink)}
+.weights{display:flex;flex-direction:column;gap:4px}
+.w{display:grid;grid-template-columns:minmax(0,118px) 1fr 34px;align-items:center;gap:8px;font-size:.72rem;color:var(--ink-80)}
 .w label{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.w label i{width:8px;height:8px;border-radius:2px;flex:none}
-.w.low label{color:var(--muted)}
-.warnline{color:var(--warn)}
+.w label i{width:7px;height:7px;border-radius:50%;flex:none}
+.w.low label{color:var(--ink-55)}
+.warnline{color:var(--accent)}
 .runrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{font:600 12.5px/1 var(--font-body);border:1px solid var(--line-2);background:var(--surface);color:var(--fg);border-radius:99px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
-.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
-.btn:disabled{opacity:.55;cursor:default}
-.btn.primary.busy{opacity:1;cursor:progress}
-.notice{color:var(--warn);border:1px dashed var(--warn);border-radius:6px;padding:6px 8px}
-.errbox{display:flex;flex-direction:column;gap:6px;align-items:flex-start;font-size:12.5px;border:1px solid var(--crit);border-radius:7px;padding:8px 10px;background:color-mix(in srgb,var(--crit) 8%,var(--surface))}
-.steps{display:flex;flex-wrap:wrap;gap:4px}
-.step{display:inline-flex;gap:5px;align-items:center;white-space:nowrap;font:500 10.5px/1 var(--font-mono);padding:5px 7px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface);cursor:help}
-.step i{width:6px;height:6px;border-radius:50%;background:var(--line-2)}
-.step b{color:var(--fg)}
-.step.done{color:var(--fg);border-color:var(--seed)}
-.step.done i{background:var(--seed)}
-.step.live{color:var(--fg);border-color:var(--cand)}
-.step.live i{background:var(--cand);animation:blink 1s ease-in-out infinite}
+.pill{font:600 .74rem/1 var(--font-sans);border:1px solid var(--ink-26);background:transparent;color:var(--ink);border-radius:99px;padding:10px 16px;cursor:pointer;display:inline-flex;gap:8px;align-items:center;transition:border-color .2s,background .2s,transform .2s var(--reveal)}
+.pill:hover:not(:disabled){border-color:var(--ink-64)}
+.pill:active:not(:disabled){transform:scale(.97)}
+.pill.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.pill.primary:hover:not(:disabled){background:var(--ink-86)}
+.pill.ghost{border-color:transparent;padding-left:0;color:var(--ink-64);align-self:flex-start}
+.pill.ghost:hover{color:var(--ink)}
+.pill:disabled{opacity:.5;cursor:default}
+.pill.primary.busy{opacity:1;cursor:progress}
+.notice{color:var(--ink-64);border:1px dashed var(--ink-26);border-radius:10px;padding:8px 10px;line-height:1.5}
+.errbox{display:flex;flex-direction:column;gap:8px;align-items:flex-start;font-size:.76rem;border:1px solid var(--accent);border-radius:12px;padding:10px 12px;color:var(--ink)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ink-26);flex:none;display:inline-block}
+.dot.live{background:var(--accent);animation:pulse 1.1s ease-in-out infinite}
+.steps{display:flex;flex-wrap:wrap;gap:6px}
+.step{display:inline-flex;gap:6px;align-items:center;white-space:nowrap;font:500 .66rem/1 var(--font-sans);padding:6px 10px;border-radius:99px;border:1px solid var(--ink-16);color:var(--ink-46);cursor:help}
+.step b{font:600 .64rem var(--font-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.step.done{color:var(--ink);border-color:var(--ink-38)}
+.step.done .dot{background:var(--ink)}
+.step.live{color:var(--ink);border-color:var(--accent)}
+.step.live .dot{background:var(--accent);animation:pulse 1.1s ease-in-out infinite}
 .step.pend{border-style:dashed}
-.step.skip{opacity:.7}
-.step.err{border-color:var(--crit);color:var(--crit)}
-@keyframes blink{50%{opacity:.3}}
-.skel{height:48px;border-radius:7px;border:1px solid var(--line);background:linear-gradient(90deg,var(--surface-2) 0%,var(--surface) 50%,var(--surface-2) 100%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
+.step.skip{opacity:.6}
+.step.err{border-color:var(--accent);color:var(--accent)}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
+.skel{height:48px;border-radius:12px;border:1px solid var(--hair);background:linear-gradient(90deg,var(--ink-8) 0%,transparent 50%,var(--ink-8) 100%);background-size:200% 100%;animation:shimmer 1.2s linear infinite}
 @keyframes shimmer{to{background-position:-200% 0}}
-.card{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface-2)}
-.topic{margin:0;font:600 16px/1.3 var(--font-display)}
-.q{margin:0;font-size:12.5px;color:var(--muted)}
-.goals{margin:0;padding-left:18px;font-size:12.5px;display:flex;flex-direction:column;gap:6px}
-blockquote{margin:3px 0 1px;padding:2px 0 2px 8px;border-left:2px solid var(--seed);color:var(--muted);font-size:11.5px;font-style:italic}
-.lnk{border:0;background:transparent;padding:0;color:var(--seed);font:500 11px var(--font-mono);cursor:pointer;text-align:left;text-decoration:underline}
-.subs{margin:0;padding-left:16px;font-size:12px;display:flex;flex-direction:column;gap:2px}
-.subs code{font:10.5px var(--font-mono);color:var(--muted)}
-.kw{display:flex;flex-wrap:wrap;gap:3px}
-.kw span{font:500 10.5px/1 var(--font-mono);padding:3px 5px;border-radius:4px;border:1px solid var(--line-2);background:var(--surface)}
-.calls{width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed}
-.calls th{font:500 10px var(--font-mono);text-transform:uppercase;color:var(--muted);text-align:left;border-bottom:1px solid var(--line);padding:2px 3px}
-.calls th:nth-child(1){width:70px}.calls th:nth-child(3),.calls th:nth-child(4){width:42px;text-align:right}
-.calls td{padding:2px 3px;border-bottom:1px solid var(--line);vertical-align:top}
-.calls .qry{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);font-size:10.5px}
-.calls .err{display:block;color:var(--warn);white-space:normal}
+.topic{margin:0;font:700 1.45rem/1.15 var(--font-sans);letter-spacing:-.03em;text-wrap:balance;color:var(--ink)}
+.goals{margin:0;padding-left:18px;font-size:.78rem;line-height:1.5;color:var(--ink-86);display:flex;flex-direction:column;gap:10px}
+.goals li::marker{color:var(--ink-38);font-weight:700}
+blockquote{margin:4px 0 2px;padding:1px 0 1px 10px;border-left:1px solid var(--ink-38);color:var(--ink-55);font-size:.72rem;font-style:italic;line-height:1.5}
+.lnk{border:0;background:transparent;padding:0;color:var(--ink-64);font:500 .66rem var(--font-mono);cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px;word-break:break-all}
+.lnk:hover{color:var(--ink)}
+.subs{margin:0;padding:0;list-style:none;font-size:.76rem;display:flex;flex-direction:column;gap:8px}
+.subs li{display:flex;flex-direction:column;gap:2px}
+.subs code{font:.64rem/1.4 var(--font-mono);color:var(--ink-46);word-break:break-word}
+.calls{width:100%;border-collapse:collapse;font-size:.68rem;table-layout:fixed}
+.calls th{font:700 .54rem var(--font-sans);letter-spacing:.16em;text-transform:uppercase;color:var(--ink-46);text-align:left;border-bottom:1px solid var(--hair);padding:4px 4px}
+.calls th:nth-child(1){width:64px}.calls th:nth-child(3),.calls th:nth-child(4){width:38px;text-align:right}
+.calls td{padding:5px 4px;border-bottom:1px solid var(--ink-8);vertical-align:top;color:var(--ink-80)}
+.calls .qry{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:var(--font-mono);font-size:.62rem}
+.calls .err{display:block;color:var(--accent);white-space:normal}
 .calls .n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.mini{display:grid;grid-template-columns:auto 1fr;gap:2px 6px;text-align:left;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:var(--surface);color:var(--fg);cursor:pointer;font:inherit}
-.mini:hover{border-color:var(--line-2)}
-.mini .rk{font:600 11px var(--font-mono);color:var(--muted)}
-.mini .tt{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mini .sb{grid-column:1 / -1}
-.more{border:0;background:transparent;color:var(--seed);font:500 11.5px var(--font-mono);cursor:pointer;text-align:left;padding:2px 0}
-.empty{font-size:12.5px;color:var(--muted);border:1px dashed var(--line-2);border-radius:7px;padding:10px}
+.card{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;align-items:center;text-align:left;border:1px solid var(--hair);border-radius:12px;padding:11px 12px;background:transparent;color:var(--ink);cursor:pointer;font:inherit;transition:border-color .25s,background .25s,transform .35s var(--reveal)}
+.card:hover{border-color:var(--ink-46);background:var(--ink-8);transform:translateY(-1px)}
+.card .rk{font:700 .6rem var(--font-mono);letter-spacing:.04em;border:1px solid var(--ink-26);border-radius:99px;padding:3px 7px;color:var(--ink-64)}
+.card .tt{font-size:.76rem;font-weight:600;line-height:1.3;letter-spacing:-.005em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card :deep(.sb){grid-column:1 / -1}
+.empty{font-size:.78rem;line-height:1.55;color:var(--ink-55);border:1px dashed var(--ink-26);border-radius:12px;padding:12px 14px;margin-top:18px}
+.empty b{color:var(--ink)}
 .mono{font-family:var(--font-mono)}
-@media (prefers-reduced-motion: reduce){.skel,.step.live i{animation:none}}
+@media (prefers-reduced-motion: reduce){.rv,.title,.block::before,.dot.live,.step.live .dot,.skel{animation:none}.more,.roll>span,.plus::before,.plus::after{transition:none}}
 </style>

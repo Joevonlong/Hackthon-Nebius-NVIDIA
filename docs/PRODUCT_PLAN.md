@@ -238,6 +238,7 @@ Note: three build agents were started at 15:15 before this confirmation step; th
 | D-21 | Google Scholar dropped (no SerpAPI key, no scraping); Tavily gets high priority: question + every subtopic + every keyword group, max 10 results, advanced depth for subtopics, scholarly host list, ≤ 25 calls per library |
 | D-22 | Defaults confirmed: top-N 30, threshold 0.55, LLM reads abstracts only |
 | D-23 | **Library replaces the seed-based Discover tab** (user choice, 15:35). The sidebar shows Library, Related, References. Seed DOIs/PMIDs written in notes become `knownPapers` and drive graph expansion. The seed pipeline (`/api/runs`) stays on the server as an internal API but has no UI. Demo mode replays a recorded Library run. |
+| D-24 | **Graph view and Library sidebar take the IMS Dictionary design** (user choice, 15:28): monochrome ink-on-paper with ink alpha tiers, hairline rules, uppercase mono eyebrows, pill chips/buttons, film grain on the graph; motion from its `--reveal` / `--drawer` curves (staggered reveal, rule grow, chip text roll, grid-row expand); graph intro bloom, ambient drift, hover star of neighbours with dimming, ring, edge particles, label declutter, click-to-focus. One accent colour marks papers above the threshold. Stays d3 2D (no three.js). The rest of the app keeps its tokens. Reduced motion respected. |
 
 ### Requirements (from the user's request)
 | ID | Requirement |
@@ -263,6 +264,8 @@ Note: three build agents were started at 15:15 before this confirmation step; th
 | F-37 | Remove the Discover tab; Library is the only discovery UI; "Import seeds" writes seed notes into the vault (D-23) | L3 | 20m |
 | F-38 | Library demo recording + `?demo=1` replay (replaces the seed recording) | captain | 20m |
 | F-39 | Update pitch, demo runbook and README to the Library flow | story | 20m |
+| F-40 | Graph view in the IMS Dictionary style and motion (D-24) | C | 60m |
+| F-41 | Library sidebar in the IMS Dictionary style and motion (D-24) | C | 45m |
 
 ### Answers (15:25)
 1. Google Scholar: dropped; Tavily high priority instead (D-21).
