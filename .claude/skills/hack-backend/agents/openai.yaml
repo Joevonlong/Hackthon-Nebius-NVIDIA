@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Backend"
-  short_description: "AI pipeline, demo mode, seed data for a hackathon app"
-  default_prompt: "Use $hack-backend to design the AI pipeline, demo mode, and seed data for our hackathon app."
-policy:
-  allow_implicit_invocation: true

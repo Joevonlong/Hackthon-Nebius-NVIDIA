@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Design"
-  short_description: "Pick the demo's look, write DESIGN.md, stage the wow"
-  default_prompt: "Use $hack-design to pick our demo's visual direction, write hack/DESIGN.md, and choreograph the wow moment."
-policy:
-  allow_implicit_invocation: true

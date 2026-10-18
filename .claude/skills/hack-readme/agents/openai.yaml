@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · README"
-  short_description: "Hackathon README landing page and submission text"
-  default_prompt: "Use $hack-readme to write our hackathon README, prepare the submission text, and verify every link."
-policy:
-  allow_implicit_invocation: true

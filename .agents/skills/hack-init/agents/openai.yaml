@@ -1,6 +1,0 @@
-interface:
-  display_name: "Hack · Init"
-  short_description: "Set up a repo, board, and clock for a hackathon"
-  default_prompt: "Use $hack-init to set up this repository for our hackathon: event facts, clock, board, gate, and smoke test."
-policy:
-  allow_implicit_invocation: true
