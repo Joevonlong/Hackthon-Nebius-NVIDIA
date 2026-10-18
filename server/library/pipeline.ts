@@ -177,7 +177,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
   // 5. LLM read (D-32 / J-2): cover every paper returned to the UI — read the top max(llmReadTopK, topK) (cap 60),
-  //    then re-score and top up any newcomer in that top that was not read yet (at most 2 extra rounds).
+  //    then re-score and top up any newcomer in that top that was not read yet (at most 5 extra rounds).
   const byKey = new Map(items.map(i => [i.rec.paper.id, i]))
   const readK = effectiveLlmReadK(req)
   const attempted = new Set<string>()
@@ -190,7 +190,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   } else {
     const lr = await timed(s, 'llm', async () => {
       let batch = first
-      for (let round = 0; round < 3 && batch.length; round++) {
+      for (let round = 0; round < 6 && batch.length; round++) {
         batch.forEach(i => attempted.add(i.rec.key))
         const out = await llmReadAll(goals, batch.map(i => i.rec), { concurrency: 8, timeoutMs: Number(env.raw.LIBRARY_LLM_TIMEOUT_MS || 30000) })
         for (const [k, v] of out) reads.set(k, v)
