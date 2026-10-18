@@ -358,3 +358,12 @@ Decisions (16:30): **D-33** one folder per research question (`Questions/<name>/
 | F-60 tiles + table toggle | W1 | building |
 | F-61 history + F-62 question folders, seeds table, uploads, empty vault | W2 | building |
 
+
+---
+
+## 18. Change request CR-6 · Graph back button + correct navigation (user, 16:45; clear, started immediately)
+| # | Requirement | Card |
+|---|---|---|
+| R-6.1 | The graph view has a visible **Back** button that returns to exactly where the user came from (previous tab, with its scroll position and selection) | F-63 |
+| R-6.2 | Navigation history across tabs: an in-app back/forward stack in the UI store; Back buttons in the graph and in the paper view; ⌘[ / Alt+← also go back; browser Back does not leave the app | F-63 |
+| R-6.3 | Every jump lands on the right target, verified in the browser: list tile/row → paper view → Back → list (same scroll, same item focused); graph node → paper view or note → Back → graph (same zoom/selection); chat citation [#rank] → paper → Back → chat context; History → library → Back; file tree → note → Back; Add to vault → note → Back → paper | F-63 |
