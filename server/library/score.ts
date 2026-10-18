@@ -60,6 +60,10 @@ export interface LibraryContext {
   knownKeys: Set<string> // record keys that ARE vault papers
   knownCount: number
   now: Date
+  /** CR-14: OpenAlex budget exhausted (breaker open) during this build. */
+  openalexDown: boolean
+  /** CR-14: every paper with any cited-by count (OpenAlex, Scholar or Europe PMC / Crossref fallback), for year-band percentiles. */
+  citeYears: { year: number | null; count: number }[]
 }
 
 const recIds = (r: EnrichedRecord) => [r.key, r.paper.id, r.paper.doi?.toLowerCase(), r.paper.pmid ? `pmid:${r.paper.pmid}` : null, r.extra.arxiv ? `arxiv:${r.extra.arxiv.id}` : null].filter(Boolean) as string[]
@@ -102,11 +106,14 @@ export const hasOpenAlexWork = (rec: EnrichedRecord) =>
 export const knownCitedBy = (rec: EnrichedRecord): number | null =>
   hasOpenAlexWork(rec) ? rec.paper.citedByCount : rec.extra.scholarCitedBy ?? null
 export const NO_OPENALEX = 'rate-limited or not indexed'
+export const OPENALEX_DOWN = 'OpenAlex unavailable (budget exhausted)'
+/** CR-14: any cited-by count — trusted (OpenAlex / Scholar) first, else the Europe PMC / Crossref fallback. */
+export const anyCitedBy = (rec: EnrichedRecord): number | null => knownCitedBy(rec) ?? rec.extra.citedByFallback?.count ?? null
 
 const leadAuthors = (rec: EnrichedRecord) => rec.authors.filter(a => a.position === 'first' || a.position === 'last')
 const bestAuthorH = (rec: EnrichedRecord) => { const hs = leadAuthors(rec).map(a => a.hIndex).filter((h): h is number => h != null); return hs.length ? Math.max(...hs) : null }
 
-export function buildContext(items: ScoreItem[], goals: Goals, now = new Date()): LibraryContext {
+export function buildContext(items: ScoreItem[], goals: Goals, now = new Date(), openalexDown = false): LibraryContext {
   const recs = items.map(i => i.rec)
   const rel = asc(items.map(i => i.rel?.cos).filter((x): x is number => x != null))
   const { known, knownKeys } = buildKnown(recs, goals.knownPapers)
@@ -116,7 +123,8 @@ export function buildContext(items: ScoreItem[], goals: Goals, now = new Date())
     venueH: asc(recs.map(r => r.venue.hIndex).filter((h): h is number => h != null)),
     authorH: asc(recs.map(bestAuthorH).filter((h): h is number => h != null)),
     logCites: asc(recs.map(knownCitedBy).filter((c): c is number => c != null).map(c => Math.log1p(c))),
-    known, knownKeys, knownCount: goals.knownPapers.length, now,
+    known, knownKeys, knownCount: goals.knownPapers.length, now, openalexDown,
+    citeYears: recs.map(r => ({ year: r.paper.year ?? null, count: anyCitedBy(r) })).filter((x): x is { year: number | null; count: number } => x.count != null),
   }
 }
 
@@ -187,7 +195,9 @@ export function citationsComponent(item: ScoreItem, ctx: LibraryContext): RawCom
     }
   }
   const cites = knownCitedBy(rec)
-  if (cites == null) return { key: 'citations', value: null, how: `Not assessed: no citation data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [] }
+  const fb = rec.extra.citedByFallback
+  if (cites == null && fb) return fallbackCitations(rec, fb, ctx)
+  if (cites == null) return { key: 'citations', value: null, how: ctx.openalexDown ? `Not assessed: ${OPENALEX_DOWN} and no Europe PMC / Crossref cited-by count for this paper.` : `Not assessed: no citation data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [] }
   const via = hasOpenAlexWork(rec) ? 'OpenAlex' : 'Google Scholar'
   const pub = p.publicationDate ? new Date(p.publicationDate) : p.year ? new Date(Date.UTC(p.year, 6, 1)) : null
   const ageYears = pub ? (ctx.now.getTime() - pub.getTime()) / (365.25 * 24 * 3600 * 1000) : null
@@ -202,6 +212,21 @@ export function citationsComponent(item: ScoreItem, ctx: LibraryContext): RawCom
     key: 'citations', value: v,
     how: `No OpenAlex normalized percentile: percentile of log(cited_by+1) within this library (${ctx.logCites.length} papers with a citation count; 0 citations = 0).`,
     evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ordinal(v)} pct of ${ctx.logCites.length} in this library`, source: src }, ...(via === 'Google Scholar' ? [] : scholar)],
+  }
+}
+
+/** CR-14: library-relative percentile of a Europe PMC / Crossref cited-by count among papers published within ±1 year. */
+function fallbackCitations(rec: EnrichedRecord, fb: NonNullable<EnrichedRecord['extra']['citedByFallback']>, ctx: LibraryContext): RawComponent {
+  const y = rec.paper.year ?? null
+  const band = y != null ? ctx.citeYears.filter(c => c.year != null && Math.abs(c.year - y) <= 1) : []
+  const useBand = y != null && band.length >= 5
+  const peers = asc((useBand ? band : ctx.citeYears).map(c => c.count))
+  const v = fb.count === 0 ? 0 : pct(peers, fb.count)
+  const span = useBand ? `${y! - 1}–${y! + 1}` : 'all years'
+  return {
+    key: 'citations', value: v,
+    how: `Library-relative fallback because ${ctx.openalexDown ? OPENALEX_DOWN : 'OpenAlex had no record for this paper'}: percentile of the ${fb.source} cited-by count among this library's papers with a count published within ±1 year (all years when fewer than 5 such papers; 0 citations = 0). Not field-normalized.`,
+    evidence: [{ text: `${fb.source} cited-by ${fmt(fb.count)} · ${ordinal(v)} percentile in this library for ${span} (of ${peers.length})`, source: { name: fb.source, url: fb.url } }],
   }
 }
 
@@ -226,14 +251,15 @@ export function venueComponent(item: ScoreItem, ctx: LibraryContext): RawCompone
   if (v.publisher) bits.push(v.publisher)
   const how = '0.6·pct(source h-index within library) + 0.2·core source + 0.1·journal/conference + 0.1·indexed (DOAJ or ISSN).'
     + (missing.length ? ` Missing ${missing.join(', ')}: rescaled over the available parts.` : '')
-  return { key: 'venue', value: clamp01(got / max), how, evidence: [{ text: bits.join(' · ') + (v.id ? ` (OpenAlex ${v.id.replace(OA, '')})` : ''), source: vsrc }] }
+  const matched = rec.extra.venueMatch ? ` · matched cached OpenAlex source by ${rec.extra.venueMatch}` : ''
+  return { key: 'venue', value: clamp01(got / max), how: how + (rec.extra.venueMatch ? ` Venue matched to a cached OpenAlex source by ${rec.extra.venueMatch} (no OpenAlex work record).` : ''), evidence: [{ text: bits.join(' · ') + (v.id ? ` (OpenAlex ${v.id.replace(OA, '')})` : '') + matched, source: vsrc }] }
 }
 
 export function authorsComponent(item: ScoreItem, ctx: LibraryContext): RawComponent {
   const { rec } = item
   const lead = leadAuthors(rec)
   const best = bestAuthorH(rec)
-  if (best == null) return { key: 'authors', value: null, how: hasOpenAlexWork(rec) || lead.some(a => a.id) ? 'Not assessed: no h-index for the first or last author.' : `Not assessed: no author data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: lead.length ? [{ text: `${lead.map(a => `${a.position} author ${a.name}`).join(', ')} · no author metrics` }] : [] }
+  if (best == null) return { key: 'authors', value: null, how: hasOpenAlexWork(rec) || lead.some(a => a.id) ? 'Not assessed: no h-index for the first or last author.' : ctx.openalexDown ? `Not assessed: ${OPENALEX_DOWN} — no free author data source.` : `Not assessed: no author data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: lead.length ? [{ text: `${lead.map(a => `${a.position} author ${a.name}`).join(', ')} · no author metrics` }] : [] }
   const hasRor = lead.some(a => a.institutions.some(i => !!i.ror))
   const p = pct(ctx.authorH, best)
   const value = clamp01(0.7 * p + 0.3 * (hasRor ? 1 : 0))
@@ -366,10 +392,10 @@ export function rescorePapers(papers: LibPaper[], weights: Weights, rule: PassRu
   return next
 }
 
-export interface ScoreOptions { weights: Weights; threshold: number; topPercent?: number; now?: Date }
+export interface ScoreOptions { weights: Weights; threshold: number; topPercent?: number; now?: Date; openalexDown?: boolean }
 
 export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOptions): LibPaper[] {
-  const ctx = buildContext(items, goals, opts.now)
+  const ctx = buildContext(items, goals, opts.now, opts.openalexDown ?? false)
   const dups = findDuplicates(items.map(i => i.rec))
   const used = new Set<string>()
   const fileFor = (rec: EnrichedRecord) => {

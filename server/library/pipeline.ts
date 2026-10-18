@@ -11,6 +11,8 @@ import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } f
 import { llmReadAll } from './llmread'
 import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
 import { addEuropePmcReferences, type RefsOptions } from './references'
+import { addCitationFallback, fallbackSummary, type FallbackOptions } from './sources/citations-fallback'
+import { isBlocked } from '../data/http'
 import { writeLibraryFiles } from './store'
 import { writeLibraryReport } from './report'
 import type { EnrichedRecord, SourceCall, SourcesApi } from './types'
@@ -125,9 +127,11 @@ export interface PipelineDeps {
   now?: () => Date
   /** CR-10 E-2 Europe PMC reference fallback. Default: on (EPMC_REFS=0 turns it off; off under vitest unless injected). */
   references?: RefsOptions | false
+  /** CR-14 Europe PMC / Crossref cited-by + cached-venue fallback. Default: on (CITES_FALLBACK=0 off; off under vitest unless injected). */
+  citations?: FallbackOptions | false
 }
 
-type Stage = 'goals' | 'search' | 'label' | 'score' | 'llm' | 'select'
+type Stage = 'goals' | 'search' | 'enrich' | 'label' | 'score' | 'llm' | 'select'
 const timed = async <T>(s: LibraryState, stage: Stage, fn: () => Promise<T>) => {
   stageStart(s, stage)
   const t0 = Date.now()
@@ -163,6 +167,15 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   const recs = [...sr.out].sort((a, b) => b.hits.length - a.hits.length).slice(0, req.maxCandidates)
   emitLib(s, { type: 'stage', stage: 'search', status: 'done', count: recs.length, ms: sr.ms, message: `${s.calls.length} source calls · ${sr.out.length} records${sr.out.length > recs.length ? ` (capped to ${recs.length})` : ''}` })
 
+  // 2b. CR-14: cited-by counts (Europe PMC / Crossref) and cached-venue matches for papers OpenAlex gave nothing
+  const cfOpts = deps.citations ?? (env.raw.CITES_FALLBACK === '0' || process.env.VITEST ? false : {})
+  if (cfOpts === false) emitLib(s, { type: 'stage', stage: 'enrich', status: 'skipped', message: 'citation/venue fallback: off' })
+  else {
+    const cf = await timed(s, 'enrich', () => addCitationFallback(recs, cfOpts))
+    emitLib(s, { type: 'stage', stage: 'enrich', status: 'done', count: cf.out.citations, ms: cf.ms, message: fallbackSummary(cf.out) })
+  }
+  const openalexDown = isBlocked('openalex')
+
   // 3. label (+ relevance, which feeds subtopic labels)
   const lb = await timed(s, 'label', async () => {
     const emb = await embeddingRelevance(goals, recs, Number(env.raw.LIBRARY_EMBED_TIMEOUT_MS || 60000)).catch(() => null)
@@ -178,7 +191,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
 
   // 4. pre-LLM score
   const rule = { topPercent: req.topPercent, threshold: req.threshold }
-  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
+  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
   const pre = sc.out
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
@@ -201,7 +214,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
         const out = await llmReadAll(goals, batch.map(i => i.rec), { concurrency: 8, timeoutMs: Number(env.raw.LIBRARY_LLM_TIMEOUT_MS || 30000) })
         for (const [k, v] of out) reads.set(k, v)
         for (const it of items) it.llm = reads.get(it.rec.key) ?? null
-        batch = pick(scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
+        batch = pick(scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
       }
     })
     s.llmReads = reads.size
@@ -213,7 +226,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   }
 
   // 6. re-score + select
-  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now }))
+  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
   s.papers = markFieldUncertain(se.out)
 
   // 6b. CR-10 E-2: reference lists from Europe PMC for passed papers OpenAlex gave none (429 / PubMed-only records)

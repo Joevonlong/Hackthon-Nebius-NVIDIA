@@ -24,6 +24,10 @@ export interface EnrichedRecord {
     mesh: string[]
     arxiv: { id: string; primaryCategory: string | null; categories: string[]; journalRef: string | null; comment: string | null } | null
     scholarCitedBy: number | null
+    /** CR-14: cited-by count from Europe PMC / Crossref when OpenAlex gave none. */
+    citedByFallback?: { count: number; source: 'Europe PMC' | 'Crossref'; url: string } | null
+    /** CR-14: venue matched to a cached OpenAlex source (no OpenAlex work record). */
+    venueMatch?: 'ISSN' | 'name' | null
   }
 }
 

@@ -68,6 +68,11 @@ export class EntityStore {
     return r.n
   }
 
+  /** Every cached object of a kind (CR-14 venue matching). */
+  list(kind: EntityKind): any[] {
+    return (this.db.prepare('SELECT json FROM entities WHERE kind = ?').all(kind) as { json: string }[]).map(r => JSON.parse(r.json))
+  }
+
   /** Stores objects (merged field-wise into what is there). `asked` records not-found markers for batch values OpenAlex did not return. */
   put(kind: EntityKind, objs: any[], select: string | null | undefined, asked?: { key: LookupKey; values: string[] }, fetchedAt = new Date().toISOString()): number {
     const sig = fieldSig(select)
