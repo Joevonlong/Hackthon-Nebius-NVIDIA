@@ -9,6 +9,7 @@ import { useHoverCard } from './useHoverCard'
 import MoveBadge from './MoveBadge.vue'
 import SparkBar from './SparkBar.vue'
 import HoverCard from './HoverCard.vue'
+import StackBar from '../charts/StackBar.vue' // CR-11 V-4
 
 const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
@@ -24,6 +25,7 @@ const hc = useHoverCard()
     <td :ref="el => (hc.host.value = el as HTMLElement)" class="tt" v-on="hc.on">
       <button type="button" :title="paper.paper.title" @click.stop="emit('open')">{{ paper.paper.title }}</button>
       <span class="sub">{{ authorYear(paper) }} · {{ paper.paper.venue || 'no venue' }}<span class="kn"> · {{ paper.labels.kind }}</span><template v-if="inVault"> · in vault</template></span>
+      <StackBar class="stk" :components="paper.components" :threshold="threshold" />
       <HoverCard v-if="hc.open.value" :paper="paper" :in-vault="inVault" :up="hc.up.value" :right="hc.right.value" />
     </td>
     <td class="num yr">{{ paper.paper.year ?? 'n.d.' }}</td>
@@ -49,6 +51,7 @@ td{padding:7px 6px;vertical-align:middle}
 .tt button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .tt button:hover{text-decoration:underline;text-underline-offset:3px}
 .sub{display:block;font-size:.66rem;color:var(--ink-55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stk{margin-top:5px;max-width:260px}
 .num{font:500 .72rem var(--font-mono);font-variant-numeric:tabular-nums}
 .tot{font-weight:700}
 .kd{font-size:.66rem;color:var(--ink-64);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -66,7 +69,7 @@ td{padding:7px 6px;vertical-align:middle}
 .plus::after{transform:rotate(90deg)}.plus.open::after{transform:rotate(0)}
 td.sbc{padding:7px 4px}
 .kn,.gi{display:none}
-@container (max-width: 720px){
+@container (max-width: 960px){
   .yr,.kd,.gc{display:none}
   .kn{display:inline}
   .gi{display:inline-block;margin-right:5px;font:700 .7rem var(--font-sans)}
@@ -76,5 +79,6 @@ td.sbc{padding:7px 4px}
   .st{font-size:0;padding:0;width:9px;height:9px;display:inline-block;border-radius:50%;border:1.5px solid var(--ink-38)}
   .passed .st{background:var(--accent);border-color:var(--accent)}
 }
+@container (max-width: 440px){td.sbc{display:none}}
 @media (prefers-reduced-motion: reduce){.plus::before,.plus::after{transition:none}}
 </style>
