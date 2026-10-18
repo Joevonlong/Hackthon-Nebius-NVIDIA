@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import type { Candidate, Judgement, Paper } from '@shared/contracts'
 import { Candidate as CandidateSchema } from '@shared/contracts'
-import { assignLane, computeLinks, freshCutoff, inLinkAllowed, orderLanes, percentiles, whyRanked, type PoolItem, type SeedLite } from './rank'
+import { assignLane, computeLinks, diversify, freshCutoff, inLinkAllowed, orderLanes, percentiles, whyRanked, type PoolItem, type SeedLite } from './rank'
 
 const snapshot = JSON.parse(readFileSync(new URL('../../docs/data/melanoma-lanes-snapshot.json', import.meta.url), 'utf8'))
 
@@ -99,6 +99,11 @@ describe('ordering', () => {
     const u = cand({ paper: { id: 'Wu' }, judgement: j(3, false) })
     const out = orderLanes([top, u, v], new Map()).sort((p, q) => p.rank - q.rank).map(o => o.paper.id)
     expect(out).toEqual(['Wv', 'Wu', 'Wtop'])
+  })
+  it('pushes a near duplicate below the next item', () => {
+    const list = ['W1', 'W1b', 'W2', 'W3'].map(id => cand({ paper: { id } }))
+    diversify(list, (a, b) => ([a, b].sort().join() === 'W1,W1b' ? 0.97 : 0.1))
+    expect(list.map(c => c.paper.id)).toEqual(['W1', 'W2', 'W1b', 'W3'])
   })
   it('percentiles are mid-rank', () => {
     expect(percentiles([0, 0, 1, 2])).toEqual([0.25, 0.25, 0.625, 0.875])

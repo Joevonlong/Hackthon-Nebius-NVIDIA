@@ -30,6 +30,7 @@ export const getRunState = (id: string) => runs.get(id)
 
 /** Appends an event (deep-copied so later mutation never changes the replay) and notifies listeners. */
 export function emit(run: RunState, e: RunEvent) {
+  if (run.done) return // e.g. a late Scout step after the run finished
   const copy = structuredClone(e)
   const check = RunEvent.safeParse(copy)
   if (!check.success) console.warn(`[run ${run.id}] event ${e.type} fails contract:`, check.error.issues.slice(0, 3))

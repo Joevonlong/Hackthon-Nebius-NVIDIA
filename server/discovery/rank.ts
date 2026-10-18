@@ -98,7 +98,7 @@ export const combine = (p: ScoreParts) => WEIGHTS.a * p.J + WEIGHTS.b * p.R + WE
  * Orders every lane and fills score + rank. Judged items (score formula) come first, unjudged keep the
  * pre-judge order below them. `rerankPct` maps paperId → rerank percentile (0..1) among reranked papers.
  */
-export function orderLanes(cands: Candidate[], rerankPct: Map<string, number>): Candidate[] {
+export function orderLanes(cands: Candidate[], rerankPct: Map<string, number>, similarity?: (a: string, b: string) => number | null): Candidate[] {
   const gp = percentiles(cands.map(c => c.features.links))
   const G = new Map(cands.map((c, i) => [c.paper.id, gp[i]]))
   const byLane = new Map<Lane, Candidate[]>()
@@ -111,9 +111,22 @@ export function orderLanes(cands: Candidate[], rerankPct: Map<string, number>): 
     }
     const judged = list.filter(c => c.judgement).sort((a, b) => b.score - a.score || preJudgeCompare(lane)(a, b))
     const rest = list.filter(c => !c.judgement).sort(preJudgeCompare(lane))
-    ;[...judged, ...rest].forEach((c, i) => { c.rank = i + 1; out.push(c) })
+    const ordered = [...judged, ...rest]
+    if (similarity) diversify(ordered, similarity)
+    ordered.forEach((c, i) => { c.rank = i + 1; out.push(c) })
   }
   return out
+}
+
+/** Spec §2.3 diversity: an item whose cosine with an item above exceeds 0.92 moves below the next one (top `k` only). */
+export function diversify(list: Candidate[], similarity: (a: string, b: string) => number | null, k = 60, threshold = 0.92) {
+  const n = Math.min(list.length, k)
+  const moved = new Set<string>()
+  for (let i = 1; i < n - 1; i++) {
+    if (moved.has(list[i].paper.id)) continue
+    const dup = list.slice(0, i).some(above => (similarity(above.paper.id, list[i].paper.id) ?? 0) > threshold)
+    if (dup) { moved.add(list[i].paper.id); const t = list[i]; list[i] = list[i + 1]; list[i + 1] = t }
+  }
 }
 
 function seedList(ns: number[], total: number, verb: string): string | null {

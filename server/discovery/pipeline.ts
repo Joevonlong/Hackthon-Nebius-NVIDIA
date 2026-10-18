@@ -174,7 +174,7 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
 
   // ---- R5 Scout (runs alongside; merged after the first lane pass) ----------------------------------
   const scoutP = facetsP.then(facets => stage<Paper[] | null>(run, 'scout', null, async () => {
-    const res = await withTimeout(ai.scout(run.question, seeds, facets, cfg, s => emit(run, { type: 'agent', ...s })), cfg.scoutMaxMs + 5000, { dois: [], openalexIds: [], webSources: [] })
+    const res = await withTimeout(ai.scout(run.question, seeds, facets, cfg, s => emit(run, { type: 'agent', ...s })), Math.round(cfg.scoutMaxMs * 1.2), { dois: [], openalexIds: [], webSources: [] })
     if (res.webSources.length) repo.addWebSources(run.id, res.webSources)
     if (!res.dois.length && !res.openalexIds.length) return { value: null, count: 0, skipped: !res.webSources.length, message: res.webSources.length ? `${res.webSources.length} web sources, no papers` : 'scout unavailable' }
     const a = await getWorksBy('doi', res.dois.map(d => d.toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '')))
@@ -200,8 +200,8 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
     }
     return out
   }
-  const publish = (cands: Candidate[], rerankPct = new Map<string, number>()) => {
-    const ordered = orderLanes(cands, rerankPct)
+  const publish = (cands: Candidate[], rerankPct = new Map<string, number>(), similarity?: (a: string, b: string) => number | null) => {
+    const ordered = orderLanes(cands, rerankPct, similarity)
     for (const c of ordered) c.whyRanked = whyRanked(c, seeds.length, rerankPct.get(c.paper.id))
     run.candidates = topPerLane(ordered, cfg.sendPerLane)
     run.counts = laneCounts(ordered)
@@ -333,7 +333,8 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
     return { value: null, count: v, message: `${v}/${judged.length} quotes verified verbatim` }
   })
 
-  const final = publish(cands, rerankPct)
+  const sim = (a: string, b: string) => { const va = vecs.get(a), vb = vecs.get(b); return va && vb ? cos(va, vb) : null }
+  const final = publish(cands, rerankPct, vecs.size ? sim : undefined)
   finish(run, final, 'done')
 }
 
