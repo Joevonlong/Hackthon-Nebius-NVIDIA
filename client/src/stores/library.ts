@@ -53,7 +53,9 @@ export interface SeedRow { input: string; status: 'resolved' | 'not found' | 'du
 /** D-35: the last opened library per question (localStorage; '' = no question). */
 const LAST_KEY = (q: string | null) => `papertrail:lastLibrary:${q ?? ''}`
 export const lastOpened = (q: string | null) => { try { return localStorage.getItem(LAST_KEY(q)) } catch { return null } }
-const setLastOpened = (q: string | null, id: string | null) => { try { if (id) localStorage.setItem(LAST_KEY(q), id); else localStorage.removeItem(LAST_KEY(q)) } catch { /* private mode */ } }
+/** Q-1: the viewer's pass rule / weights / filters / topK per library (restored when the library is reopened). */
+export const LIB_SETTINGS_KEY = (id: string) => `papertrail:libSettings:${id}`
+const setLastOpened =(q: string | null, id: string | null) => { try { if (id) localStorage.setItem(LAST_KEY(q), id); else localStorage.removeItem(LAST_KEY(q)) } catch { /* private mode */ } }
 /** Seed note front matter -> table fields. */
 export function seedInfo(content: string): { title: string; year: string; id: string; label: string } {
   const { data } = parseFrontMatter(content)
@@ -353,6 +355,8 @@ export const useLibrary = defineStore('library', {
     /** D-36: uploads a .bib / .ris / CSL JSON / .csv / .txt / .pdf to POST /api/seeds/import, then resolves the ids found. */
     async importSeedFile(file: File, question?: string) {
       this.importNote = null; this.seedErrors = []
+      const q = question ?? useVault().current
+      if (this.seedQuestion !== q) { this.seedRows = []; this.seedQuestion = q }
       const fd = new FormData(); fd.append('file', file)
       this.seedBusy = true
       let body: { ids?: string[]; format?: string; note?: string; error?: string }
@@ -406,6 +410,17 @@ export const useLibrary = defineStore('library', {
       this.allPapers = ok; this.streamed = ok.slice(0, this.topK)
       this.total = ok.length; this.passed = ok.filter(p => p.passed).length
       for (const st of this.stages) st.status = 'done'
+      // Q-1: the settings the viewer last used on this library win over the build's
+      try {
+        const s = JSON.parse(localStorage.getItem(LIB_SETTINGS_KEY(id)) || 'null') as Partial<LibSettings> & { topK?: number } | null
+        if (s && typeof s === 'object') {
+          if (s.weights) this.weights = { ...this.weights, ...s.weights }
+          if (typeof s.topPercent === 'number') this.topPercent = s.topPercent
+          if (typeof s.threshold === 'number') this.threshold = s.threshold
+          if (s.filters && typeof s.filters === 'object') this.filters = s.filters
+          if (typeof s.topK === 'number') this.topK = s.topK
+        }
+      } catch { /* storage blocked */ }
       setLastOpened(questionId, id)
       return true
     },

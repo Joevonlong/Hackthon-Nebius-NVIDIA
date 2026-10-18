@@ -24,17 +24,26 @@ export function libraryDir(id: string): string | null {
   return findQuestionLibrary(id)?.dir ?? legacyLibraryDir(id)
 }
 
-/** graph.json: the passed papers as nodes + their citation links among each other (what the graph view draws). */
-function graphOf(papers: LibPaper[]) {
+/**
+ * graph.json: what the graph view draws — the passed papers as nodes, the known papers (the question's seeds) they link to,
+ * and the citation edges (source cites target).
+ */
+function graphOf(papers: LibPaper[], knownPapers: string[]) {
   const passed = papers.filter(p => p.passed && !p.excluded)
   const ids = new Set(passed.map(p => p.paper.id))
-  const edges: { source: string; target: string; type: string }[] = []
+  const known = new Map<string, number>()
+  const edges: { source: string; target: string; type: 'cites' }[] = []
   for (const p of passed) for (const r of p.relations) {
-    if ((r.type === 'cites' || r.type === 'cited_by') && ids.has(r.paperId)) edges.push(r.type === 'cites' ? { source: p.paper.id, target: r.paperId, type: 'cites' } : { source: r.paperId, target: p.paper.id, type: 'cites' })
+    if (r.type !== 'cites' && r.type !== 'cited_by') continue
+    if (!ids.has(r.paperId)) known.set(r.paperId, (known.get(r.paperId) ?? 0) + 1)
+    edges.push(r.type === 'cites' ? { source: p.paper.id, target: r.paperId, type: 'cites' } : { source: r.paperId, target: p.paper.id, type: 'cites' })
   }
   const seen = new Set<string>()
   return {
-    nodes: passed.map(p => ({ id: p.paper.id, rank: p.rank, title: p.paper.title, year: p.paper.year ?? null, total: Math.round(p.total * 1000) / 1000 })),
+    nodes: [
+      ...passed.map(p => ({ id: p.paper.id, kind: 'library' as const, rank: p.rank, title: p.paper.title, year: p.paper.year ?? null, total: Math.round(p.total * 1000) / 1000 })),
+      ...[...known.entries()].map(([id, links]) => ({ id, kind: 'known' as const, links, inKnownPapers: knownPapers.some(k => k.toLowerCase() === id.toLowerCase()) })),
+    ],
     edges: edges.filter(e => { const k = e.source + '>' + e.target; if (seen.has(k)) return false; seen.add(k); return true }),
   }
 }
@@ -66,7 +75,7 @@ export function writeLibraryFiles(s: LibraryState): string | null {
     }
     writeFileSync(join(dir, 'library.json'), JSON.stringify(library, null, 2))
     for (const p of s.papers) writeFileSync(join(dir, p.file), JSON.stringify(p, null, 2))
-    writeFileSync(join(dir, 'graph.json'), JSON.stringify(graphOf(s.papers), null, 2))
+    writeFileSync(join(dir, 'graph.json'), JSON.stringify(graphOf(s.papers, s.goals?.knownPapers ?? []), null, 2))
     return dir
   } catch (e) {
     console.warn(`[library ${s.id}] writing files failed`, (e as Error).message)

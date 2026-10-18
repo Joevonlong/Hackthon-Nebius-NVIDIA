@@ -72,8 +72,8 @@ function dropRow(id: string) { lib.seedRows = lib.seedRows.filter(r => r.input !
       <input ref="fileInput" type="file" multiple hidden accept=".bib,.bibtex,.ris,.nbib,.json,.csv,.tsv,.txt,.pdf,application/pdf,application/json,text/csv,text/plain" @change="onFile">
     </div>
     <small class="faint">.bib · .ris · CSL JSON · .csv / .txt id lists · PDF (DOI from the first 2 pages). Seeds stay in this question's seeds/ folder.</small>
-    <p v-if="lib.importNote" class="small note">{{ lib.importNote }}</p>
-    <ul v-if="lib.seedErrors.length" class="errs"><li v-for="(e, i) in lib.seedErrors" :key="i">{{ e.input ? e.input + ': ' : '' }}{{ e.message }}</li></ul>
+    <p v-if="lib.importNote && lib.seedQuestion === question" class="small note">{{ lib.importNote }}</p>
+    <ul v-if="lib.seedErrors.length && (lib.seedQuestion === question || !lib.seedQuestion)" class="errs"><li v-for="(e, i) in lib.seedErrors" :key="i">{{ e.input ? e.input + ': ' : '' }}{{ e.message }}</li></ul>
   </div>
 </template>
 

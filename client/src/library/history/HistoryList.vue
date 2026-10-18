@@ -34,7 +34,7 @@ async function del(id: string) { await lib.deleteStored(id, props.questionId); c
           <span v-if="h.topTitle" class="top">#1 {{ h.topTitle }}</span>
         </button>
         <div v-if="confirming === h.libraryId" class="confirm" role="alertdialog" aria-label="Confirm delete">
-          Delete this library? It moves to data/library/.trash/.
+          Delete this library? Its folder moves to .trash/ next to it (not erased).
           <button type="button" class="lnk bad" @click="del(h.libraryId)">delete</button><button type="button" class="lnk" @click="confirming = null">cancel</button>
         </div>
         <div v-else-if="editing !== h.libraryId" class="acts">

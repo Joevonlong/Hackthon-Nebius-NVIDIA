@@ -3,7 +3,7 @@
 // seeds of the current question (F-62), History (F-61), pass rule (F-49), controls, stage trail, goals, sources, top results.
 import { computed, ref, watch } from 'vue'
 import { SourceName } from '@shared/library'
-import { useLibrary, lastOpened, LIB_STAGE_LABEL, SOURCE_LABEL, UI_SOURCES } from '../stores/library'
+import { useLibrary, lastOpened, LIB_SETTINGS_KEY, LIB_STAGE_LABEL, SOURCE_LABEL, UI_SOURCES } from '../stores/library'
 import { useVault } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName } from '../stores/vault-utils'
@@ -53,31 +53,21 @@ async function build() {
 const onQuestionKey = (e: KeyboardEvent) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void build() } }
 
 // D-35: History of the current question; the last opened library of that question reopens (also after a reload, Q-1).
-const SETTINGS_KEY = (id: string) => `papertrail:libSettings:${id}`
 async function reopenFor(qid: string | null) {
   await lib.loadHistory(qid)
   if (lib.status === 'running' || lib.mode === 'demo' || lib.mode === 'mock') return
   if (lib.libraryId && lib.questionId === qid) return
   const last = lastOpened(qid)
-  if (last && lib.history.some(h => h.libraryId === last) && await lib.openStored(last, qid)) {
-    try {
-      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY(last)) || 'null')
-      if (s && typeof s === 'object') {
-        if (s.weights) lib.weights = { ...lib.weights, ...s.weights }
-        if (typeof s.topPercent === 'number') lib.topPercent = s.topPercent
-        if (typeof s.threshold === 'number') lib.threshold = s.threshold
-        if (s.filters) lib.filters = s.filters
-        if (typeof s.topK === 'number') lib.topK = s.topK
-      }
-    } catch { /* storage blocked */ }
-    if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary()
-  } else if (lib.questionId !== qid) lib.reset()
+  if (!last || !lib.history.some(h => h.libraryId === last)) { if (lib.questionId !== qid) lib.reset(); return }
+  // openStored restores this library's saved pass rule / weights / filters / topK (Q-1); chat history is keyed by libraryId
+  if (await lib.openStored(last, qid)) { if (!ui.tabs.some(t => t.ref === 'lib:results')) ui.openLibrary() }
+  else if (lib.questionId !== qid) lib.reset()
 }
 watch(() => [vault.ready, vault.current] as const, ([ready, q]) => { if (ready) void reopenFor(q ?? null) }, { immediate: true })
 // Q-1: remember the pass rule, weights, filters and topK per library so a reload restores them.
 watch(() => lib.libraryId && lib.status === 'done' ? JSON.stringify({ weights: lib.weights, topPercent: lib.topPercent, threshold: lib.threshold, filters: lib.filters, topK: lib.topK }) : null, v => {
   if (!v || !lib.libraryId || lib.mode !== 'live') return
-  try { localStorage.setItem(SETTINGS_KEY(lib.libraryId), v) } catch { /* storage blocked */ }
+  try { localStorage.setItem(LIB_SETTINGS_KEY(lib.libraryId), v) } catch { /* storage blocked */ }
 })
 
 const toggleSource = (s: SourceName) => {
