@@ -7,3 +7,4 @@ D-20 (15:10): Library mode — vault as one topic, multi-source search, labels, 
 D-21/D-22 (15:25): Scholar dropped, Tavily high priority; defaults top-N 30 / threshold 0.55 / abstract-only LLM read. CR-1 confirmed.
 D-23 (15:35): Library replaces Discover in the UI; seeds in notes = knownPapers; /api/runs kept server-side without UI; demo replays a Library recording.
 D-25..D-29 (16:20): CR-2 confirmed with recommended defaults — see PRODUCT_PLAN §14.
+D-30 (16:28): CR-3 confirmed — no mock in production, question box, real run recorded as demo; topic melanoma single-cell.

@@ -312,7 +312,7 @@ Order if confirmed: F-47 (after design pick) ∥ F-45 ∥ F-49 → F-46 → F-48
 
 ---
 
-## 15. Change request CR-3 · Real demo, no mock data (proposed 16:25)
+## 15. Change request CR-3 · Real demo, no mock data (confirmed 16:28; demo topic: melanoma single-cell, 5 notebook seeds)
 | # | Requirement | Card |
 |---|---|---|
 | R-3.1 | Production build never uses mock or fixture data. Silent fallbacks to the mock (on 404/5xx/offline) are removed; failures show an error with Retry. Mock data stays only behind an explicit dev flag (`?mock=1`, dev builds only) | F-50 |
