@@ -16,6 +16,7 @@ import { gather } from '../library/sources'
 import { fixtureGather } from '../library/fixtures'
 import { isSafeId, readLibrary, readPaperFile } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
+import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
 
@@ -92,6 +93,7 @@ library.get('/library/:id/papers/:paperId', c => {
 // ---- chat (lane U2, D-26 / D-29) ----
 const libCache = new Map<string, { goals: Goals | null; papers: LibPaper[] }>()
 function loadForChat(id: string): { goals: Goals | null; papers: LibPaper[] } | null {
+  if (id === DEMO_LIBRARY_ID) return demoLibraryForChat()
   const s = getLibraryState(id)
   if (s && s.papers.length) return { goals: s.goals, papers: s.papers }
   const hit = libCache.get(id)

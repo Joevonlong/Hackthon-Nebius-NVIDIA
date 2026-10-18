@@ -22,7 +22,7 @@ export function createLimiter(max: number) {
 }
 
 /** One limiter for every Token Factory call in the process. */
-export const tfLimit = createLimiter(Number(env.raw.TF_MAX_CONCURRENCY || 12))
+export const tfLimit = createLimiter(Number(env.raw.TF_MAX_CONCURRENCY || 24)) // 24: a cold library embeds ~20 batches + 8 LLM reads at once
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 

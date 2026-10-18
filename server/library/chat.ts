@@ -123,7 +123,7 @@ export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], 
     if (Object.keys(w).length) out.weights = w
   }
   const tp = num(r.topPercent)
-  if (tp != null) { const c = Math.round(Math.min(100, Math.max(1, tp <= 1 && tp > 0 ? tp * 100 : tp))); if (c !== current.topPercent) out.topPercent = c }
+  if (tp != null) { const c = Math.round(Math.min(100, Math.max(1, tp < 1 && tp > 0 ? tp * 100 : tp))); if (c !== current.topPercent) out.topPercent = c }
   const th = num(r.threshold)
   if (th != null) { const c = r2(Math.min(1, Math.max(0, th > 1 && th <= 100 ? th / 100 : th))); if (Math.abs(c - current.threshold) > 0.004) out.threshold = c }
   if (r.filters && typeof r.filters === 'object') {

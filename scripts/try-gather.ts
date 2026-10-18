@@ -32,6 +32,7 @@ async function main() {
   const recs = await withRun('try-gather', () => gather(goals, req, c => calls.push(c)))
   const ms = Date.now() - t0
   console.log(`\n=== gather() ${ms} ms · sources ${req.sources.join(',')} · maxCandidates ${req.maxCandidates}`)
+  console.log(`phases ${Object.entries(lastGatherStats?.ms ?? {}).map(([k, v]) => `${k} ${v} ms`).join(' · ')} · source calls ${calls.length} · stragglers ${lastGatherStats?.stragglers.length ?? 0}${lastGatherStats?.stragglers.length ? ' — ' + lastGatherStats.stragglers.join(' | ') : ''}`)
   const by = new Map<string, { calls: number; count: number; ms: number; errors: string[] }>()
   for (const c of calls) {
     const s = by.get(c.source) ?? { calls: 0, count: 0, ms: 0, errors: [] }

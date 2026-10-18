@@ -100,6 +100,11 @@ function loadLibrary(): LibraryRecording {
   return libCache
 }
 
+/** Goals + recorded papers of the demo replay, for the chat route (Codex finding 1: chat must work in ?demo=1). */
+export function demoLibraryForChat(): { goals: z.infer<typeof Goals>; papers: z.infer<typeof LibPaper>[] } | null {
+  try { const r = loadLibrary(); return { goals: r.library.goals, papers: r.library.papers } } catch { return null }
+}
+
 /** Pause before each event: 'source' events are quick, the remaining time goes to stages / goals / papers by weight. */
 function libraryDelays(events: LibraryEvent[], totalMs: number): number[] {
   const weight = (e: LibraryEvent) => (e.type === 'papers' ? 6 : e.type === 'goals' ? 2 : e.type === 'stage' ? 1 : e.type === 'done' ? 0.2 : 0.5)

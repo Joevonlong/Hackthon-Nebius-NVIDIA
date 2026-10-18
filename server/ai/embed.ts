@@ -1,12 +1,15 @@
 // Embeddings (Qwen3-Embedding-8B) and reranking (Qwen3-Reranker-8B) via plain fetch.
 import type { RunConfig } from '@shared/config'
+import { getEmbeddings, putEmbeddings, textHash } from '../data/repo'
 import { env } from '../env'
+import { trace } from '../trace'
 import { hasKey, tfFetch, type TfError } from './http'
 
 export const QUERY_INSTRUCTION = 'Given a biomedical research question, retrieve relevant paper abstracts'
 export const queryPrefix = (q: string) => `Instruct: ${QUERY_INSTRUCTION}\nQuery: ${q}`
 
-const BATCH = 64
+// Smaller batches run in parallel under tfLimit and come back sooner than a few large ones (64-input calls took 8-20 s).
+const BATCH = Number(process.env.EMBED_BATCH || 32)
 const MAX_CHARS = 6000 // ~1.5k tokens; titles + abstracts fit
 
 export function l2normalize(v: number[]): number[] {
@@ -45,6 +48,20 @@ async function embedBatch(input: string[], timeoutMs: number): Promise<number[][
   return out.map((e: number[]) => fitDims(e, dims))
 }
 
+// Vector cache: the SQLite `embeddings` table keyed by the hash of the exact (prefixed, truncated) input text, so a rebuild —
+// or another library with overlapping papers — only embeds texts it has never seen. EMBED_CACHE=0 switches it off.
+const OWNER = 'text'
+const cacheOn = () => process.env.EMBED_CACHE !== '0'
+
+function cacheGet(prepared: string[]): Map<string, number[]> {
+  if (!cacheOn()) return new Map()
+  try { return getEmbeddings(OWNER, env.models.embed, env.models.embedDims, prepared.map(t => ({ id: textHash(t), text: t }))) } catch { return new Map() }
+}
+function cachePut(items: { text: string; vec: number[] }[]) {
+  if (!cacheOn() || !items.length) return
+  try { putEmbeddings(OWNER, env.models.embed, env.models.embedDims, items.map(it => ({ id: textHash(it.text), text: it.text, vec: it.vec }))) } catch { /* best effort */ }
+}
+
 export async function embed(texts: string[], kind: 'query' | 'document', cfg: RunConfig): Promise<number[][] | null> {
   try {
     if (!hasKey() || !texts.length) return texts.length ? null : []
@@ -52,11 +69,21 @@ export async function embed(texts: string[], kind: 'query' | 'document', cfg: Ru
       const s = (t || '').trim().slice(0, MAX_CHARS) || '(empty)'
       return kind === 'query' ? queryPrefix(s) : s
     })
+    const t0 = Date.now()
+    const cached = cacheGet(prepared)
+    const todo = [...new Set(prepared.filter(t => !cached.has(textHash(t))))]
     const batches: string[][] = []
-    for (let i = 0; i < prepared.length; i += BATCH) batches.push(prepared.slice(i, i + BATCH))
+    for (let i = 0; i < todo.length; i += BATCH) batches.push(todo.slice(i, i + BATCH))
     const results = await Promise.all(batches.map(b => embedBatch(b, cfg.timeoutMs)))
     if (results.some(r => !r)) return null
-    return results.flat() as number[][]
+    const vecs = results.flat() as number[][]
+    const fresh = todo.map((text, i) => ({ text, vec: vecs[i] }))
+    cachePut(fresh)
+    const byHash = new Map(cached)
+    for (const f of fresh) byHash.set(textHash(f.text), f.vec)
+    trace('llm', { endpoint: 'embeddings(cache)', model: env.models.embed, kind, inputs: prepared.length, cached: prepared.length - todo.length, embedded: todo.length, batches: batches.length, ms: Date.now() - t0 })
+    const out = prepared.map(t => byHash.get(textHash(t)))
+    return out.every(Boolean) ? (out as number[][]) : null
   } catch {
     return null
   }
