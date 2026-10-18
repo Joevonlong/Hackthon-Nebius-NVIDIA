@@ -409,3 +409,12 @@ The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browse
 | R-8.1 | Every note page shows an **inline title = the note's name** (Obsidian / Apple Notes style), above the body; no separate generic "# Question" heading | F-64 | W2 |
 | R-8.2 | For a question note the title is the question's **subject** — the same name as its folder `workspace/<subject>/` and its row in the file tree; a new question's name defaults to a short subject derived from the typed question (first ~6 meaningful words) | F-64 | W2 |
 | R-8.3 | Editing the inline title renames the note (question: renames the folder and the switcher entry); file tree, tabs and History update live; links `[[old name]]` are updated | F-64 | W2 |
+
+---
+
+## 21. CR-9 · Production: clean notes environment (user, 17:35)
+| # | Requirement | Owner |
+|---|---|---|
+| R-9.1 | On a fresh start the app shows an empty workspace: no sample question, no sample seeds, no sample notes; the first screen invites "Create your first research question" | W2 |
+| R-9.2 | No topic-specific defaults anywhere in production code: question placeholder is neutral ("Type your research question"), no hard-coded seed DOIs, no melanoma keyword rules (the legacy Discover store's lens rule goes) | W2 + captain |
+| R-9.3 | Demo content stays only behind `?demo=1` (replay of the recorded real run) and never writes into the user's workspace | captain (check) |
