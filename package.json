@@ -1,0 +1,52 @@
+{
+  "name": "papertrail",
+  "private": true,
+  "version": "0.1.0",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,client \"PORT=3001 tsx watch server/index.ts\" \"vite\"",
+    "dev:server": "PORT=3001 tsx watch server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build && tsup server/index.ts --format esm --target node22 --out-dir dist/server --external better-sqlite3",
+    "start": "node dist/server/index.js",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "gate": "pnpm typecheck && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.71",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.14",
+    "@hono/node-server": "^2.1.5",
+    "@lezer/markdown": "^1.8.0",
+    "ai": "^7.0.143",
+    "better-sqlite3": "^13.0.3",
+    "d3": "^7.9.0",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "idb-keyval": "^6.3.0",
+    "pinia": "^4.1.0",
+    "vue": "^3.5.44",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/d3": "^7.4.3",
+    "@types/node": "^26.6.5",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "concurrently": "^10.0.6",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.13"
+  }
+}

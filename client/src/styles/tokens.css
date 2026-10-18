@@ -1,0 +1,16 @@
+/* Owner: lane B. Brightfield (light) / Fluorescence (dark) tokens; see docs/plan.html for the palette. */
+:root{
+  --bg:#F3F4F7; --surface:#FFFFFF; --surface-2:#EBEDF2; --fg:#1D1A2C; --muted:#5D5A70; --line:#D8DAE3; --line-2:#B9BCCB;
+  --seed:#3B2E88; --seed-soft:rgba(59,46,136,.12); --cand:#BF3468; --cand-soft:rgba(191,52,104,.12);
+  --gap:#8A5A2B; --ok:#1E7A4C; --warn:#A35F00; --crit:#d03b3b;
+  --o1:#184f95; --o2:#2a78d6; --o3:#86b6ef;
+  --font-display:"Newsreader",Georgia,serif; --font-body:"Public Sans",system-ui,sans-serif; --font-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+:root[data-theme="dark"]{
+  --bg:#06080C; --surface:#0C1016; --surface-2:#121822; --fg:#E6EAF2; --muted:#93A0B4; --line:#222A37; --line-2:#344055;
+  --seed:#6F9CFF; --seed-soft:rgba(111,156,255,.16); --cand:#3EDF8A; --cand-soft:rgba(62,223,138,.14);
+  --gap:#FF5C7A; --ok:#62D5FF; --warn:#FFB547; --o1:#86b6ef; --o2:#3987e5; --o3:#1c5cab; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body,#app{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 var(--font-body)}

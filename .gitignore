@@ -1,5 +1,13 @@
 .DS_Store
 .claude/worktrees/
 .claude/settings.local.json
-
 local/
+node_modules/
+dist/
+data/
+.env
+.env.local
+.env.*.local
+!.env.example
+*.sqlite
+*.sqlite-*
