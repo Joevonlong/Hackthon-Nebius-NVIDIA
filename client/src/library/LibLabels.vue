@@ -34,14 +34,15 @@ const found = computed(() => props.paper.labels.sources.map(s => {
 </template>
 
 <style scoped>
-.chips{display:flex;flex-wrap:wrap;gap:3px}
-.chip{font:500 10px/1 var(--font-mono);padding:3px 5px;border-radius:4px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface);cursor:help;text-decoration:none;white-space:nowrap}
-.chip.kind{color:var(--fg);border-color:var(--fg);font-weight:600}
-.chip.ok{color:var(--ok);border-color:currentColor}
-.chip.warn{color:var(--warn);border-color:currentColor}
-.chip.crit{color:var(--crit);border-color:currentColor}
-.chip.fresh{color:var(--cand);border-color:currentColor;background:var(--cand-soft)}
-.chip.tag,.chip.design{color:var(--seed);border-color:currentColor}
-.chip.na{border-style:dashed}
-.chip.src{color:var(--seed);background:var(--seed-soft);border-color:transparent;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:500 .64rem/1 var(--font-sans);padding:5px 9px;border-radius:99px;border:1px solid var(--ink-26);color:var(--ink-64);background:transparent;cursor:help;text-decoration:none;white-space:nowrap;transition:border-color .2s,color .2s}
+.chip:hover{border-color:var(--ink-64)}
+.chip.kind{background:var(--ink);color:var(--paper);border-color:var(--ink);font-weight:600}
+.chip.ok,.chip.tag,.chip.design{color:var(--ink);border-color:var(--ink-46)}
+.chip.warn,.chip.crit{color:var(--ink);border-color:var(--ink-46);border-style:dashed}
+.chip.crit{color:var(--accent);border-color:var(--accent)}
+.chip.fresh{color:var(--accent);border-color:var(--accent)}
+.chip.na{border-style:dashed;color:var(--ink-46)}
+.chip.src{color:var(--ink);background:var(--ink-8);border-color:transparent;cursor:pointer}
+.chip.src:hover{background:var(--ink-16)}
 </style>
