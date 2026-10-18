@@ -3,7 +3,7 @@ import type { RunConfig } from '@shared/config'
 import { getEmbeddings, putEmbeddings, textHash } from '../data/repo'
 import { env } from '../env'
 import { trace } from '../trace'
-import { hasKey, tfFetch, type TfError } from './http'
+import { hasKey, modelListed, tfFetch, type TfError } from './http'
 
 export const QUERY_INSTRUCTION = 'Given a biomedical research question, retrieve relevant paper abstracts'
 export const queryPrefix = (q: string) => `Instruct: ${QUERY_INSTRUCTION}\nQuery: ${q}`
@@ -92,8 +92,16 @@ export async function embed(texts: string[], kind: 'query' | 'document', cfg: Ru
 const RERANK_CHUNK = 50
 const sigmoid = (x: number) => 1 / (1 + Math.exp(-x))
 
-// Measured 14:15: Token Factory lists no reranker (Qwen3-Reranker-8B → 404). Skip further calls once seen.
+// Measured 14:15 and 15:20: Token Factory lists no reranker (Qwen3-Reranker-8B → 404). D-19: callers fall back to
+// embedding similarity. Check GET /models once instead of sending a request that 404s; skip further calls once seen.
 let rerankUnavailable = false
+
+/** false when the rerank model is not served (no key, not listed, or a 404 / 400 was seen). */
+export async function rerankAvailable(): Promise<boolean> {
+  if (!hasKey() || rerankUnavailable) return false
+  if ((await modelListed(env.models.rerank)) === false) rerankUnavailable = true
+  return !rerankUnavailable
+}
 
 async function rerankChunk(query: string, docs: string[], timeoutMs: number): Promise<number[] | null> {
   const err: TfError = { status: 0, body: '' }
@@ -112,7 +120,7 @@ async function rerankChunk(query: string, docs: string[], timeoutMs: number): Pr
 
 export async function rerank(query: string, docs: string[], cfg: RunConfig): Promise<number[] | null> {
   try {
-    if (!hasKey() || rerankUnavailable) return null
+    if (!(await rerankAvailable())) return null
     if (!docs.length) return []
     const prepared = docs.map(d => (d || '').trim().slice(0, MAX_CHARS) || '(empty)')
     const chunks: string[][] = []

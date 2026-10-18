@@ -7,7 +7,8 @@ import { resolveConfig } from '../shared/config'
 import { env } from '../server/env'
 import { embed, rerank, judge, facets, expandQueries } from '../server/ai/index'
 import { baseUrl, lastError, tfFetch } from '../server/ai/http'
-import { tavilySearch, lastTavilyStatus } from '../server/sources/tavily'
+import { tavilySearch, tavilyExtract, lastTavilyStatus } from '../server/sources/tavily'
+import { rerankAvailable } from '../server/ai/embed'
 
 const cfg = resolveConfig('demo', env.raw)
 const rows: [string, string, string, string][] = []
@@ -42,7 +43,8 @@ async function main() {
   for (const [role, id] of Object.entries(env.models)) {
     if (role === 'embedDims') continue
     const exists = ids.includes(String(id))
-    row(`model:${role}`, String(id), exists, exists ? 'listed' : `not listed; nearest: ${nearest(String(id), ids).join(', ') || '-'}`)
+    const na = !exists && role === 'rerank' ? 'n/a' : exists // D-19: no reranker on Token Factory; embedding fallback
+    row(`model:${role}`, String(id), na, exists ? 'listed' : `not listed${na === 'n/a' ? ' (D-19: embedding-similarity fallback)' : ''}; nearest: ${nearest(String(id), ids).join(', ') || '-'}`)
   }
   if (process.argv.includes('--list')) console.log(ids.join('\n'))
 
@@ -57,15 +59,18 @@ async function main() {
   const q = await embed(['How do melanoma cell states drive drug resistance?'], 'query', cfg)
   if (q && e64) row('embed query cos', env.models.embed, true, `cos(query, doc)=${q[0].reduce((s, x, i) => s + x * e64[0][i], 0).toFixed(3)}`)
 
-  // 3. rerank
-  const rdocs = [ABSTRACT, 'A recipe for sourdough bread with long fermentation.', 'Single-cell RNA-seq of glioblastoma reveals plasticity of cellular states.']
-  t = t0()
-  const r3 = await rerank('melanoma cell states and drug resistance', rdocs, cfg)
-  row('rerank 3', env.models.rerank, !!r3, r3 ? `${r3.map(x => x.toFixed(3)).join(' / ')} (${ms(t)})` : errStr())
-  const docs60 = Array.from({ length: 60 }, (_, i) => (i % 3 === 0 ? ABSTRACT : rdocs[i % 3]) + ` (${i})`)
-  t = t0()
-  const r60 = await rerank('melanoma cell states and drug resistance', docs60, cfg)
-  row('rerank 60', env.models.rerank, !!r60, r60 ? `${r60.length} scores (${ms(t)})` : errStr())
+  // 3. rerank (D-19: skipped without a request when GET /models does not list the model)
+  if (!(await rerankAvailable())) row('rerank', env.models.rerank, 'n/a', 'not served; pipeline ranks by embedding similarity (D-19)')
+  else {
+    const rdocs = [ABSTRACT, 'A recipe for sourdough bread with long fermentation.', 'Single-cell RNA-seq of glioblastoma reveals plasticity of cellular states.']
+    t = t0()
+    const r3 = await rerank('melanoma cell states and drug resistance', rdocs, cfg)
+    row('rerank 3', env.models.rerank, !!r3, r3 ? `${r3.map(x => x.toFixed(3)).join(' / ')} (${ms(t)})` : errStr())
+    const docs60 = Array.from({ length: 60 }, (_, i) => (i % 3 === 0 ? ABSTRACT : rdocs[i % 3]) + ` (${i})`)
+    t = t0()
+    const r60 = await rerank('melanoma cell states and drug resistance', docs60, cfg)
+    row('rerank 60', env.models.rerank, !!r60, r60 ? `${r60.length} scores (${ms(t)})` : errStr())
+  }
 
   // 4. planner + judge
   t = t0()
@@ -122,6 +127,13 @@ async function main() {
     t = t0()
     const hits = await tavilySearch('melanoma MITF AXL single-cell preprint', { includeDomains: ['biorxiv.org', 'nature.com'] })
     row('tavily', '-', hits.length > 0, `${hits.length} hits, HTTP ${lastTavilyStatus} (${ms(t)})`)
+    t = t0()
+    const adv = await tavilySearch('melanoma AXL MITF drug resistance single-cell', { searchDepth: 'advanced', maxResults: 10, timeRange: 'year', includeDomains: ['biorxiv.org', 'nature.com', 'cell.com', 'pubmed.ncbi.nlm.nih.gov'] })
+    row('tavily advanced', '-', adv.length > 0, `${adv.length} hits (max 10, past year), HTTP ${lastTavilyStatus} (${ms(t)})`)
+    t = t0()
+    const pages = await tavilyExtract(['https://pubmed.ncbi.nlm.nih.gov/27124452/'])
+    const hasAbs = !!pages[0] && pages[0].text.includes('4645 single cells')
+    row('tavily extract', '-', hasAbs, pages[0] ? `${pages[0].text.length} chars, abstract ${hasAbs ? 'found' : 'missing'} (${ms(t)})` : `no page, HTTP ${lastTavilyStatus}`)
   }
 
   console.log('\n| check | model | ok | detail |\n|---|---|---|---|')

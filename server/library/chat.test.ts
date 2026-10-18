@@ -64,7 +64,7 @@ describe('runChat', () => {
   const req = { messages: [{ role: 'user' as const, content: 'Prioritize venue over citations' }], current }
   it('one retry on invalid JSON, then a validated ChatResponse', async () => {
     let n = 0
-    const call = async () => (++n === 1 ? { data: { nope: 1 }, raw: '{}' } : { data: { reply: 'Top is [#1 Melanoma].', cited: [1], proposal: { weights: { venue: 0.3, citations: 0.1 }, rationale: 'Venue first.' } }, raw: '' })
+    const call = async () => (++n === 1 ? { data: { nope: 1 }, raw: '{}', model: 'm' } : { data: { reply: 'Top is [#1 Melanoma].', cited: [1], proposal: { weights: { venue: 0.3, citations: 0.1 }, rationale: 'Venue first.' } }, raw: '', model: 'm' })
     const res = await runChat('lib_test', lib, req, { call })
     expect(n).toBe(2)
     expect(ChatResponse.safeParse(res).success).toBe(true)
@@ -148,7 +148,7 @@ describe('Q2-10 kind questions are answered completely from labels', () => {
     const two = passingReviews.slice(0, 2)
     const call = async (o: { system: string }) => {
       system = o.system
-      return { data: { reply: `Two reviews: ${two.map(p => `[#${p.rank} ${p.paper.title}]`).join(', ')}.`, cited: two.map(p => p.rank), proposal: null }, raw: '' }
+      return { data: { reply: `Two reviews: ${two.map(p => `[#${p.rank} ${p.paper.title}]`).join(', ')}.`, cited: two.map(p => p.rank), proposal: null }, raw: '', model: 'm' }
     }
     const res = await runChat('lib_test', { goals: testGoals(), papers }, { messages: [{ role: 'user', content: 'Which papers are reviews?' }], current }, { call: call as never })
     expect(system).toMatch(/ANSWER LIST/)

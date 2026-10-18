@@ -29,6 +29,37 @@ const seedList = (seeds: Seed[]) => seeds.slice(0, 10).map(s => `- ${s.label} ${
 
 const clip = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n)
 
+/** Measured 15:20: nemotron-super with json_schema sometimes answers `{"queries": [">>>", ">>>"]}`; Qwen3-235B did not. */
+export const plannerFallbackModel = () => env.raw.PLANNER_FALLBACK_MODEL || 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+
+/** Strips facet labels ("topic=…"), quote / arrow markers and boolean operators the models sometimes echo. */
+export function cleanQuery(q: string): string {
+  return clip(q.replace(/\b(topic|method|population|outcome)\s*[=:]\s*/gi, ' ').replace(/[>"()=]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/\s+/g, ' ').trim(), 120)
+}
+
+/** A usable search query: at least `minWords` words that contain a letter. */
+export function isUsableQuery(q: unknown, minWords = 2): boolean {
+  if (typeof q !== 'string') return false
+  return cleanQuery(q).split(' ').filter(w => /[a-z]/i.test(w)).length >= minWords
+}
+
+/** Rejects echoed / junk facet output: every facet needs a real query and they must not all be the same. */
+export function usableFacets(d: any): boolean {
+  const qs = (['topic', 'method', 'population'] as const).map(k => d?.[k]?.query)
+  if (qs.some(q => typeof q === 'string' && ECHO.test(q))) return false
+  return qs.every(q => isUsableQuery(q, 1)) && new Set(qs.map(q => cleanQuery(q).toLowerCase())).size > 1
+}
+
+/** Facet-format echoes (">topic=…", "method: …"): the model copied the prompt instead of writing queries. */
+const ECHO = /^\s*>|\b(topic|method|population|outcome)\s*[=:]/i
+
+/** Rejects junk query lists: no facet-format echoes, at least two distinct usable queries. */
+export function usableQueries(d: any): boolean {
+  const qs: unknown[] = Array.isArray(d?.queries) ? d.queries : []
+  if (qs.some(q => typeof q === 'string' && ECHO.test(q))) return false
+  return new Set(qs.filter(q => isUsableQuery(q)).map(q => cleanQuery(q as string).toLowerCase())).size >= 2
+}
+
 export async function facets(question: string, seeds: Seed[], cfg: RunConfig): Promise<Facet[]> {
   const fb = fallbackFacets(question)
   if (!hasKey()) return fb
@@ -38,6 +69,8 @@ export async function facets(question: string, seeds: Seed[], cfg: RunConfig): P
       timeoutMs: cfg.timeoutMs,
       maxTokens: 400,
       schema: { name: 'facets', schema: FACET_SCHEMA },
+      validate: usableFacets,
+      fallbackModel: plannerFallbackModel(),
       system: 'You split a biomedical research question into search facets. Reply with JSON only.',
       user: `Research question: ${question}
 
@@ -55,7 +88,7 @@ If the question does not mention a facet, infer it from the seed papers.`,
     if (!parsed.success) return fb
     return (['topic', 'method', 'population'] as const).map((key, i) => {
       const f = parsed.data[key]
-      const query = clip(f.query, 120)
+      const query = isUsableQuery(f.query, 1) ? cleanQuery(f.query) : ''
       return { key, label: clip(f.label, 40) || fb[i].label, query: query || question }
     })
   } catch {
@@ -76,6 +109,8 @@ export async function expandQueries(question: string, fs: Facet[], cfg: RunConfi
       timeoutMs: cfg.timeoutMs,
       maxTokens: 400,
       schema: { name: 'queries', schema: QUERIES_SCHEMA },
+      validate: usableQueries,
+      fallbackModel: plannerFallbackModel(),
       system: 'You write literature search queries for the OpenAlex full-text search API. Reply with JSON only.',
       user: `Research question: ${question}
 Facets: ${fs.map(f => `${f.key}=${f.query}`).join('; ')}
@@ -88,8 +123,9 @@ Combine the facets differently in each query; use the standard terminology and c
     const seen = new Set<string>()
     const out = qs.data.queries
       // Nemotron sometimes echoes the facet format ("topic=… method=…"): strip labels and stray markers.
-      .map(q => clip(q.replace(/\b(topic|method|population|outcome)\s*[=:]\s*/gi, ' ').replace(/[>"()=]/g, ' ').replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/\s+/g, ' ').trim(), 120))
-      .filter(q => q.length >= 3 && !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase()))
+      .filter(q => isUsableQuery(q))
+      .map(cleanQuery)
+      .filter(q => !seen.has(q.toLowerCase()) && seen.add(q.toLowerCase()))
       .slice(0, 4)
     // Measured: Nemotron sometimes returns a single query. Pad with deterministic facet pairs to reach ≥2.
     const by = (k: string) => fs.find(f => f.key === k)?.query ?? ''
