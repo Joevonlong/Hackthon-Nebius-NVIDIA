@@ -224,6 +224,7 @@ input[type=range]{flex:1;min-width:0;accent-color:var(--ink);height:14px;margin:
 .chip:hover:not(:disabled){border-color:var(--ink-64)}
 .chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
 .chip:disabled{opacity:.55;cursor:default}
+.chip[aria-pressed="true"]:disabled{opacity:1;background:var(--ink-16);border-color:var(--ink-26);color:var(--ink-80)}
 .chip.static{cursor:default;padding:5px 10px;font-size:.68rem;color:var(--ink-80)}
 .chips.mono .chip{font-family:var(--font-mono);font-size:.64rem}
 .roll{display:inline-grid;overflow:hidden;line-height:1.15}
