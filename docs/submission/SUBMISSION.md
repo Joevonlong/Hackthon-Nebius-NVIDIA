@@ -2,6 +2,8 @@
 
 Form: _TBD (captain to paste the form link)_ · deadline 18:30 CEST · our target 18:00. The human submits; nothing here is submitted, published, or uploaded yet.
 
+Rewritten for the Library flow (CR-1 to CR-3). Numbers are measured or marked `TBD-n (from the recorded demo run / eval lane)`; the registry is in hack/PITCH.md. Replace or keep every TBD label before submitting.
+
 ## Project name
 
 PaperTrail
@@ -12,40 +14,47 @@ Find the papers you missed, with receipts.
 
 (Long form: Start from the papers you trust. Find the ones you missed, with receipts.)
 
-## Description (142 words, target 150)
+## Description (143 words, limit 150)
 
-PaperTrail turns the papers a researcher already trusts into a ranked list of papers they have missed, with a checkable paper trail for each. Paste a few DOIs and a research question. PaperTrail follows citations, PubMed similar articles and a bounded Tavily scouting agent, then sorts candidates into honest lanes: Core, Fresh, Linked and Bridges, plus a Retracted warning row. Every paper shows which seeds link to it, through which route and API, and a quote that is verified word for word against the abstract. On two real reviews, our routes reached 16% and 42% of hidden references, against 6% at most for keyword search. Seed-link ranking put 35 to 40% relevant papers in the top 20, where chance is about 5%. Kept papers become Markdown literature notes linked to the seeds in a Zettlr-style workspace, exportable to BibTeX and CSL JSON.
+PaperTrail turns a researcher's question and the papers they trust into a library of new papers, each with a report card that shows its evidence. Type the question, add five seed papers, and press Build. An agent reads the vault notes for goals, quoting the notes. The app searches OpenAlex, PubMed, arXiv and Tavily, follows citations from the seeds, and scores each paper on relevance, graph links, citations, venue, authors and a language-model read, which has the smallest weight. Every score row shows its numbers and source links. In live runs a build took 94 to 102 seconds, scored 599 papers, and verified 38 of 40 model quotes against the abstract. In chat you say "prioritize recent clinical studies"; the agent proposes new weights, you apply them, and the list re-ranks. Add papers to the vault, see them in the graph, export BibTeX.
 
 ## How it uses Nebius, Token Factory and Tavily
 
-- **Nebius Serverless Endpoint** hosts the app: one Docker container (Hono API with SSE, plus the Vue client) on `cpu-d3`, `2vcpu-8gb`, behind a public HTTPS URL. The app is deployed separately from the model endpoint.
-- **Nebius Token Factory** serves the models: `Qwen/Qwen3-Embedding-8B` (1024-dim embeddings), `Qwen/Qwen3-Reranker-8B` (reranking), `nvidia/Nemotron-3_5-Lightning` (relevance judge: facet grades, one-sentence reason, quote), and `nvidia/nemotron-3-super-120b-a12b` (research-question facets, query expansion, Scout agent).
-- **Tavily** powers the Scout agent (route R5). It searches the web and preprint servers for recent work and context, in at most 6 tool calls and 45 seconds. Each hit is resolved to a paper by DOI, PMID or title match; web pages are context, never evidence for a paper's findings.
+- **Nebius Token Factory** serves all models: `Qwen/Qwen3-Embedding-8B` (1024-dim embeddings for relevance to the question and subtopics), `nvidia/Nemotron-3_5-Lightning` (the judge that reads abstracts and returns grades, a reason and a quote), and `nvidia/nemotron-3-super-120b-a12b` (planner: goals, subtopics and queries from the vault; chat model to be confirmed before submitting). There is no reranker model on Token Factory, so relevance is embedding similarity and the UI says so.
+- **Tavily** is a high-priority search source: the question, every subtopic (advanced depth) and every keyword group, with scholarly domains, at most 25 calls per library. Each hit is resolved to a paper by DOI, PMID or arXiv id. Web pages are context, never evidence for a paper's findings.
+- **Nebius hosting.** The brief asks for a deployment on Nebius. The app currently runs locally (Docker on port 3040, or `pnpm start` on 3030) and calls Token Factory; the Nebius Serverless Endpoint deploy script (`scripts/deploy.sh`) is ready but has not been run. Status: open item for the captain (see Checks). Do not describe the app as deployed on Nebius unless this is done.
 
 ## Architecture
 
-The Vue 3 client (Pinia, CodeMirror 6, d3 graph) talks over HTTPS and server-sent events to one Hono server on Node 22. The server resolves seeds through OpenAlex, then builds a candidate pool with five routes: references of the seeds (R1), papers citing at least two seeds (R2), PubMed similar articles (R3), query expansion by a language model (R4) and the Scout agent (R5). Candidates are assigned to lanes by seed links, with a date check on citation links. Embeddings, a reranker and a judge on Token Factory then grade the top candidates; the judge's quote must be a verbatim substring of the source text or it is marked unverified and down-weighted. Papers and vectors live in SQLite with exact in-memory search; the researcher's notes live in the browser as Markdown. Shared zod contracts type every event between client and server.
+The Vue 3 client (Pinia, CodeMirror 6, d3 graph; notes as Markdown in the browser) talks over HTTP and server-sent events to one Hono server on Node 22. A Library build runs in stages: the goals agent reads every note and extracts the topic, goals, subtopics and keywords, with a verified note quote for each goal; search runs on OpenAlex, PubMed (with publication types and MeSH), arXiv and Tavily; graph expansion follows references, citing papers and PubMed similar articles from the seeds; results are deduplicated with provenance and enriched with venue and author data from OpenAlex; each paper gets labels (type, study design, peer review, open access, field, recency) and a score of six components with evidence; the judge reads the best candidates; the top X% of the library (default 25%, floor 0.50) passes. Papers already in the vault and retracted papers are excluded. The chat agent answers from the library JSON and proposes weight, pass-rule and filter changes that the user applies; the browser re-scores instantly. Each paper is stored as one JSON file, and every source and model call is traced under `logs/runs/<libraryId>/`. Shared zod contracts type every message (`shared/library.ts`).
 
 ## Measured results
 
-Hold-out test on two real reviews (Nat Rev Cancer 2023, 235 references; 2020 review, 93 references): hide all but 5 references as seeds, build a pool from the seeds, count hidden references. One review's reference list is incomplete, so every number is a lower bound. Method and tables: `docs/RANKING_AND_STORAGE.md` section 1.
+Live Library runs on the real backend (melanoma example, local):
 
 | Measure | Result |
 |---|---|
-| Hidden references reached by our routes | 16% and 42% (two reviews) |
+| Time to build a library | 94 to 102 s |
+| Source calls per build | 74 to 107 |
+| Papers scored per build | 599 |
+| Abstracts read by the language model | 40 |
+| Model quotes verified word for word against the abstract | 38 of 40 (95%); earlier seed pipeline: 32 of 35 (91%) |
+| Figures for the final recorded run | TBD-2 (from the recorded demo run / eval lane) |
+| Cost per build | TBD-10 (from the recorded demo run / eval lane) |
+| Evaluation of the full six-component score against known references | TBD-3 (from the recorded demo run / eval lane); not yet evaluated if left empty |
+
+Hold-out test on two real reviews (Nat Rev Cancer 2023, 235 references; 2020 review, 93 references), for the citation routes of the earlier seed pipeline: hide all but 5 references as seeds, build a pool, count hidden references. One review's reference list is incomplete, so every number is a lower bound. Method and tables: `docs/RANKING_AND_STORAGE.md` section 1.
+
+| Measure | Result |
+|---|---|
+| Hidden references reached by the citation routes | 16% and 42% (two reviews) |
 | Hidden references reached by keyword search | PubMed top 100: 2% and 0%; OpenAlex search top 100: 1% and 6% |
 | Relevant papers in the top 20, ranked by seed links | 40% and 35% (base rate 5.2% and 4.5%) |
 | Relevant papers in the top 20, ranked by citation count | 0% and 25% |
-| PubMed results for the question vs loose keywords (melanoma example) | 15 vs 999 |
-| Melanoma example, citation routes | 980 candidates; Core about 536 to 545; Linked 216; Bridges 218; 1 retracted paper flagged; 494 papers cite at least 2 of 5 seeds |
-| Live citation part of a run | 7.8 s cold, 0.5 s warm |
-| Judge quote verification rate | TBD after live run |
-| Full-pipeline evaluation (embeddings, reranker, judge) | TBD after live run |
-| End-to-end run time and cost per run with AI stages | TBD after live run |
 
 ## What is real and what is replayed
 
-Real: OpenAlex, PubMed and Europe PMC calls, citation routes, lanes, retraction flag, deployment on Nebius. Demo mode (`?demo=1`) replays a recorded real run in about 5 seconds. The recording committed so far holds the citation stages; the AI stages are to be re-recorded with API keys. Not built: PDF and OCR ingestion, Postgres and LanceDB, vault sync.
+Real: every source call, the goals agent, enrichment, labels, scoring, the language-model read with quote verification, chat proposals, in-browser re-scoring, Add to vault and BibTeX export. The production build uses no mock or fixture data; failures show an error with Retry. Demo mode (`?demo=1`) replays a recording of a real run so it works without Wi-Fi; it is labelled as a replay. Mock data exists only behind a developer flag. Not used: Google Scholar (no API, not scraped) and a reranker model; the model reads abstracts only. Not built: Nebius Serverless deployment (script ready), PDF and OCR ingestion, Postgres and LanceDB, vault sync.
 
 ## Team
 
@@ -56,8 +65,8 @@ _TBD (names and roles)._
 | Item | Link |
 |---|---|
 | Repository | https://github.com/Joevonlong/Hackthon-Nebius-NVIDIA (visibility to be checked by the human) |
-| Live app | _TBD (prod URL after deploy v3)_ |
-| Demo mode | _TBD_ `/?demo=1` |
+| Live app | _TBD (none if the app stays local; Nebius URL if deployed)_ |
+| Demo mode | _TBD_ `/?demo=1` (local) |
 | Video | _TBD (not recorded or uploaded)_ |
 
 ## License and credits
@@ -68,17 +77,20 @@ GPL-3.0-or-later. PaperTrail includes code and styles adapted from Zettlr (GPL-3
 
 | Check | Status |
 |---|---|
-| Prod answers `/api/health` and `scripts/smoke.sh <prod-url>` | not run |
+| App starts from a clean clone: `pnpm install && pnpm build && PORT=3030 pnpm start`, then `/api/health` | not run |
 | Every link above returns 200 | not run |
-| Description is 150 words or fewer | 142 words counted with wc -w |
+| Description is 150 words or fewer | 143 words counted with `wc -w` |
+| Nebius deployment decided: deploy, or state local run | open (captain) |
+| Chat model name confirmed from server config | open |
 | Repo visibility matches the rules; full git history scanned for keys before making it public | not done; ask the human first |
 | Video plays signed out | no video yet |
-| TBD cells in Measured results replaced or still labeled TBD | open |
+| Every TBD-n in this file replaced or still labelled TBD | open |
 
 ## Checklist for the human
 
 - [ ] Form link pasted, track and sponsor prizes selected (Nebius, Token Factory, Tavily)
-- [ ] Prod URL, video URL and team names filled in
+- [ ] Video URL, team names and any live URL filled in
+- [ ] Deployment status stated truthfully (local run, or the Nebius URL)
 - [ ] Repo visibility confirmed against the rules (you decide whether to make it public)
 - [ ] Every teammate added on the platform
 - [ ] Fields pasted and preview checked
