@@ -151,10 +151,10 @@ scripts/docker-local.sh              # Docker: http://localhost:3040
 
 Checks: `pnpm gate` (typecheck + tests + build). Nebius Serverless deploy: `scripts/deploy.sh` (ready, not run).
 
-## Team
+## Author
 
-_TBD (names and roles)_.
+JonvonLong ([@Joevonlong](https://github.com/Joevonlong)).
 
 ## License
 
-GPL-3.0-or-later. Includes code and styles adapted from [Zettlr](https://github.com/Zettlr/Zettlr) (GPL-3.0); credit to the Zettlr authors and contributors.
+GPL-3.0-or-later (see [LICENSE](LICENSE)). Includes code and styles adapted from [Zettlr](https://github.com/Zettlr/Zettlr) (GPL-3.0); credit to the Zettlr authors and contributors.
