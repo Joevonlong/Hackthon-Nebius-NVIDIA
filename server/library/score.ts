@@ -83,6 +83,14 @@ export function buildKnown(records: EnrichedRecord[], knownPapers: string[]): { 
   return { known, knownKeys }
 }
 
+/** D-32 / J-5: a known paper's short title for evidence lines (instead of bare K1, K16 … ids). */
+export function shortTitle(t: string, max = 60): string {
+  const words = t.replace(/\s+/g, ' ').trim().split(' ')
+  let out = ''
+  for (const w of words) { if ((out + ' ' + w).trim().length > max) return out ? out + '…' : w.slice(0, max) + '…'; out = (out + ' ' + w).trim() }
+  return out
+}
+
 const leadAuthors = (rec: EnrichedRecord) => rec.authors.filter(a => a.position === 'first' || a.position === 'last')
 const bestAuthorH = (rec: EnrichedRecord) => { const hs = leadAuthors(rec).map(a => a.hIndex).filter((h): h is number => h != null); return hs.length ? Math.max(...hs) : null }
 
@@ -131,7 +139,7 @@ export function graphComponent(item: ScoreItem, ctx: LibraryContext): RawCompone
   if (!ctx.knownCount) return { key: 'graph', value: null, how: 'Not assessed: the notes name no papers (no DOI / PMID / arXiv / OpenAlex id found).', evidence: [] }
   if (ctx.knownKeys.has(rec.key)) {
     const k = ctx.known.get(rec.key)!
-    return { key: 'graph', value: 1, how, evidence: [{ text: `this paper is in your notes (${k.label})`, source: { name: 'your notes', url: k.url } }] }
+    return { key: 'graph', value: 1, how, evidence: [{ text: `this paper is in your notes ("${shortTitle(k.title)}")`, source: { name: 'your notes', url: k.url } }] }
   }
   const links = new Map<string, Evidence>()
   const verb = { cites: 'cites', cited_by: 'is cited by', similar: 'is PubMed-similar to', same_query: 'shares a query with' } as const
@@ -141,11 +149,11 @@ export function graphComponent(item: ScoreItem, ctx: LibraryContext): RawCompone
     const k = ctx.known.get(r.paperId)
     if (!k) continue
     const key = `${k.label}:${r.type}`
-    if (!links.has(key)) links.set(key, { text: `${verb[r.type]} ${k.label} "${k.title.slice(0, 70)}" (${via[r.type]})`, source: { name: k.label, url: k.url } })
+    if (!links.has(key)) links.set(key, { text: `${verb[r.type]} your paper "${shortTitle(k.title)}" (${via[r.type]})`, source: { name: shortTitle(k.title, 40), url: k.url } })
   }
   for (const w of rec.paper.referencedWorks) {
     const k = ctx.known.get(w)
-    if (k && !links.has(`${k.label}:cites`)) links.set(`${k.label}:cites`, { text: `cites ${k.label} "${k.title.slice(0, 70)}" (OpenAlex referenced_works)`, source: { name: k.label, url: k.url } })
+    if (k && !links.has(`${k.label}:cites`)) links.set(`${k.label}:cites`, { text: `cites your paper "${shortTitle(k.title)}" (OpenAlex referenced_works)`, source: { name: shortTitle(k.title, 40), url: k.url } })
   }
   const distinct = new Set([...links.keys()].map(k => k.split(':')[0])).size
   const value = distinct === 0 ? 0 : distinct === 1 ? 0.5 : 1
