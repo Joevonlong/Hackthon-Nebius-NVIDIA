@@ -158,11 +158,14 @@ export const RunSnapshot = z.object({
 })
 export type RunSnapshot = z.infer<typeof RunSnapshot>
 
+// Note paths in the vault: 'Notes/Question.md', 'Seeds/S1 Tirosh 2016.md', 'Discovered/<Author> <Year> <first words of title>.md'.
+// Seed notes and literature notes carry front matter `paper_id: W…` so graph/related views can map notes to papers.
 // HTTP API (server/routes):
 //   GET  /api/health                      -> { ok: true, version, models, keys: {tokenFactory, tavily, openalex} }
 //   POST /api/seeds/resolve  {inputs[]}   -> { seeds: Seed[], errors: {input, message}[] }
 //   POST /api/runs           RunRequest   -> { runId }
-//   GET  /api/runs/:id/stream             -> text/event-stream of RunEvent (replays past events, then live). ?demo=1 replays the recording.
+//   GET  /api/runs/:id/stream             -> text/event-stream of RunEvent (replays past events, then live)
 //   GET  /api/runs/:id                    -> RunSnapshot
-//   GET  /api/demo                        -> { runId } of the recorded demo run (server/demo/recordings/melanoma.json)
+//   GET  /api/demo/stream                 -> text/event-stream replaying server/demo/recordings/melanoma.json at a fixed pace (~5 s). Client uses it when the page URL has ?demo=1
+//   GET  /api/demo/snapshot               -> RunSnapshot of the recording
 //   GET  /api/papers/:id                  -> Paper
