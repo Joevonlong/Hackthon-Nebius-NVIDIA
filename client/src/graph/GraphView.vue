@@ -369,7 +369,9 @@ function frame(nowT: number) {
   if (frameNo % 6 === 0 || reduce) {
     const sx = (x: number) => x * transform.k + transform.x, sy = (y: number) => y * transform.k + transform.y
     const order = [...cur].sort((p, q) => score(q) - score(p))
-    function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
+    // CR-12: the 10 best-scoring library papers (the biggest, darkest nodes) are labelled first and may overlap dots.
+    const top = new Set(cur.filter(n => n.lib).sort((p, q) => q.lib!.total - p.lib!.total).slice(0, 10).map(n => n.id))
+    function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + (top.has(n.id) ? 300 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
     const placed: { x0: number; y0: number; x1: number; y1: number; id?: string }[] = cur.map(n => {
       const s = st.get(n.id); const r = (rad(n) + 1) * transform.k
       return s ? { x0: sx(s.x) - r, y0: sy(s.y) - r, x1: sx(s.x) + r, y1: sy(s.y) + r, id: n.id } : { x0: 0, y0: 0, x1: 0, y1: 0, id: n.id }
@@ -383,7 +385,7 @@ function frame(nowT: number) {
       const x0 = flip ? sx(s.x) - gap - lw : sx(s.x) + gap, y0 = sy(s.y) - lh / 2
       ;(s as NState & { flip?: boolean }).flip = flip
       const box = { x0, y0, x1: x0 + lw, y1: y0 + lh }
-      const clash = placed.some(p => p.id !== n.id && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
+      const clash = placed.some(p => p.id !== n.id && (!top.has(n.id) || p.id?.startsWith('#')) && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
       // Q-11: labels stay inside the canvas; a node off the edge keeps its dot but not a clipped label.
       const inside = W <= 0 || (box.x0 >= -W / 2 + 4 && box.x1 <= W / 2 - 4 && box.y0 >= -H / 2 + 4 && box.y1 <= H / 2 - 4)
       const show = inside && (n.id === active || !clash)
