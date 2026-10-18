@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seed2Discover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef; --panel: #ffffff; --ink: #1b1f24; --muted: #66707a; --line: #e3dfd6;
+    --accent: #0f766e; --accent-soft: #d6efeb; --warn: #b45309; --warn-soft: #fdecd3;
+    --cites: #0f766e; --cited: #2563eb; --shared: #9333ea; --related: #a1a1aa;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 Inter, system-ui, sans-serif; }
+  header { padding: 28px 32px 8px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h1 { font-family: Fraunces, Georgia, serif; font-size: 30px; margin: 0; letter-spacing: -0.02em; }
+  h1 span { color: var(--accent); }
+  .tagline { color: var(--muted); }
+  .layout { display: grid; grid-template-columns: 380px 1fr; gap: 24px; padding: 16px 32px 48px; align-items: start; }
+  @media (max-width: 960px) { .layout { grid-template-columns: 1fr; padding: 12px 16px 40px; } header { padding: 20px 16px 4px; } .sticky { position: static; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .sticky { position: sticky; top: 16px; }
+  label { display: block; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; }
+  textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; resize: vertical; background: #fcfbf8; }
+  textarea.mono { font: 12.5px/1.6 "JetBrains Mono", monospace; }
+  textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .field { margin-bottom: 16px; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+  button { font: 600 15px Inter, sans-serif; border: 0; border-radius: 10px; padding: 12px 16px; cursor: pointer; }
+  .primary { background: var(--accent); color: #fff; width: 100%; }
+  .primary:disabled { opacity: .6; cursor: progress; }
+  .ghost { background: transparent; color: var(--accent); padding: 4px 0; font-size: 13px; }
+  .modes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .badge { font: 500 11.5px "JetBrains Mono", monospace; padding: 3px 8px; border-radius: 999px; background: #eeebe4; color: var(--muted); }
+  .badge.on { background: var(--accent-soft); color: var(--accent); }
+  .badge.off { background: var(--warn-soft); color: var(--warn); }
+  .seeds-list { margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .seeds-list li { display: flex; gap: 8px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  .seed-tag { font: 600 11px "JetBrains Mono", monospace; background: var(--ink); color: #fff; border-radius: 6px; padding: 1px 6px; height: fit-content; }
+  .empty { text-align: center; color: var(--muted); padding: 60px 20px; }
+  .empty h2 { font-family: Fraunces, serif; color: var(--ink); font-size: 22px; margin: 0 0 8px; }
+  .status { display: flex; gap: 10px; align-items: center; color: var(--muted); padding: 40px 20px; justify-content: center; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .summary { display: flex; gap: 22px; flex-wrap: wrap; margin-bottom: 16px; }
+  .summary div b { display: block; font: 700 24px Fraunces, serif; }
+  .summary div { color: var(--muted); font-size: 13px; }
+  #graph { width: 100%; height: auto; display: block; }
+  .graph-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .graph-legend i { display: inline-block; width: 16px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-top: 14px; display: grid; grid-template-columns: 44px 1fr; gap: 4px 14px; transition: box-shadow .15s, border-color .15s; }
+  .card.hl { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .rank { font: 700 26px Fraunces, serif; color: var(--accent); line-height: 1.1; }
+  .card h3 { margin: 0; font: 600 17px/1.35 Inter, sans-serif; }
+  .card h3 a { color: var(--ink); text-decoration: none; }
+  .card h3 a:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .links { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; font: 12px "JetBrains Mono", monospace; }
+  .links a { color: var(--accent); }
+  .scores { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: center; font-size: 12px; color: var(--muted); margin: 12px 0 4px; max-width: 420px; }
+  .bar { height: 6px; background: #eeebe4; border-radius: 3px; overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); }
+  .bar.sem > span { background: #2563eb; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+  .chip { font-size: 12px; border-radius: 999px; padding: 2px 9px; border: 1px solid; }
+  .explain { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .verdict { font: 600 11px "JetBrains Mono", monospace; text-transform: uppercase; padding: 2px 7px; border-radius: 6px; margin-right: 6px; }
+  .v-useful { background: var(--accent-soft); color: var(--accent); }
+  .v-uncertain { background: var(--warn-soft); color: var(--warn); }
+  .v-not_useful { background: #fde2e2; color: #b91c1c; }
+  blockquote { margin: 10px 0; padding: 8px 12px; border-left: 3px solid var(--accent); background: #f3faf8; font-size: 14px; }
+  blockquote.unverified { border-left-color: var(--warn); background: #fdf7ee; }
+  .qv { display: block; font: 600 11px "JetBrains Mono", monospace; margin-top: 4px; }
+  .qv.ok { color: var(--accent); } .qv.bad { color: var(--warn); }
+  .uncert { color: var(--muted); font-size: 13.5px; }
+  details { margin-top: 8px; font-size: 13.5px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+  mark { background: #c9ece5; padding: 0 2px; }
+  .error { color: #b91c1c; background: #fde2e2; padding: 12px 14px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Seed<span>2</span>Discover</h1>
+  <div class="tagline">From papers you trust to the next ones worth reading — every reason traced to its source.</div>
+</header>
+
+<main class="layout">
+  <aside class="panel sticky">
+    <form id="form">
+      <div class="field">
+        <label for="question">Research question</label>
+        <textarea id="question" rows="3" required></textarea>
+      </div>
+      <div class="field">
+        <label for="seeds">Seed papers</label>
+        <textarea id="seeds" class="mono" rows="6" required></textarea>
+        <div class="hint">One per line: DOI, PubMed link, PMID, OpenAlex ID, or title.</div>
+      </div>
+      <button class="primary" id="go" type="submit">Discover papers</button>
+      <button class="ghost" id="example" type="button">Load melanoma example</button>
+    </form>
+    <div class="modes" id="modes"></div>
+    <ul class="seeds-list" id="seedList"></ul>
+  </aside>
+
+  <section id="out">
+    <div class="panel empty">
+      <h2>Start from what you already know</h2>
+      Add a question and 3–5 seed papers. We walk their citation network, score candidates
+      against your question, and ask Nemotron to explain each one using only the abstract.
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const REL = {
+  cites_seed: { label: "cites", color: "var(--cites)" },
+  cited_by_seed: { label: "cited by", color: "var(--cited)" },
+  shared_refs: { label: "shares refs", color: "var(--shared)" },
+  related: { label: "related", color: "var(--related)" },
+};
+const STAGES = ["Resolving seed papers in OpenAlex…", "Walking references and citing papers…", "Scoring candidates against your question…", "Asking Nemotron for grounded explanations…"];
+
+async function loadExample() {
+  const ex = await (await fetch("/api/example")).json();
+  $("#question").value = ex.question;
+  $("#seeds").value = ex.seeds.join("\n");
+}
+
+async function loadHealth() {
+  try {
+    const h = await (await fetch("/api/health")).json();
+    $("#modes").innerHTML = [
+      h.token_factory ? `<span class="badge on">Token Factory ✓</span>` : `<span class="badge off">Token Factory: no key (fallback)</span>`,
+      h.token_factory ? `<span class="badge">${esc(h.chat_model)}</span>` : "",
+      h.openalex_key ? `<span class="badge on">OpenAlex key ✓</span>` : `<span class="badge">OpenAlex: shared budget</span>`,
+    ].join("");
+  } catch { /* health is informational only */ }
+}
+
+$("#example").onclick = loadExample;
+
+$("#form").onsubmit = async (e) => {
+  e.preventDefault();
+  const question = $("#question").value.trim();
+  const seeds = $("#seeds").value.split("\n").map((s) => s.trim()).filter(Boolean);
+  $("#go").disabled = true;
+  let stage = 0;
+  $("#out").innerHTML = `<div class="panel status"><div class="spinner"></div><span id="stage">${STAGES[0]}</span></div>`;
+  const timer = setInterval(() => { stage = Math.min(stage + 1, STAGES.length - 1); const el = $("#stage"); if (el) el.textContent = STAGES[stage]; }, 1800);
+  try {
+    const resp = await fetch("/api/discover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question, seeds, top_k: 12 }) });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail?.[0]?.msg || data.detail || resp.statusText);
+    render(data);
+  } catch (err) {
+    $("#out").innerHTML = `<div class="error">Discovery failed: ${esc(err.message)}</div>`;
+  } finally {
+    clearInterval(timer);
+    $("#go").disabled = false;
+  }
+};
+
+function render(data) {
+  $("#seedList").innerHTML = data.seeds.map((s) => `<li><span class="seed-tag">S${s.index + 1}</span><span>${esc(s.title)} <span style="color:var(--muted)">(${s.year ?? "n.d."})</span></span></li>`).join("")
+    + data.unresolved.map((u) => `<li><span class="seed-tag" style="background:var(--warn)">?</span><span>Not found: ${esc(u)}</span></li>`).join("");
+
+  const st = data.stats;
+  const verified = data.results.filter((r) => r.explanation.quote_verified).length;
+  $("#out").innerHTML = `
+    <div class="panel">
+      <div class="summary">
+        <div><b>${data.results.length}</b>recommended</div>
+        <div><b>${st.candidates_considered}</b>candidates scanned</div>
+        <div><b>${verified}</b>quotes verified</div>
+        <div><b>${st.elapsed_s}s</b>end to end</div>
+      </div>
+      ${graphSvg(data)}
+      <div class="graph-legend">${Object.values(REL).map((r) => `<span><i style="background:${r.color}"></i>${r.label}</span>`).join("")}</div>
+      <div class="modes"><span class="badge">semantic: ${esc(st.semantic_mode)}</span><span class="badge">explanations: ${esc(st.explanation_mode)}</span></div>
+    </div>
+    ${data.results.map((r) => card(r, data.seeds)).join("")}`;
+
+  document.querySelectorAll("[data-cand]").forEach((el) => {
+    const id = el.dataset.cand;
+    el.addEventListener("mouseenter", () => highlight(id, true));
+    el.addEventListener("mouseleave", () => highlight(id, false));
+  });
+}
+
+function highlight(id, on) {
+  document.querySelectorAll(`[data-cand="${id}"]`).forEach((el) => el.classList.toggle("hl", on));
+  document.querySelectorAll(`#graph [data-edge]`).forEach((el) => {
+    el.style.opacity = on ? (el.dataset.edge === id ? 1 : 0.08) : 0.55;
+  });
+}
+
+function graphSvg(data) {
+  const W = 760, rowH = 30, n = data.results.length, H = Math.max(n, data.seeds.length) * rowH + 30;
+  const seedY = (i) => 20 + (i + 0.5) * ((H - 30) / data.seeds.length);
+  const candY = (i) => 20 + (i + 0.5) * rowH;
+  const sx = 150, cx = W - 330;
+  let edges = "", nodes = "";
+  data.results.forEach((r, i) => {
+    r.connections.forEach((c) => {
+      const y1 = seedY(c.seed), y2 = candY(i);
+      edges += `<path data-edge="${r.id}" d="M${sx},${y1} C${(sx + cx) / 2},${y1} ${(sx + cx) / 2},${y2} ${cx},${y2}" fill="none" stroke="${REL[c.relation].color}" stroke-width="2" opacity="0.55"/>`;
+    });
+    nodes += `<g data-cand="${r.id}" style="cursor:pointer" onclick="document.getElementById('c-${r.id}').scrollIntoView({behavior:'smooth',block:'center'})">
+      <circle cx="${cx}" cy="${candY(i)}" r="${5 + r.scores.final * 6}" fill="var(--accent)"/>
+      <text x="${cx + 16}" y="${candY(i) + 4}" font-size="12" fill="var(--ink)">${r.rank}. ${esc(r.title.slice(0, 44))}${r.title.length > 44 ? "…" : ""}</text></g>`;
+  });
+  data.seeds.forEach((s, i) => {
+    nodes += `<g><rect x="${sx - 34}" y="${seedY(i) - 11}" width="34" height="22" rx="6" fill="var(--ink)"/>
+      <text x="${sx - 17}" y="${seedY(i) + 4}" font-size="11" fill="#fff" text-anchor="middle" font-family="JetBrains Mono">S${i + 1}</text>
+      <text x="${sx - 42}" y="${seedY(i) + 4}" font-size="11" fill="var(--muted)" text-anchor="end">${esc((s.title || "").slice(0, 18))}…</text></g>`;
+  });
+  return `<svg id="graph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Seed to candidate connection graph">${edges}${nodes}</svg>`;
+}
+
+function card(r, seeds) {
+  const e = r.explanation;
+  const authors = r.authors.slice(0, 3).join(", ") + (r.n_authors > 3 ? " et al." : "");
+  const href = r.doi || r.landing_url || r.openalex_url;
+  const chips = r.connections.map((c) => `<span class="chip" style="color:${REL[c.relation].color};border-color:${REL[c.relation].color}">S${c.seed + 1} · ${REL[c.relation].label}</span>`).join("");
+  const quote = e.evidence_quote
+    ? `<blockquote class="${e.quote_verified ? "" : "unverified"}">“${esc(e.evidence_quote)}”
+         <span class="qv ${e.quote_verified ? "ok" : "bad"}">${e.quote_verified ? "✓ Verified verbatim in abstract" : "⚠ Not found verbatim in abstract — treat with caution"}</span></blockquote>`
+    : "";
+  return `
+  <article class="card" id="c-${r.id}" data-cand="${r.id}">
+    <div class="rank">${r.rank}</div>
+    <div>
+      <h3><a href="${esc(href)}" target="_blank" rel="noopener">${esc(r.title)}</a></h3>
+      <div class="meta">${esc(authors)} · ${esc(r.venue || "Unknown venue")} · ${r.year ?? "n.d."} · cited by ${r.cited_by_count}${r.type === "review" ? " · <b>review</b>" : ""}</div>
+      <div class="links">
+        ${r.doi ? `<a href="${esc(r.doi)}" target="_blank" rel="noopener">DOI</a>` : ""}
+        ${r.pubmed_url ? `<a href="${esc(r.pubmed_url)}" target="_blank" rel="noopener">PubMed ${esc(r.pmid)}</a>` : ""}
+        <a href="${esc(r.openalex_url)}" target="_blank" rel="noopener">OpenAlex ${esc(r.id)}</a>
+      </div>
+      <div class="scores">
+        <span>Citation network</span><div class="bar"><span style="width:${r.scores.graph_norm * 100}%"></span></div><span>${r.connections.length}/${seeds.length} seeds</span>
+        <span>Semantic match</span><div class="bar sem"><span style="width:${r.scores.semantic_norm * 100}%"></span></div><span>${Math.round(r.scores.semantic_norm * 100)}%</span>
+      </div>
+      <div class="chips">${chips}</div>
+      <div class="explain">
+        ${e.verdict ? `<span class="verdict v-${esc(e.verdict)}">${esc(e.verdict.replace("_", " "))}</span>` : ""}${esc(e.reason)}
+        ${quote}
+        ${e.uncertainty ? `<div class="uncert"><b>Uncertain:</b> ${esc(e.uncertainty)}</div>` : ""}
+      </div>
+      ${r.abstract ? `<details><summary>Show abstract</summary><p>${markQuote(r.abstract, e.quote_verified ? e.evidence_quote : "")}</p></details>` : `<div class="uncert" style="margin-top:6px">No abstract available from OpenAlex.</div>`}
+    </div>
+  </article>`;
+}
+
+function markQuote(text, quote) {
+  const safe = esc(text);
+  if (!quote) return safe;
+  const q = esc(quote.split(/\.\.\.|…/)[0].trim());
+  const i = safe.toLowerCase().indexOf(q.toLowerCase());
+  return i < 0 ? safe : safe.slice(0, i) + "<mark>" + safe.slice(i, i + q.length) + "</mark>" + safe.slice(i + q.length);
+}
+
+loadExample();
+loadHealth();
+</script>
+</body>
+</html>
