@@ -35,11 +35,11 @@ async function query(q: string, pageSize: number): Promise<EpmcRecord[]> {
 
 /** DOI (lowercase) → record, 25 DOIs per OR query. */
 export async function epmcByDoi(dois: string[], onError?: (e: unknown) => void): Promise<Map<string, EpmcRecord>> {
-  const uniq = [...new Set(dois.filter(Boolean).map(d => d.toLowerCase()))]
+  const uniq = [...new Set(dois.filter(Boolean).map(d => d.toLowerCase()))].sort() // stable chunk URLs = stable cache keys
   const chunks: string[][] = []
   for (let i = 0; i < uniq.length; i += 25) chunks.push(uniq.slice(i, i + 25))
   const out = new Map<string, EpmcRecord>()
-  await mapLimit(chunks, 2, async c => {
+  await mapLimit(chunks, 4, async c => {
     try { for (const r of await query(c.map(d => `DOI:"${d}"`).join(' OR '), 100)) if (r.doi) out.set(r.doi, r) } catch (e) { onError?.(e) }
   })
   return out
@@ -47,7 +47,7 @@ export async function epmcByDoi(dois: string[], onError?: (e: unknown) => void):
 
 /** Title → record, strictly checked (title similarity ≥ 0.9, year ±1). */
 export async function epmcByTitle(items: { title: string; year: number | null }[], onError?: (e: unknown) => void): Promise<(EpmcRecord | null)[]> {
-  return mapLimit(items, 3, async it => {
+  return mapLimit(items, 5, async it => {
     try {
       const t = it.title.replace(/["\\]/g, ' ').slice(0, 250)
       const rs = await query(`TITLE:"${t}"`, 5)

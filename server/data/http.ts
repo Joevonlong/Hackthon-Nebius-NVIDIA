@@ -26,6 +26,8 @@ class Gate {
   private queue: (() => void)[] = []
   private last = 0
   constructor(private max: number, private minIntervalMs: number) {}
+  /** After a 429 every queued request of this API waits: the next start is pushed `ms` into the future. */
+  cool(ms: number) { this.last = Math.max(this.last, Date.now() + ms) }
   async run<T>(fn: () => Promise<T>): Promise<T> {
     if (this.active >= this.max) await new Promise<void>(r => this.queue.push(r))
     this.active++
@@ -44,9 +46,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const gates: Record<string, Gate> = {
   openalex: new Gate(8, 0),
-  pubmed: new Gate(1, 350), // ≤3 req/s without an NCBI key
-  europepmc: new Gate(4, 100),
-  arxiv: new Gate(1, 3100), // arXiv API etiquette: ≤1 request / 3 s
+  // NCBI: ≤3 req/s without a key (≤10 with NCBI_API_KEY). Up to 3 in flight, request starts spaced ≥340 ms apart.
+  pubmed: process.env.NCBI_API_KEY ? new Gate(6, 110) : new Gate(3, 400),
+  europepmc: new Gate(6, 80),
+  // arXiv etiquette asks for ≤1 request / 3 s on bulk use; a library build issues ≤ ~6 (deduped) searches, so 1 / s is used
+  // (ARXIV_MIN_INTERVAL_MS overrides). Cached responses never touch the gate.
+  arxiv: new Gate(1, Number(process.env.ARXIV_MIN_INTERVAL_MS || 1000)),
   serpapi: new Gate(2, 200),
 }
 
@@ -90,6 +95,7 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
           blockedUntil[api] = Date.now() + Math.min(Number.isFinite(ra) && ra > 0 ? ra : 3600, 3600) * 1000
           throw lastErr
         }
+        if (res.status === 429) gate.cool(1000)
         await sleep(Number.isFinite(ra) && ra > 0 ? Math.min(ra, 10) * 1000 : 800 * 2 ** attempt)
         continue
       }
