@@ -34,7 +34,7 @@ async function commit() {
     ui.close(t.id)
     ui.openNote(moved, noteName(moved))
   }
-  if (ui.tabs.some(t => t.id === active)) ui.activeTabId = active
+  if (ui.tabs.some(t => t.id === active)) ui.activate(active)
   if (oldQ) {
     const nq = newPath.split('/')[1]
     if (lib.questionId === oldQ) lib.questionId = nq

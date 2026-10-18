@@ -112,6 +112,12 @@ export const useVault = defineStore('vault', {
       }
       this.migrate()
       await this.pull()
+      // CR-8: the inline title replaces the generic "# Question" heading of older question notes
+      for (const q of this.questions) {
+        const n = this.byPath(q.path)
+        const m = n?.content.match(/^(---\n[\s\S]*?\n---\n)# Question\n+/)
+        if (n && m) await this.upsert({ path: n.path, kind: n.kind, title: n.title, paperId: n.paperId, content: m[1] + n.content.slice(m[0].length) })
+      }
       const saved = lsGet(CURRENT_KEY)
       this.current = this.questions.find(q => q.id === saved)?.id ?? this.questions[0]?.id ?? null
       this.ready = true
