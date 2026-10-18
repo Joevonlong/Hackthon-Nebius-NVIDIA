@@ -322,7 +322,7 @@ Order if confirmed: F-47 (after design pick) ∥ F-45 ∥ F-49 → F-46 → F-48
 
 ---
 
-## 16. Change request CR-4 · Judge review fixes (proposed 16:10)
+## 16. Change request CR-4 · Judge review fixes (confirmed 16:15)
 Judge (simulated, read-only) scored 6.1/10. Already covered by running lanes: stale story docs (story lane), pass rule (U1/U2), real `?demo=1` (demo lane), build speed incl. parallel Tavily (perf lane).
 New items proposed:
 | # | Fix | Card | Est |
@@ -332,3 +332,6 @@ New items proposed:
 | J-3 | "Recent (≤ 3 years)" filter and Fresh badge so new work is visible in the top 10 | F-56 | 20m |
 | J-4 | Visible Tavily evidence: "found via Tavily" chip linking the page, Tavily row in the sources panel | F-57 | 20m |
 | J-5 | Cleanups: remove the Google Scholar chip (dropped, D-21), label graph nodes, show seed titles instead of K-ids, fix field-label noise (use the topic field, not the first OpenAlex topic) | F-58 | 30m |
+
+Decisions (16:15): **D-31** J-1 rejected by the user — the app stays local (laptop / Docker); the submission states that only the models run on Nebius Token Factory and that `scripts/deploy.sh` is ready but not run. **D-32** J-2…J-5 confirmed; J-2/J-3/J-4/J-5 UI go to lane U1, J-2 server (LLM read covers every returned paper) and J-5 field label go to lane U2.
+
