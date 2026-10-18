@@ -10,10 +10,13 @@ export type UrlKind = 'publisher' | 'preprint' | 'pmc' | 'pubmed' | 'trial' | 'n
 
 export interface WebIds { kind: UrlKind; doi: string | null; pmid: string | null; pmcid: string | null; nct: string | null; arxiv: string | null }
 
+/** HTTP status of the last Tavily call (smoke script / diagnostics). */
+export let lastTavilyStatus = 0
+
 export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number } = {}): Promise<TavilyHit[]> {
   if (!env.tavilyKey || !query.trim()) return []
   try {
-    const res = await fetch('https://api.tavily.com/search', {
+    const call = () => fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.tavilyKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -24,6 +27,13 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 12000),
     })
+    let res = await call()
+    if (res.status === 429) { // one retry, honouring Retry-After (capped at 3 s)
+      const ra = Number(res.headers.get('retry-after'))
+      await new Promise(r => setTimeout(r, Math.min(Number.isNaN(ra) || !ra ? 1500 : ra * 1000, 3000)))
+      res = await call()
+    }
+    lastTavilyStatus = res.status
     if (!res.ok) return []
     const data: any = await res.json()
     return (Array.isArray(data?.results) ? data.results : [])
