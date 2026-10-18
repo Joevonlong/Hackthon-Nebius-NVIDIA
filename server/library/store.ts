@@ -1,7 +1,7 @@
 // Owner: lane L2. Library files: ${DATA_DIR}/library/<id>/{goals.json, library.json, papers/<paperId>.json}.
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
-import type { Goals, LibPaper, LibraryRequest } from '@shared/library'
+import type { Goals, LibPaper, LibraryRequest, LibrarySummary } from '@shared/library'
 import { env } from '../env'
 import type { LibraryState } from './pipeline'
 
@@ -23,8 +23,13 @@ export function writeLibraryFiles(s: LibraryState): string | null {
     mkdirSync(join(dir, 'papers'), { recursive: true })
     writeFileSync(join(dir, 'goals.json'), JSON.stringify(s.goals, null, 2))
     const { notes, ...rest } = s.request
+    const prev = readJson(join(dir, 'library.json')) as { name?: string | null } | null
     const library = {
       libraryId: s.id,
+      questionId: s.request.questionId ?? null, // D-35: History is grouped by question
+      questionName: s.request.questionName ?? s.request.questionId ?? null,
+      question: s.goals?.question ?? null,
+      name: prev?.name ?? null,
       createdAt: new Date(s.startedAt).toISOString(),
       request: { ...rest, notes: notes.map(n => ({ path: n.path, title: n.title, chars: n.content.length })) },
       summary: {
@@ -71,4 +76,81 @@ export function readPaperFile(id: string, paperId: string): LibPaper | null | 'b
   if (!file.startsWith(papersDir + sep)) return 'bad'
   if (!existsSync(file)) return null
   try { return JSON.parse(readFileSync(file, 'utf8')) as LibPaper } catch { return null }
+}
+
+// ---------- D-35: history (list, rename, trash, export) ----------
+function readJson(file: string): unknown {
+  try { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null } catch { return null }
+}
+
+interface LibraryJson {
+  libraryId?: string; questionId?: string | null; questionName?: string | null; question?: string | null; name?: string | null
+  createdAt?: string; request?: { topK?: number; questionId?: string; questionName?: string }
+  summary?: { total?: number; passed?: number }; papers?: { rank: number; title?: string }[]
+}
+
+export function summarize(id: string, lib: LibraryJson, goals: Goals | null): LibrarySummary {
+  const top = [...(lib.papers ?? [])].sort((a, b) => a.rank - b.rank)[0]
+  const qid = lib.questionId ?? lib.request?.questionId ?? null
+  return {
+    libraryId: id,
+    questionId: qid,
+    questionName: lib.questionName ?? lib.request?.questionName ?? qid,
+    question: lib.question ?? goals?.question ?? null,
+    name: lib.name ?? null,
+    createdAt: lib.createdAt ?? '',
+    total: lib.summary?.total ?? lib.papers?.length ?? 0,
+    passed: lib.summary?.passed ?? 0,
+    topK: lib.request?.topK ?? 30,
+    topTitle: top?.title ?? null,
+  }
+}
+
+/** Saved libraries, newest first; with questionId only that question's (null = libraries without a question). Dot folders (.trash) are skipped. */
+export function listLibraries(questionId?: string | null): LibrarySummary[] {
+  const root = libraryRoot()
+  if (!existsSync(root)) return []
+  const out: LibrarySummary[] = []
+  for (const id of readdirSync(root)) {
+    if (id.startsWith('.') || !isSafeId(id)) continue
+    const dir = join(root, id)
+    const lib = readJson(join(dir, 'library.json')) as LibraryJson | null
+    if (!lib) continue
+    out.push(summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null))
+  }
+  out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  return questionId === undefined ? out : out.filter(l => (l.questionId ?? null) === questionId)
+}
+
+export function renameLibrary(id: string, name: string): LibrarySummary | null {
+  const dir = libraryDir(id)
+  if (!dir) return null
+  const file = join(dir, 'library.json')
+  const lib = readJson(file) as LibraryJson | null
+  if (!lib) return null
+  lib.name = name.trim().slice(0, 120) || null
+  writeFileSync(file, JSON.stringify(lib, null, 2))
+  return summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null)
+}
+
+/** Moves the library folder to DATA_DIR/library/.trash/<id> (never hard-deletes). */
+export function trashLibrary(id: string): boolean {
+  const dir = libraryDir(id)
+  if (!dir || !existsSync(dir)) return false
+  const trash = join(libraryRoot(), '.trash')
+  mkdirSync(trash, { recursive: true })
+  let dest = join(trash, id); let k = 2
+  while (existsSync(dest)) dest = join(trash, `${id}_${k++}`)
+  renameSync(dir, dest)
+  return true
+}
+
+/** One JSON document with library.json, goals.json and every paper file. */
+export function exportLibrary(id: string): { library: unknown; goals: Goals | null; papers: LibPaper[] } | null {
+  const dir = libraryDir(id)
+  if (!dir) return null
+  const library = readJson(join(dir, 'library.json'))
+  const stored = readLibrary(id)
+  if (!library || !stored) return null
+  return { library, goals: stored.goals, papers: stored.papers }
 }

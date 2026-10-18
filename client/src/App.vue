@@ -117,7 +117,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <span>{{ fmt(vault.notes.length) }} notes · {{ counts.seed }} seeds · {{ counts.lit }} discovered</span>
       <span>
         <template v-if="activeNote">{{ fmt(words) }} words · </template>
-        <template v-if="library.status !== 'idle'">Library {{ library.status }} · {{ fmt(library.total) }} scored · {{ fmt(library.scored.filter(p => p.passed).length) }} passed · </template>
+        <template v-if="library.status !== 'idle'">Library {{ library.status }} · {{ fmt(library.total) }} scored · {{ fmt(library.passedCount) }} passed · </template>
         {{ themeName }}
       </span>
     </footer>

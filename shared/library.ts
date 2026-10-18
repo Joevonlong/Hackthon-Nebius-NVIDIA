@@ -29,6 +29,8 @@ export const LibraryRequest = z.object({
   weights: Weights.default(DEFAULT_WEIGHTS),
   maxCandidates: z.number().int().min(50).max(3000).default(600), // pile size cap before scoring
   llmReadTopK: z.number().int().min(0).max(100).default(40), // LLM reads only the best pre-scored papers
+  questionId: z.string().max(200).optional(), // D-33: the research question folder this build reads (Questions/<name>/)
+  questionName: z.string().max(200).optional(),
 })
 export type LibraryRequest = z.infer<typeof LibraryRequest>
 
@@ -128,11 +130,31 @@ export const LibraryEvent = z.discriminatedUnion('type', [
 ])
 export type LibraryEvent = z.infer<typeof LibraryEvent>
 
+// D-35: one saved library in the History list (GET /api/libraries?questionId=). questionId null = "Earlier libraries".
+export const LibrarySummary = z.object({
+  libraryId: z.string(),
+  questionId: z.string().nullable(),
+  questionName: z.string().nullable(),
+  question: z.string().nullable(), // the question text the goals agent read
+  name: z.string().nullable(), // user rename (stored in library.json)
+  createdAt: z.string(),
+  total: z.number(),
+  passed: z.number(),
+  topK: z.number(),
+  topTitle: z.string().nullable(), // rank #1 paper title
+})
+export type LibrarySummary = z.infer<typeof LibrarySummary>
+
 // HTTP API (server/routes/library.ts):
 //   POST /api/library                       LibraryRequest -> { libraryId }
 //   GET  /api/library/:id/stream            SSE of LibraryEvent (replay then live)
 //   GET  /api/library/:id                   { goals, papers: LibPaper[] (all scored), request }
 //   GET  /api/library/:id/papers/:paperId   the per-paper JSON file (LibPaper)
+//   GET  /api/libraries?questionId=         { libraries: LibrarySummary[] } newest first (D-35)
+//   PATCH /api/library/:id                  { name } -> LibrarySummary (rename)
+//   DELETE /api/library/:id                 moves the folder to ${DATA_DIR}/library/.trash/ -> { ok }
+//   GET  /api/library/:id/export            one JSON download { library, goals, papers }
+//   POST /api/seeds/import                  multipart file (.bib .ris .json .csv .txt .pdf) -> { ids, format, file } (D-36)
 // Files: ${DATA_DIR}/library/<libraryId>/{goals.json, library.json, papers/<paperId>.json}; traces in logs/runs/<libraryId>/.
 
 // ---- Chat (D-26, D-29) -------------------------------------------------------------------------------
