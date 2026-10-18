@@ -31,8 +31,19 @@ const noteIdKeys = computed(() => new Set(vault.notes.flatMap(n => notePaperKeys
 const libNodes = computed(() => lib.passedAll.filter(p => !vault.byPaper(p.paper.id) && !paperKeys(p.paper).some(k => noteIdKeys.value.has(k))).slice(0, MAX_LIB))
 // F-45: library node radius ∝ total score (4 px at 0 → 16 px at 1); vault notes keep their fixed size. Read live from
 // the store so a re-score resizes nodes without re-running the layout.
-const libRadius = (total: number) => 4 + 12 * Math.max(0, Math.min(1, total))
+const clamp01 = (x: number) => Math.max(0, Math.min(1, x))
+const libRadius = (total: number) => 4 + 12 * clamp01(total)
 const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, libRadius(p.total)])))
+// CR-12: fill follows the same score domain as the radius (0 → lightest blue, 1 → darkest blue), so size and colour agree.
+// The ramp itself is CSS (--ramp-lo / --ramp-hi, per theme); each node only carries its position t on it.
+const libT = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, clamp01(p.total)])))
+const rampPct = (t: number) => Math.round(clamp01(t) * 100) + '%'
+/** Measured min–max total score of the drawn library nodes (legend). */
+const scoreRange = computed(() => {
+  const ts = libNodes.value.map(p => p.total)
+  return ts.length ? { min: Math.min(...ts), max: Math.max(...ts) } : null
+})
+const legendEl = ref<HTMLDivElement | null>(null)
 const SCALE = [0.5, 0.75, 1]
 const wrap = ref<HTMLDivElement | null>(null)
 const svgEl = ref<SVGSVGElement | null>(null)
@@ -392,6 +403,7 @@ function frame(nowT: number) {
     const breathe = reduce ? 1 : 1 + 0.05 * Math.sin(nowT / 1000 * 0.9 + s.ph)
     const g = this as SVGGElement
     const c = g.firstChild as SVGCircleElement, t = g.lastChild as SVGTextElement
+    if (n.kind === 'lib') { const v = rampPct(libT.value.get(n.id) ?? 0.5); if (c.dataset.t !== v) { c.dataset.t = v; c.style.setProperty('--t', v) } }
     c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(rad(n) * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
     c.style.opacity = String(Math.min(1, e * 1.5) * s.dim)
     const flip = (s as NState & { flip?: boolean }).flip
@@ -410,8 +422,10 @@ function fit(nodes: GNode[]) {
   for (const n of nodes) { x0 = Math.min(x0, n.x!); y0 = Math.min(y0, n.y!); x1 = Math.max(x1, n.x! + 120 * (n.kind === 'seed' ? 1 : 0)); y1 = Math.max(y1, n.y!) }
   const { width, height } = wrap.value.getBoundingClientRect()
   if (width <= 0 || height <= 0) return // hidden (kept alive behind another tab)
-  const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - 160) / Math.max(1, y1 - y0)))
-  const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
+  // Q2-14: the free area is between the header row (~52 px) and the legend panel at the bottom left.
+  const top = 52, bottom = (legendEl.value?.offsetHeight ?? 0) + 24
+  const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - top - bottom - 40) / Math.max(1, y1 - y0)))
+  const t = d3.zoomIdentity.translate(0, (top - bottom) / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
   const sel = d3.select(svgEl.value)
   if (reduce) sel.call(zoomer.transform, t)
   else sel.transition().duration(900).ease(d3.easeCubicOut).call(zoomer.transform, t)
@@ -486,13 +500,18 @@ watch(signature, () => render(true))
       <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
       <div v-if="counts.papers > 1 && !edgeCounts.all && lib.status !== 'running' && disc.status !== 'running'" class="g-noedges" role="note">No citation links found: the sources returned no reference lists for these papers (OpenAlex rate-limited?)</div>
     </div>
-    <div class="g-legend">
+    <div ref="legendEl" class="g-legend">
       <span><i class="d seed" />Seed note · {{ counts.seed }}</span>
       <span><i class="d note" />Note · {{ counts.lit + counts.note }}</span>
       <span><i class="d lib" />Library · passed top {{ lib.topPercent }}%, ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
       <span v-if="counts.lib" class="scale" aria-label="Library node size is proportional to the total score: 4 px at 0, 16 px at 1">
-        <svg :width="SCALE.length * 34 + 4" height="34" aria-hidden="true"><g v-for="(v, i) in SCALE" :key="v"><circle class="sc" :cx="i * 34 + 17" cy="17" :r="libRadius(v)" /></g></svg>
-        <span class="sclbl">size ∝ score · <template v-for="(v, i) in SCALE" :key="v">{{ i ? ' · ' : '' }}{{ v.toFixed(2) }}</template><br>4 px at 0 → 16 px at 1 · vault notes fixed</span>
+        <svg :width="SCALE.length * 34 + 4" height="34" aria-hidden="true"><g v-for="(v, i) in SCALE" :key="v"><circle class="sc" :style="{ '--t': rampPct(v) }" :cx="i * 34 + 17" cy="17" :r="libRadius(v)" /></g></svg>
+        <span class="sclbl">size and blue ∝ score · <template v-for="(v, i) in SCALE" :key="v">{{ i ? ' · ' : '' }}{{ v.toFixed(2) }}</template><br>4 px at 0 → 16 px at 1 · vault notes fixed</span>
+      </span>
+      <span v-if="scoreRange" class="ramp" :aria-label="`Library node colour: light blue = lowest score, dark blue = highest; drawn nodes score ${scoreRange.min.toFixed(2)} to ${scoreRange.max.toFixed(2)}`">
+        {{ scoreRange.min.toFixed(2) }}
+        <i class="bar" :style="{ '--a': rampPct(scoreRange.min), '--b': rampPct(scoreRange.max) }" />
+        {{ scoreRange.max.toFixed(2) }} · score range drawn
       </span>
       <span v-if="counts.ghost"><i class="d ghost" />Candidate · {{ counts.ghost }}</span>
       <span class="lgi" title="Citation link between two papers (one cites the other)"><svg width="22" height="8" aria-hidden="true"><line class="lg cite" x1="1" y1="4" x2="21" y2="4" /></svg>Citation · {{ edgeCounts.cite }}</span>
@@ -530,15 +549,17 @@ svg:active{cursor:grabbing}
 .g-live i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.3}}
 @media (prefers-reduced-motion: reduce){.g-live i{animation:none}}
-.g-legend{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 140px);z-index:2;display:flex;flex-wrap:wrap;column-gap:16px;row-gap:7px;align-items:center;pointer-events:none;padding:7px 9px;border-radius:6px;background:color-mix(in srgb,var(--paper) 86%,transparent)}
+.g-legend{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 140px);z-index:2;display:flex;flex-wrap:wrap;column-gap:16px;row-gap:7px;align-items:center;pointer-events:none;padding:8px 10px;border-radius:8px;border:1px solid var(--hair);background:color-mix(in srgb,var(--paper-2) 94%,transparent);box-shadow:0 1px 6px color-mix(in srgb,var(--ink) 8%,transparent)}
 .g-legend span{display:inline-flex;gap:9px;align-items:center}
 .g-legend .d{width:9px;height:9px;border-radius:50%;display:inline-block;box-sizing:border-box}
 .g-legend .d.seed{background:var(--ink)}
 .g-legend .d.note{background:var(--ink-64);width:7px;height:7px;margin:0 1px}
-.g-legend .d.lib{border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
+.g-legend .d.lib{border:1px solid var(--ramp-stroke);background:color-mix(in oklch,var(--ramp-hi) 60%,var(--ramp-lo))}
+.g-legend .ramp{gap:7px}
+.g-legend .ramp .bar{display:inline-block;width:72px;height:9px;border-radius:2px;border:1px solid var(--ramp-stroke);background:linear-gradient(in oklch to right,color-mix(in oklch,var(--ramp-hi) var(--a),var(--ramp-lo)),color-mix(in oklch,var(--ramp-hi) var(--b),var(--ramp-lo)))}
 .g-legend .d.ghost{border:1.2px solid var(--ink-64);background:var(--paper)}
 .g-legend .scale{gap:8px;align-items:center}
-.g-legend .sc{fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.2}
+.g-legend .sc{fill:color-mix(in oklch,var(--ramp-hi) var(--t,50%),var(--ramp-lo));stroke:var(--ramp-stroke);stroke-width:1}
 .g-legend .sclbl{letter-spacing:.06em;line-height:1.5;text-transform:none}
 .corner{position:absolute;right:18px;bottom:16px;z-index:2;display:flex;gap:8px}
 .icon-btn{width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--ink-26);background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:background .4s var(--reveal),border-color .4s var(--reveal),transform .4s var(--reveal)}
@@ -567,7 +588,15 @@ svg:active{cursor:grabbing}
 :deep(.nd-note){fill:var(--ink-64)}
 :deep(.nd-ghost){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2}
 :deep(.nd-bridge){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2;stroke-dasharray:2.5 2}
-:deep(.nd-lib){fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.6}
+:deep(.nd-lib){fill:color-mix(in oklch,var(--ramp-hi) var(--t,50%),var(--ramp-lo));stroke:var(--ramp-stroke);stroke-width:1}
 :deep(.glbl){font:400 var(--fs,10px) var(--font-sans);fill:var(--ink-64);pointer-events:none;transition:fill .4s var(--reveal)}
 :deep(.glbl.on){font-weight:700;fill:var(--ink)}
+</style>
+
+<style>
+/* CR-12: one sequential blue ramp for library nodes (lightest = lowest score, darkest = highest). Light theme: a thin darker
+   stroke keeps the lightest blue visible on the paper; dark theme: a lighter stroke keeps the darkest blue visible. */
+.graphwrap{--ramp-lo:oklch(0.9 0.05 235);--ramp-hi:oklch(0.36 0.15 262);--ramp-stroke:oklch(0.34 0.12 262 / 0.75)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .graphwrap{--ramp-lo:oklch(0.88 0.07 235);--ramp-hi:oklch(0.45 0.18 262);--ramp-stroke:oklch(0.9 0.05 235 / 0.7)} }
+:root[data-theme="dark"] .graphwrap{--ramp-lo:oklch(0.88 0.07 235);--ramp-hi:oklch(0.45 0.18 262);--ramp-stroke:oklch(0.9 0.05 235 / 0.7)}
 </style>
