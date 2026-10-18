@@ -1,6 +1,7 @@
 // Shared Token Factory plumbing: concurrency limiter, timeout, 429 / 5xx retry, JSON helpers.
 // Never throws to callers of tf*(): returns null on any failure (callers degrade to null / []).
 import { env } from '../env'
+import { clip, trace } from '../trace'
 
 export const hasKey = () => !!env.tokenFactoryKey
 export const baseUrl = () => env.tokenFactoryBaseUrl.replace(/\/+$/, '') + '/'
@@ -51,14 +52,16 @@ export async function tfFetch<T = any>(path: string, body: unknown | undefined, 
       const left = deadline - Date.now()
       if (left <= 50) { setErr({ status: 0, body: 'timeout' }); return null }
       try {
+        const t0 = Date.now()
         const res = await fetch(baseUrl() + path.replace(/^\//, ''), {
           method: opts.method || (body === undefined ? 'GET' : 'POST'),
           headers: { Authorization: `Bearer ${env.tokenFactoryKey}`, 'Content-Type': 'application/json' },
           body: body === undefined ? undefined : JSON.stringify(body),
           signal: AbortSignal.timeout(left),
         })
-        if (res.ok) return (await res.json()) as T
+        if (res.ok) { const json = (await res.json()) as T; traceTf(path, body, json, res.status, Date.now() - t0, attempt); return json }
         const text = (await res.text().catch(() => '')).slice(0, 500)
+        traceTf(path, body, null, res.status, Date.now() - t0, attempt, text)
         setErr({ status: res.status, body: text })
         if (res.status === 429 || res.status >= 500) {
           const wait = retryAfterMs(res.headers.get('retry-after'), attempt)
@@ -76,6 +79,36 @@ export async function tfFetch<T = any>(path: string, body: unknown | undefined, 
     }
     return null
   })
+}
+
+/** Logs one Token Factory call with a readable request/response summary (never the key). */
+function traceTf(path: string, body: any, json: any, status: number, ms: number, attempt: number, error?: string) {
+  const rec: Record<string, unknown> = { endpoint: path, model: body?.model, status, ms, attempt }
+  if (error) rec.error = error.slice(0, 300)
+  if (Array.isArray(body?.messages)) {
+    const sys = body.messages.find((m: any) => m.role === 'system')?.content
+    const user = [...body.messages].reverse().find((m: any) => m.role === 'user')?.content
+    if (sys) rec.system = clip(sys, 300)
+    rec.prompt = clip(user, 1500)
+    if (body.tools) rec.tools = body.tools.map((t: any) => t?.function?.name).filter(Boolean)
+    if (body.response_format) rec.format = body.response_format.type
+    const msg = json?.choices?.[0]?.message
+    if (msg) {
+      rec.response = clip(msg.content ?? '', 2000)
+      if (msg.tool_calls?.length) rec.toolCalls = msg.tool_calls.map((c: any) => ({ name: c.function?.name, args: clip(c.function?.arguments, 300) }))
+    }
+    if (json?.usage) rec.usage = json.usage
+  } else if (body?.input !== undefined) {
+    const inputs = Array.isArray(body.input) ? body.input : [body.input]
+    rec.inputs = inputs.length
+    rec.firstInput = clip(inputs[0], 200)
+    if (json?.data?.length) rec.vectors = `${json.data.length}×${json.data[0]?.embedding?.length ?? '?'}`
+    if (json?.usage) rec.usage = json.usage
+  } else if (body?.query !== undefined) {
+    rec.query = clip(body.query, 300); rec.documents = body.documents?.length
+    if (json?.results) rec.results = json.results.slice(0, 10)
+  } else if (json?.data) rec.count = json.data.length
+  trace('llm', rec)
 }
 
 /** Remove <think>…</think> blocks (and a dangling unterminated <think> prefix). */

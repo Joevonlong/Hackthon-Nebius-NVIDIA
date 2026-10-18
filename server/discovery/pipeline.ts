@@ -11,6 +11,7 @@ import { similar } from '../sources/pubmed'
 import { emit, snapshotOf, type RunState } from './registry'
 import { assignLane, computeLinks, freshCutoff, orderLanes, percentiles, preJudgeCompare, toSeedLite, whyRanked, type PoolItem, type SeedLite } from './rank'
 import { fillAbstractsFromPubmed, resolveSeeds } from './seeds'
+import { writeRunTrace } from './trace-report'
 
 interface Item extends PoolItem { feat?: ReturnType<typeof computeLinks> }
 type Pool = Map<string, Item>
@@ -298,12 +299,18 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
     const pickable = byLane(['Core', 'Fresh', 'Linked', 'Bridges'])
     const top = [...pickable].sort((a, b) => pre(b) - pre(a)).slice(0, cfg.rerankTopK)
     if (!top.length) return { value: null, count: 0, skipped: true, message: 'nothing to rerank' }
-    const scores = await withTimeout(ai.rerank(run.question, top.map(c => docText(c.paper)), cfg), cfg.timeoutMs, null)
-    if (!scores || scores.length !== top.length) return { value: null, count: 0, skipped: true, message: 'reranker unavailable' }
-    top.forEach((c, i) => { c.features.rerank = scores[i] })
+    let scores = await withTimeout(ai.rerank(run.question, top.map(c => docText(c.paper)), cfg), cfg.timeoutMs, null)
+    let how = 'cross-encoder reranker'
+    if (!scores || scores.length !== top.length) {
+      // Token Factory has no reranker model: fall back to embedding similarity with the question (D-19).
+      if (!top.some(c => c.features.eQuestion != null)) return { value: null, count: 0, skipped: true, message: 'no reranker model and no embeddings' }
+      scores = top.map(c => c.features.eQuestion ?? 0)
+      how = 'embedding similarity to the question (no reranker model on Token Factory)'
+    }
+    top.forEach((c, i) => { c.features.rerank = scores![i] })
     const p = percentiles(scores)
     top.forEach((c, i) => rerankPct.set(c.paper.id, p[i]))
-    return { value: null, count: top.length }
+    return { value: null, count: top.length, message: how }
   })
 
   // ---- judge ----------------------------------------------------------------------------------------
@@ -339,6 +346,7 @@ export async function runPipeline(run: RunState, seedInputs: string[]): Promise<
 }
 
 function finish(run: RunState, all: Candidate[], status: 'done' | 'error') {
+  writeRunTrace(run, all)
   emit(run, { type: 'done', runId: run.id, counts: run.counts, total: run.total, ms: Date.now() - run.startedAt })
   try {
     repo.finishRun(snapshotOf(run), status)

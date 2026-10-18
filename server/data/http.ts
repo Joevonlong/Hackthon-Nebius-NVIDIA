@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { dataDir } from './db'
+import { trace } from '../trace'
 
 export class HttpError extends Error {
   constructor(public status: number, public url: string, body: string) { super(`HTTP ${status} for ${url}: ${body.slice(0, 200)}`) }
@@ -61,6 +62,7 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
     try {
       const env = JSON.parse(gunzipSync(readFileSync(file)).toString('utf8'))
       stats.hits++
+      trace('api', { api, url: key, cached: true, status: env.status, bytes: env.body?.length ?? 0, raw: `data/raw/${api}/${hash}.json.gz` })
       return { ...env, hash, cached: true }
     } catch { /* corrupt entry: refetch */ }
   }
@@ -70,8 +72,10 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
   let lastErr: unknown
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      const t0 = Date.now()
       const res = await gate.run(() => fetch(url, { signal: AbortSignal.timeout(opts.timeoutMs ?? 30000), headers: { 'user-agent': 'PaperTrail/0.1 (hackathon)' } }))
       const body = await res.text()
+      trace('api', { api, url: key, cached: false, status: res.status, ms: Date.now() - t0, bytes: body.length, attempt, raw: res.ok ? `data/raw/${api}/${hash}.json.gz` : undefined, error: res.ok ? undefined : body.slice(0, 200) })
       if (res.status === 429 || res.status >= 500) {
         lastErr = new HttpError(res.status, key, body)
         const ra = Number(res.headers.get('retry-after'))
@@ -84,6 +88,7 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
       writeFileSync(file, gzipSync(JSON.stringify(env)))
       return { ...env, hash, cached: false }
     } catch (e) {
+      if (!(e instanceof HttpError)) trace('api', { api, url: key, cached: false, attempt, error: String((e as Error)?.message ?? e).slice(0, 200) })
       if (e instanceof HttpError && e.status < 500 && e.status !== 429) throw e
       lastErr = e
       await sleep(800 * 2 ** attempt)

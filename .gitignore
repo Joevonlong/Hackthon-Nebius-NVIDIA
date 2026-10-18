@@ -12,3 +12,4 @@ dist/
 *.sqlite
 *.sqlite-*
 .docker-deploy/
+/logs/

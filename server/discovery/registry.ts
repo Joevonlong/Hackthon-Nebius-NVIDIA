@@ -1,6 +1,7 @@
 // Owner: lane A1. In-memory run registry: events log + live listeners (SSE replays the log, then follows).
 import { RunEvent, type Candidate, type Facet, type RunPreset, type RunSnapshot, type Seed } from '@shared/contracts'
 import type { RunConfig } from '@shared/config'
+import { trace } from '../trace'
 
 export interface RunState {
   id: string
@@ -35,6 +36,10 @@ export function emit(run: RunState, e: RunEvent) {
   const check = RunEvent.safeParse(copy)
   if (!check.success) console.warn(`[run ${run.id}] event ${e.type} fails contract:`, check.error.issues.slice(0, 3))
   run.events.push(copy)
+  trace('events', copy.type === 'candidates'
+    ? { type: 'candidates', total: copy.total, counts: copy.counts, sent: copy.candidates.length, top: copy.candidates.slice(0, 5).map(c => `${c.lane} #${c.rank} ${c.paper.title.slice(0, 80)}`) }
+    : copy.type === 'seeds' ? { type: 'seeds', seeds: copy.seeds.map(s => ({ n: s.n, id: s.id, shortName: s.shortName, title: s.title, abstractSource: s.abstractSource, references: s.referencedWorks.length })) }
+    : (copy as Record<string, unknown>), run.id)
   if (copy.type === 'done') run.done = true
   for (const l of run.listeners) { try { l(copy) } catch { /* listener gone */ } }
 }

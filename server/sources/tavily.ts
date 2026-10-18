@@ -1,6 +1,7 @@
 // Tavily web search + ingestion helpers (spec §3.2 steps 1–2: classify URL, extract identifiers).
 // Owner: lane A2. Returns [] without TAVILY_API_KEY; never throws.
 import { env } from '../env'
+import { clip, trace } from '../trace'
 
 export const SCIENCE_DOMAINS = ['biorxiv.org', 'medrxiv.org', 'ncbi.nlm.nih.gov', 'europepmc.org', 'clinicaltrials.gov', 'nature.com', 'cell.com', 'science.org']
 
@@ -27,6 +28,7 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 12000),
     })
+    const t0 = Date.now()
     let res = await call()
     if (res.status === 429) { // one retry, honouring Retry-After (capped at 3 s)
       const ra = Number(res.headers.get('retry-after'))
@@ -34,11 +36,13 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       res = await call()
     }
     lastTavilyStatus = res.status
-    if (!res.ok) return []
+    if (!res.ok) { trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: 0 }); return [] }
     const data: any = await res.json()
-    return (Array.isArray(data?.results) ? data.results : [])
+    const hits: TavilyHit[] = (Array.isArray(data?.results) ? data.results : [])
       .filter((r: any) => typeof r?.url === 'string')
       .map((r: any) => ({ url: r.url, title: String(r.title ?? ''), content: String(r.content ?? ''), score: Number(r.score ?? 0) }))
+    trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
+    return hits
   } catch {
     return []
   }
