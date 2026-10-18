@@ -368,9 +368,9 @@ function frame(nowT: number) {
   // labels: priority declutter every few frames (screen space), eased visibility
   if (frameNo % 6 === 0 || reduce) {
     const sx = (x: number) => x * transform.k + transform.x, sy = (y: number) => y * transform.k + transform.y
-    const order = [...cur].sort((p, q) => score(q) - score(p))
     // CR-12: the 10 best-scoring library papers (the biggest, darkest nodes) are labelled first and may overlap dots.
     const top = new Set(cur.filter(n => n.lib).sort((p, q) => q.lib!.total - p.lib!.total).slice(0, 10).map(n => n.id))
+    const order = [...cur].sort((p, q) => score(q) - score(p))
     function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + (top.has(n.id) ? 300 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
     const placed: { x0: number; y0: number; x1: number; y1: number; id?: string }[] = cur.map(n => {
       const s = st.get(n.id); const r = (rad(n) + 1) * transform.k
