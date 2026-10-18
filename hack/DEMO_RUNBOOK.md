@@ -4,13 +4,13 @@ Rewritten for CR-1 to CR-3 (Library replaces Discover; chat and report cards; no
 
 Where it runs: **local on the presenting laptop** (decision D-18). Primary URL `http://localhost:3030` (`pnpm build && PORT=3030 pnpm start`); Docker alternative `http://localhost:3040` (`scripts/docker-local.sh`). Replay URL: the same address with `/?demo=1` (a recording of a real run, no keys and no network needed). Models run on Nebius Token Factory, so a live build needs internet. `.env.local` holds the keys and is never shown.
 
-Numbers in this file are measured or marked `TBD-n`; the registry is in hack/PITCH.md. Never say a TBD number on stage.
+Numbers in this file are measured, with the source named in the TBD registry in hack/PITCH.md (filled 2026-10-18 from the `?demo=1` recording and named checks), or marked "not measured". Never say a number on stage that is not in this file.
 
 Roles: **Talker** = _TBD_ · **Driver** = _TBD_ (solo: the talker drives) · **Backup** holds the recording and the clock = _TBD_. Decide at 19:00 and write the names here.
 
 ## Mode decision (the build takes 94 to 102 s, measured)
 
-A live build alone is about half the 3-minute slot, so the pitch runs on the **replay** (`/?demo=1`) of a recorded real run. Say once, early: "This replays a recorded real run; the live one takes about a minute and a half." Run the **live** build only in a longer slot (Q&A, table visit) or if the organizers give more than 5 minutes, and only if all hold: (1) three live builds in a row finished, (2) each in under 120 s, (3) no quota or key errors from Token Factory, Tavily, OpenAlex or PubMed. Mode today: _TBD at 19:30_. Replay length: `TBD-4 (from the recorded demo run / eval lane)`.
+A live build alone is about half the 3-minute slot, so the pitch runs on the **replay** (`/?demo=1`) of a recorded real run. Say once, early: "This replays a recorded real run; the live one takes about a minute and a half." Run the **live** build only in a longer slot (Q&A, table visit) or if the organizers give more than 5 minutes, and only if all hold: (1) three live builds in a row finished, (2) each in under 120 s, (3) no quota or key errors from Token Factory, Tavily, OpenAlex or PubMed. Mode today: _TBD at 19:30_. The recorded real run took 84.9 s (measured; see the registry in hack/PITCH.md). Replay length: the replay stream plays that run back in **6.2 s** (curl to the done event, three timings 6.16 to 6.22 s), so the screen is finished early in the Build beat and the talker keeps talking over the finished list. To stretch the replay, start the server with `DEMO_LIBRARY_REPLAY_MS=<milliseconds>` (the default is 6000; other values not measured). Length of the demo video: not recorded yet.
 
 ## Pre-demo checklist
 
@@ -31,39 +31,40 @@ Ask the owner of the presenting laptop before changing its settings; it is their
 
 ## The 3 minutes, click by click
 
-Spoken lines are written to be said: 291 words counted with `wc -w`, at 140 words per minute about 2:05, which leaves about 55 seconds for the clicks and the two holds. If running late, drop the last sentence of the Review beat first, then the Proof beat.
+Spoken lines are written to be said: 290 words counted with `wc -w`, at 140 words per minute about 2:05, which leaves about 55 seconds for the clicks and the two holds. If running late, drop the last sentence of the Review beat first, then the Proof beat.
 
 ### 0:00 Hook (20 s)
 - **Screen:** tab 1, the workspace with the Library panel empty and the question box visible.
 - **Say:** "Lena is writing a review of single-cell studies in melanoma. She trusts five papers. Keyword search gives her a long list and no reasons. PaperTrail starts from what she already trusts, and shows its work."
-- Optional, only if TBD-1 is filled: add the PubMed count for her question.
+- Optional: add "a PubMed search with her question as typed returns 15 results" (measured with NCBI esearch on 2026-10-18 at 17:11 CEST; the recorded run's own PubMed call also returned 15).
 
 ### 0:20 Question and seeds (20 s)
-- **Click:** the question box (it already holds the typed question, final wording `TBD-5`); then the graph button to show the five seed nodes; back to the Library panel.
+- **Click:** the question box (it already holds the typed question, final wording: "Which single-cell methods help study melanoma immune cells?"); then the graph button to show the five seed nodes; back to the Library panel.
+- **The five seeds** (titles and DOIs from the recording): Dissecting the multicellular ecosystem of metastatic melanoma by single-cell RNA-seq (Science 2016, 10.1126/science.aad0501) · Defining T Cell States Associated with Response to Checkpoint Immunotherapy in Melanoma (Cell 2018, 10.1016/j.cell.2018.10.038) · Phenotype, specificity and avidity of antitumour CD8+ T cells in melanoma (Nature 2021, 10.1038/s41586-021-03704-y) · Landscape of helper and regulatory antitumour CD4+ T cells in melanoma (Nature 2022, 10.1038/s41586-022-04682-5) · Single-Cell Characterization of the Immune Microenvironment of Melanoma Brain and Leptomeningeal Metastases (Clinical Cancer Research 2021, 10.1158/1078-0432.CCR-21-1694).
 - **Say:** "Here is her question. Her five papers are notes in her vault, and they are the first nodes in the graph. One click."
 - **Click:** **Build library**.
 
 ### 0:40 Build (35 s)
-- **Screen:** the Goals card fills in with a quote from her own notes beside each goal (`TBD-6`: number of goals and subtopics); source rows count up for OpenAlex, PubMed, arXiv and Tavily; papers appear; the graph grows.
+- **Screen:** the Goals card fills in with a quote from her own notes beside each goal (the recorded run found **5 goals and 8 subtopics**, plus 15 keywords; 5 note quotes verified); source rows count up for OpenAlex, PubMed, arXiv and Tavily (82 source calls logged, 81 ran, Scholar skipped); papers appear (599 scored; the replay keeps the top 150); the graph grows. Passed: 150 under the top-25% rule; 5 excluded (the replay file does not store the reasons; the build started two minutes later on the same example excluded exactly 5, all "already in your vault", that is, the five seeds).
 - **Say:** "First, an agent reads all her notes and writes the goals, with a quote from her own notes beside each one. Then it searches OpenAlex, PubMed, arXiv and Tavily, and follows citations out from her five papers. A build scores about six hundred papers in under two minutes. This is a recording of a real run."
 - **If live and slow:** keep talking with the next sentence; do not apologize.
 
 ### 1:15 Review: verdicts and report cards (35 s) · the receipts
 - **Click:** the top paper in the list, then **Why this score**; open the Evidence fold on one row (citations or LLM read).
-- **Screen:** the one-sentence verdict (`TBD-7`: top paper, year, total, grade), the report card with a letter grade and weight per row, the source number under a row, the verified quote.
-- **Say:** "Every paper gets a plain sentence and a report card: relevance, graph links, citations, venue, authors, and the model's own read, which has the smallest weight on purpose. Open a row and the evidence is there with its source. In our live runs the model read forty abstracts, and thirty-eight quotes matched the abstract word for word."
+- **Screen:** the one-sentence verdict (rank 1 in the recording: "A Cancer Cell Program Promotes T Cell Exclusion and Resistance to Checkpoint Blockade", Cell 2018, total 0.98, grade A), the report card with a letter grade and weight per row, the score donut and value bars, the source number under a row, the verified quote.
+- **Say:** "Every paper gets a plain sentence and a report card: relevance, graph links, citations, venue, authors, and the model's own read, which has the smallest weight on purpose. Open a row and the evidence is there with its source. In this run the model read forty abstracts, and thirty-seven quotes matched the abstract word for word."
 - **Hold** two seconds in silence on the verified quote.
-- Do not claim the 38 of 40 for the recorded run unless TBD-2 confirms it.
+- The recorded run verified **37 of 40** quotes (92.5%). The 38 of 40 figure is from earlier live runs; do not use it for this recording.
 
 ### 1:50 Chat: steer the ranking (30 s) · the wow
 - **Click:** the chat column on the right; type or paste `prioritize recent clinical studies`; send. When the proposal appears, click **Apply**.
-- **Screen:** the proposal as a diff (weights, filters) with its rationale; after Apply, the list re-ranks in the browser and shows rank moves (`TBD-9`: who moved).
+- **Screen:** the proposal as a diff (weights, filters) with its rationale; after Apply, the list re-ranks in the browser and shows rank moves. Measured on the recording (the real chat model's proposal, applied with the client re-score; 5 of 5 proposals identical in weights and filters): the proposal raises the relevance weight from 0.30 to 0.40 and keeps journal articles, reviews, systematic reviews and meta-analyses from 2023 on, so 33 of the 150 held papers remain. In the visible top 10, **8 papers enter and 8 leave**. Two stay and move up: the 2025 "Mature and migratory dendritic cells..." paper from #2 to #1 and the 2025 "Single-Cell Analyses Reveal a Functionally Heterogeneous Exhausted CD8+ T-cell..." paper from #7 to #2. The old #1 (Cell 2018) leaves because it is older than 2023. The weight change alone keeps the same ten papers and reorders them. Two limits to know: there is no preprint in the 150 held papers, so "ignore preprints" removes nothing, and "clinical" is expressed as article types because there is no study-design filter (the proposal's rationale says so).
 - **Say:** "Now she steers. 'Prioritize recent clinical studies.' The agent proposes new weights and says why. Nothing changes until she clicks Apply. Applied, and the list re-ranks in her browser. She can see who moved."
 - **Hold** two seconds on the new top paper.
 
 ### 2:20 Keep and export (20 s)
 - **Click:** **Add to vault** on the open paper; open the new note; open the graph; open **Export BibTeX**.
-- **Screen:** literature note with front matter, quote and `[[seed]]` links; the new node in the graph (size follows the grade); the BibTeX file (`TBD-11`: entries).
+- **Screen:** literature note with front matter, quote and `[[seed]]` links; the new node in the graph (size follows the grade, citation links drawn between papers: the demo graph shows 60 papers and 287 citation links, measured in the browser on main ba70395); the BibTeX file. What the step produces: one vault note added, and the BibTeX file lists the question's seed notes plus the notes added (the export covers every seed and literature note in the vault). The number of entries is not measured end to end, so do not say it.
 - **Say:** "She adds the paper to her vault: a Markdown note with the quote and links to her seeds. It joins the graph. One click exports BibTeX for Zotero."
 
 ### 2:40 Proof and close (20 s)
