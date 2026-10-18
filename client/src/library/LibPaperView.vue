@@ -9,7 +9,7 @@ import { noteName } from '../stores/vault-utils'
 import { doiUrl } from '../discover/literatureNote'
 import { buildLibraryNote } from './libraryNote'
 import { f2 } from './score'
-import ScoreBar from './ScoreBar.vue'
+import Verdict from './Verdict.vue'
 import WhyScore from './WhyScore.vue'
 import LibLabels from './LibLabels.vue'
 import JsonTree from './JsonTree.vue'
@@ -40,7 +40,7 @@ const copy = async () => { try { await navigator.clipboard.writeText(JSON.string
 <template>
   <div v-if="lp" class="pv">
     <header>
-      <div class="kicker">#{{ lp.rank }} · {{ lp.passed ? 'passed' : lp.excluded ? 'excluded: ' + lp.excluded : 'below threshold' }} · total {{ f2(lp.total) }}</div>
+      <div class="kicker">#{{ lp.rank }} · {{ lp.passed ? 'passed' : lp.excluded ? 'excluded: ' + lp.excluded : 'below the pass rule' }} · total {{ f2(lp.total) }}</div>
       <h2>{{ lp.paper.title }}</h2>
       <p class="meta">{{ lp.paper.authors.slice(0, 3).join(', ') }}{{ lp.paper.authors.length > 3 ? ' et al.' : '' }} · {{ lp.paper.year ?? 'n.d.' }} · {{ lp.paper.venue || 'no venue' }} · {{ lp.paper.citedByCount.toLocaleString('en') }} citations</p>
       <p class="links">
@@ -53,11 +53,11 @@ const copy = async () => { try { await navigator.clipboard.writeText(JSON.string
         <button v-else class="btn" type="button" @click="ui.openNote(note.path, noteName(note.path))">Open note · {{ noteName(note.path) }}</button>
       </div>
     </header>
-    <ScoreBar :paper="lp" :threshold="lib.threshold" />
+    <Verdict :paper="lp" :move="lib.rankMove(lp.paper.id, lp.rank)" />
     <LibLabels :paper="lp" />
     <section>
       <h4>Why this score</h4>
-      <WhyScore :paper="lp" :threshold="lib.threshold" />
+      <WhyScore :paper="lp" />
     </section>
     <section v-if="lp.paper.abstract">
       <h4>Abstract <small>{{ lp.paper.abstractSource }}</small></h4>
@@ -78,7 +78,8 @@ const copy = async () => { try { await navigator.clipboard.writeText(JSON.string
     </section>
   </div>
   <div v-else class="empty-state">
-    <p>This paper is not in the current library. Build the library again from the Library tab.</p>
+    <p v-if="lib.status === 'running'">Loading the library…</p>
+    <p v-else>This paper is not in the current library. Build the library again from the Library tab.</p>
   </div>
 </template>
 

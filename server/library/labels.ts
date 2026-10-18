@@ -69,15 +69,32 @@ export function tagsOf(rec: EnrichedRecord): string[] {
 
 const words = (s: string) => new Set(s.toLowerCase().match(/[a-z0-9+-]{3,}/g) ?? [])
 
-/** Keyword fallback for subtopic matching: ≥ half of the subtopic query's terms (min 1) occur in title+abstract. */
+/**
+ * D-28 keyword fallback for subtopic matching: at least 2 of the subtopic query's terms (and at least half of them)
+ * occur in title+abstract. A one-term query needs its one term.
+ */
 export function subtopicsByKeywords(rec: EnrichedRecord, goals: Goals): string[] {
   const text = words(`${rec.paper.title} ${rec.paper.abstract ?? ''}`)
   return goals.subtopics.filter(s => {
     const terms = [...words(s.query)]
     if (!terms.length) return false
     const hit = terms.filter(t => text.has(t)).length
-    return hit >= Math.max(1, Math.ceil(terms.length / 2))
+    return hit >= Math.min(terms.length, Math.max(2, Math.ceil(terms.length / 2)))
   }).map(s => s.name)
+}
+
+/** D-28 margin: a subtopic label must be within this cosine of the paper's best subtopic match. */
+export const SUBTOPIC_MARGIN = 0.05
+
+/**
+ * D-28 embedding rule: keep only subtopics whose cosine is within SUBTOPIC_MARGIN of the paper's best subtopic cosine
+ * AND ≥ the library's 60th percentile of best cosines (`p60`). Pure. `cos[j]` belongs to `names[j]`.
+ */
+export function pickSubtopics(cos: number[], names: string[], p60: number): string[] {
+  if (!cos.length) return []
+  const best = Math.max(...cos)
+  if (!(best >= p60)) return []
+  return names.filter((_, j) => cos[j] >= best - SUBTOPIC_MARGIN && cos[j] >= p60)
 }
 
 export function labelRecord(rec: EnrichedRecord, goals: Goals, opts: { subtopics?: string[]; now?: Date } = {}): Labels {

@@ -5,6 +5,7 @@ import FileTree from './workspace/FileTree.vue'
 import EditorArea from './workspace/EditorArea.vue'
 import Sidebar from './workspace/Sidebar.vue'
 import Icon from './workspace/Icon.vue'
+import ChatPanel from './chat/ChatPanel.vue'
 import { useVault, QUESTION_PATH } from './stores/vault'
 import { useUi } from './stores/ui'
 import { useDiscovery } from './stores/discovery'
@@ -24,8 +25,14 @@ const EDITOR_MIN = 420
 const vw = ref(typeof window === 'undefined' ? 1440 : window.innerWidth)
 const filesW = computed(() => vw.value < 1180 ? 200 : 220)
 const sideW = computed(() => vw.value < 1180 ? 340 : 380)
-const filesDock = computed(() => vw.value >= filesW.value + sideW.value + EDITOR_MIN)
-const sideDock = computed(() => vw.value >= sideW.value + EDITOR_MIN)
+// D-26: the chat column sits on the far right (CHAT_W docked from CHAT_MIN px; below that a CHAT_RAIL icon opens it as an overlay).
+const CHAT_W = 340, CHAT_RAIL = 44, CHAT_MIN = 1200
+const chatDock = computed(() => vw.value >= CHAT_MIN)
+const showChat = ref(chatDock.value)
+const chatColW = computed(() => (chatDock.value && showChat.value ? CHAT_W : CHAT_RAIL))
+const chatOverlay = computed(() => showChat.value && !chatDock.value)
+const filesDock = computed(() => vw.value >= filesW.value + sideW.value + chatColW.value + EDITOR_MIN)
+const sideDock = computed(() => vw.value >= sideW.value + chatColW.value + EDITOR_MIN)
 const showFiles = ref(filesDock.value)
 const showSidebar = ref(sideDock.value)
 const filesOverlay = computed(() => showFiles.value && !filesDock.value)
@@ -34,11 +41,14 @@ const cols = computed(() => [
   showFiles.value && filesDock.value ? filesW.value + 'px' : '',
   'minmax(0,1fr)',
   showSidebar.value && sideDock.value ? sideW.value + 'px' : '',
+  chatColW.value + 'px',
 ].filter(Boolean).join(' '))
+watch(chatDock, d => { showChat.value = d })
+function toggleChat() { showChat.value = !showChat.value; if (chatOverlay.value) { if (filesOverlay.value) showFiles.value = false; if (sideOverlay.value) showSidebar.value = false } }
 // Crossing a breakpoint resets that pane to the default for the new width (docked = shown, overlay = closed).
 watch(filesDock, d => { showFiles.value = d })
 watch(sideDock, d => { showSidebar.value = d })
-function closeOverlays() { if (filesOverlay.value) showFiles.value = false; if (sideOverlay.value) showSidebar.value = false }
+function closeOverlays() { if (filesOverlay.value) showFiles.value = false; if (sideOverlay.value) showSidebar.value = false; if (chatOverlay.value) showChat.value = false }
 function toggleFiles() { showFiles.value = !showFiles.value; if (showFiles.value && !filesDock.value && sideOverlay.value) showSidebar.value = false }
 function toggleSidebar() { showSidebar.value = !showSidebar.value; if (showSidebar.value && !sideDock.value && filesOverlay.value) showFiles.value = false }
 const onResize = () => { vw.value = window.innerWidth }
@@ -99,7 +109,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <FileTree v-show="showFiles" class="pane-files" :class="{ overlay: !filesDock }" />
       <EditorArea class="pane-editor" />
       <Sidebar v-show="showSidebar" class="pane-side" :class="{ overlay: !sideDock }" />
-      <div v-if="filesOverlay || sideOverlay" class="scrim" aria-hidden="true" @click="closeOverlays" />
+      <ChatPanel class="pane-chat" :collapsed="!chatDock || !showChat" @toggle="toggleChat" />
+      <ChatPanel v-if="chatOverlay" class="pane-chat overlay" @toggle="toggleChat" />
+      <div v-if="filesOverlay || sideOverlay || chatOverlay" class="scrim" aria-hidden="true" @click="closeOverlays" />
     </main>
     <footer class="statusbar">
       <span>{{ fmt(vault.notes.length) }} notes · {{ counts.seed }} seeds · {{ counts.lit }} discovered</span>
@@ -122,6 +134,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .pane-files.overlay,.pane-side.overlay{position:absolute;top:0;bottom:0;z-index:20;box-shadow:0 10px 40px color-mix(in srgb,var(--fg) 22%,transparent)}
 .pane-files.overlay{left:0;width:min(var(--files-w),calc(100vw - 48px))}
 .pane-side.overlay{right:0;width:min(var(--side-w),calc(100vw - 48px));border-left:1px solid var(--line)}
+.pane-side.overlay{right:44px}
+.pane-chat.overlay{position:absolute;top:0;bottom:0;right:0;z-index:21;width:min(340px,calc(100vw - 48px));box-shadow:0 10px 40px color-mix(in srgb,var(--fg) 22%,transparent)}
 .scrim{position:absolute;inset:0;z-index:10;background:color-mix(in srgb,var(--fg) 18%,transparent)}
 .statusbar{display:flex;justify-content:space-between;gap:10px;padding:5px 12px;border-top:1px solid var(--line);background:var(--surface-2);font:500 11px var(--font-mono);color:var(--muted);white-space:nowrap;overflow:hidden}
 .statusbar span{overflow:hidden;text-overflow:ellipsis}
