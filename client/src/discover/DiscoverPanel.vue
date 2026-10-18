@@ -59,7 +59,7 @@ const modeLabel = computed(() => disc.mode === 'mock' || (!disc.mode && isMock()
 const fresh = computed(() => disc.inLane('Fresh').length === 0)
 const r45ran = computed(() => disc.stages.some(s => (s.name === 'r4' || s.name === 'scout') && s.status === 'done' && (s.count ?? 0) > 0))
 
-function run() { void disc.start() }
+function run() { ui.openGraph(); void disc.start() }
 </script>
 
 <template>
