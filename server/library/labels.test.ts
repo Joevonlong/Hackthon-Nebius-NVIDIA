@@ -19,6 +19,13 @@ describe('kind precedence', () => {
     expect(kindOf(mkRecord('W1', { paper: { type: 'dissertation' }, venue: { type: null } }))).toBe('thesis')
     expect(kindOf(mkRecord('W1', { paper: { type: 'dataset' }, venue: { type: 'repository' } }))).toBe('dataset')
     expect(kindOf(mkRecord('W1', { paper: { type: 'editorial' } }))).toBe('editorial')
+    // Q2-9: only OpenAlex 'editorial' / PubMed Editorial|Comment make an editorial
+    expect(kindOf(mkRecord('W1', { extra: { pubmedTypes: ['Editorial'] } }))).toBe('editorial')
+    expect(kindOf(mkRecord('W1', { extra: { pubmedTypes: ['Journal Article', 'Comment'] } }))).toBe('editorial')
+    const sttt = { title: 'Editorial board-selected: single-cell atlas of melanoma T cells', venue: 'Signal Transduction and Targeted Therapy', type: 'letter' }
+    expect(kindOf(mkRecord('W1', { paper: sttt, venue: { name: sttt.venue, type: 'journal' }, extra: { pubmedTypes: ['Letter', 'Research Support, Non-U.S. Gov\'t'] } }))).toBe('journal-article')
+    expect(kindOf(mkRecord('W1', { paper: { type: 'article', title: 'An editorial perspective on immunotherapy' }, venue: { name: 'Editorial Office Journal' } }))).toBe('journal-article')
+    expect(kindOf(mkRecord('W1', { paper: { type: 'erratum' }, venue: { type: 'journal' } }))).toBe('other')
     expect(kindOf(mkRecord('W1', { paper: { type: 'article' } }))).toBe('journal-article')
   })
 })

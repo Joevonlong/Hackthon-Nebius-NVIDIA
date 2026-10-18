@@ -192,8 +192,12 @@ library.get('/library/:id', c => {
   return stored ? c.json({ ...stored, done: true }) : c.json({ error: 'library not found' }, 404)
 })
 
-library.get('/library/:id/papers/:paperId', c => {
-  const r = readPaperFile(c.req.param('id'), decodeURIComponent(c.req.param('paperId')))
+// Q2-7: paperId may be the file id ("pmid_38082384") or the paper id ("pmid:38082384", a DOI with "/"); {.+} keeps slashes.
+library.get('/library/:id/papers/:paperId{.+}', c => {
+  const raw = c.req.param('paperId')
+  let pid = raw
+  try { pid = decodeURIComponent(raw) } catch { /* already decoded */ }
+  const r = readPaperFile(c.req.param('id'), pid)
   if (r === 'bad') return c.json({ error: 'bad id' }, 400)
   if (!r) return c.json({ error: 'paper not found' }, 404)
   return c.json(r)

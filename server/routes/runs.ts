@@ -22,7 +22,8 @@ runs.post('/seeds/resolve', async c => {
   if (!body.success) return c.json({ error: 'Body must be { inputs: string[] }', issues: body.error.issues }, 400)
   const r = await resolveSeeds(body.data.inputs)
   try { repo.upsertPapers(r.seeds) } catch { /* cache only */ }
-  return c.json({ seeds: r.seeds, errors: r.errors })
+  // Q2-6: `warning` + `resolvedVia` are additive (shared/contracts.ts documents only { seeds, errors })
+  return c.json({ seeds: r.seeds, errors: r.errors, warning: r.warning, resolvedVia: r.resolvedVia })
 })
 
 runs.post('/runs', async c => {

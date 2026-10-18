@@ -91,6 +91,18 @@ export function shortTitle(t: string, max = 60): string {
   return out
 }
 
+/**
+ * Q2-1: did OpenAlex give us this paper's work record? Records built without one (OpenAlex 429 / 401, or the paper is not
+ * indexed) carry citedByCount 0 as a placeholder — that 0 is "unknown", not "never cited". mapWork() always sets the
+ * OpenAlex url; the extra fields are only filled from a work record.
+ */
+export const hasOpenAlexWork = (rec: EnrichedRecord) =>
+  /^https?:\/\/openalex\.org\/W\d+/i.test(rec.paper.url || '') || rec.paper.citationPct != null || rec.extra.typeCrossref != null || rec.extra.primaryTopic != null || rec.extra.fwci != null
+/** A citation count we can trust: OpenAlex's, else Google Scholar's; null when neither source answered. */
+export const knownCitedBy = (rec: EnrichedRecord): number | null =>
+  hasOpenAlexWork(rec) ? rec.paper.citedByCount : rec.extra.scholarCitedBy ?? null
+export const NO_OPENALEX = 'rate-limited or not indexed'
+
 const leadAuthors = (rec: EnrichedRecord) => rec.authors.filter(a => a.position === 'first' || a.position === 'last')
 const bestAuthorH = (rec: EnrichedRecord) => { const hs = leadAuthors(rec).map(a => a.hIndex).filter((h): h is number => h != null); return hs.length ? Math.max(...hs) : null }
 
@@ -103,7 +115,7 @@ export function buildContext(items: ScoreItem[], goals: Goals, now = new Date())
     rel, relMin: rel[0] ?? 0, relMax: rel[rel.length - 1] ?? 0,
     venueH: asc(recs.map(r => r.venue.hIndex).filter((h): h is number => h != null)),
     authorH: asc(recs.map(bestAuthorH).filter((h): h is number => h != null)),
-    logCites: asc(recs.map(r => Math.log1p(r.paper.citedByCount))),
+    logCites: asc(recs.map(knownCitedBy).filter((c): c is number => c != null).map(c => Math.log1p(c))),
     known, knownKeys, knownCount: goals.knownPapers.length, now,
   }
 }
@@ -174,18 +186,22 @@ export function citationsComponent(item: ScoreItem, ctx: LibraryContext): RawCom
       evidence: [{ text: `cited_by ${fmt(p.citedByCount)} · ${ordinal(p.citationPct)} percentile for field and year (OpenAlex)`, source: src }, ...scholar],
     }
   }
+  const cites = knownCitedBy(rec)
+  if (cites == null) return { key: 'citations', value: null, how: `Not assessed: no citation data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [] }
+  const via = hasOpenAlexWork(rec) ? 'OpenAlex' : 'Google Scholar'
   const pub = p.publicationDate ? new Date(p.publicationDate) : p.year ? new Date(Date.UTC(p.year, 6, 1)) : null
   const ageYears = pub ? (ctx.now.getTime() - pub.getTime()) / (365.25 * 24 * 3600 * 1000) : null
   if (ageYears != null && ageYears < 2) {
     const f = rec.extra.fwci
-    if (f != null) return { key: 'citations', value: clamp01(f / (f + 1)), how: 'Paper < 2 years old and no normalized percentile: FWCI mapped as fwci/(fwci+1) (FWCI 1 = field average → 0.5).', evidence: [{ text: `FWCI ${r2(f)} · cited_by ${fmt(p.citedByCount)} · ${ageYears.toFixed(1)} years old (OpenAlex)`, source: src }, ...scholar] }
-    return { key: 'citations', value: 0.5, how: 'Paper < 2 years old with no normalized percentile or FWCI: neutral 0.5.', evidence: [{ text: `cited_by ${fmt(p.citedByCount)} · ${ageYears.toFixed(1)} years old — too new to judge by citations`, source: src }, ...scholar] }
+    if (f != null) return { key: 'citations', value: clamp01(f / (f + 1)), how: 'Paper < 2 years old and no normalized percentile: FWCI mapped as fwci/(fwci+1) (FWCI 1 = field average → 0.5).', evidence: [{ text: `FWCI ${r2(f)} · cited_by ${fmt(cites)} · ${ageYears.toFixed(1)} years old (OpenAlex)`, source: src }, ...scholar] }
+    return { key: 'citations', value: 0.5, how: 'Paper < 2 years old with no normalized percentile or FWCI: neutral 0.5.', evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ageYears.toFixed(1)} years old — too new to judge by citations`, source: src }, ...scholar] }
   }
-  const v = pct(ctx.logCites, Math.log1p(p.citedByCount))
+  // a real 0 is the bottom, not "≤ everyone else with 0" (which read as a high percentile when many counts are 0)
+  const v = cites === 0 ? 0 : pct(ctx.logCites, Math.log1p(cites))
   return {
     key: 'citations', value: v,
-    how: 'No OpenAlex normalized percentile: percentile of log(cited_by+1) within this library.',
-    evidence: [{ text: `cited_by ${fmt(p.citedByCount)} · ${ordinal(v)} pct of ${ctx.logCites.length} in this library`, source: src }, ...scholar],
+    how: `No OpenAlex normalized percentile: percentile of log(cited_by+1) within this library (${ctx.logCites.length} papers with a citation count; 0 citations = 0).`,
+    evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ordinal(v)} pct of ${ctx.logCites.length} in this library`, source: src }, ...(via === 'Google Scholar' ? [] : scholar)],
   }
 }
 
@@ -198,8 +214,8 @@ export function venueComponent(item: ScoreItem, ctx: LibraryContext): RawCompone
   if (labels.kind === 'preprint' || vtype === 'repository') {
     return { key: 'venue', value: 0.2, how: 'Repository / preprint server: fixed 0.2 (not peer reviewed).', evidence: [{ text: `${name} · ${vtype || 'preprint'}${rec.extra.arxiv ? ` · arXiv ${rec.extra.arxiv.id}` : ''}`, source: rec.extra.arxiv ? { name: 'arXiv', url: arxivUrl(rec.extra.arxiv.id) } : vsrc }] }
   }
-  if (!v.id && !v.name) return { key: 'venue', value: null, how: 'Not assessed: no venue for this paper.', evidence: [] }
-  if (v.hIndex == null && v.isCore == null) return { key: 'venue', value: null, how: 'Not assessed: OpenAlex gave no venue metrics (h-index, core status).', evidence: [{ text: `${name}${vtype ? ` · ${vtype}` : ''} · no venue metrics`, source: vsrc }] }
+  if (!v.id && !v.name) return { key: 'venue', value: null, how: hasOpenAlexWork(rec) ? 'Not assessed: no venue for this paper.' : `Not assessed: no venue data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [] }
+  if (v.hIndex == null && v.isCore == null) return { key: 'venue', value: null, how: hasOpenAlexWork(rec) || v.id ? 'Not assessed: OpenAlex gave no venue metrics (h-index, core status).' : `Not assessed: no venue metrics from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [{ text: `${name}${vtype ? ` · ${vtype}` : ''} · no venue metrics`, source: vsrc }] }
   let got = 0, max = 0
   const bits: string[] = [name]
   const missing: string[] = []
@@ -217,7 +233,7 @@ export function authorsComponent(item: ScoreItem, ctx: LibraryContext): RawCompo
   const { rec } = item
   const lead = leadAuthors(rec)
   const best = bestAuthorH(rec)
-  if (best == null) return { key: 'authors', value: null, how: 'Not assessed: no h-index for the first or last author.', evidence: lead.length ? [{ text: `${lead.map(a => `${a.position} author ${a.name}`).join(', ')} · no author metrics` }] : [] }
+  if (best == null) return { key: 'authors', value: null, how: hasOpenAlexWork(rec) || lead.some(a => a.id) ? 'Not assessed: no h-index for the first or last author.' : `Not assessed: no author data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: lead.length ? [{ text: `${lead.map(a => `${a.position} author ${a.name}`).join(', ')} · no author metrics` }] : [] }
   const hasRor = lead.some(a => a.institutions.some(i => !!i.ror))
   const p = pct(ctx.authorH, best)
   const value = clamp01(0.7 * p + 0.3 * (hasRor ? 1 : 0))

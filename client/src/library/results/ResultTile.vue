@@ -12,6 +12,7 @@ import ScoreRing from './ScoreRing.vue'
 import MiniRadar from './MiniRadar.vue'
 import HoverCard from './HoverCard.vue'
 import WhyScore from '../WhyScore.vue'
+import StackBar from '../charts/StackBar.vue' // CR-11 V-4
 
 const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean; index?: number }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
@@ -35,6 +36,7 @@ const hc = useHoverCard()
         <ScoreRing :total="paper.total" :threshold="threshold" :passed="paper.passed" />
         <MiniRadar class="rad" :components="paper.components" :accent="paper.passed" />
       </div>
+      <StackBar class="stk" :components="paper.components" :threshold="threshold" />
       <button type="button" class="tt" :title="paper.paper.title" @click.stop="emit('open')">{{ paper.paper.title }}</button>
       <p class="meta">{{ authorYear(paper) }} · {{ paper.paper.venue || 'no venue' }}</p>
       <div class="ft">
@@ -48,7 +50,7 @@ const hc = useHoverCard()
 </template>
 
 <style scoped>
-.tile{position:relative;display:flex;gap:16px;border:1px solid var(--hair);border-radius:14px;padding:12px 14px 12px;background:var(--paper-2);cursor:pointer;transition:border-color .2s;animation:rise .5s var(--reveal) both;animation-delay:calc(var(--i) * 25ms)}
+.tile{position:relative;display:flex;gap:16px;min-width:0;border:1px solid var(--hair);border-radius:14px;padding:12px 14px 12px;background:var(--paper-2);cursor:pointer;transition:border-color .2s;animation:rise .5s var(--reveal) both;animation-delay:calc(var(--i) * 25ms)}
 .tile:hover,.tile:focus-within{border-color:var(--ink-46);z-index:5}
 .tile.passed{box-shadow:inset 3px 0 0 var(--accent)}
 .tile.excluded{opacity:.72;border-style:dashed}
@@ -64,6 +66,7 @@ const hc = useHoverCard()
 .excluded .st{border-style:dashed}
 .viz{display:flex;align-items:center;gap:8px}
 .rad{margin-left:auto}
+.stk{margin:1px 0 2px}
 .g{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;font:700 .86rem/1 var(--font-sans);border:1.5px solid var(--ink-38);color:var(--ink)}
 .g-A{background:var(--accent);border-color:var(--accent);color:var(--paper)}
 .g-B{border-color:var(--accent);color:var(--accent)}

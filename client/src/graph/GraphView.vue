@@ -8,6 +8,8 @@ import type { Candidate } from '@shared/contracts'
 import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../stores/library'
 import DirectedGraph from './directed-graph'
+import { buildCitationEdges, notePaperKeys, paperKeys, type PoolPaper } from './edges'
+import { radiusAt, scoreScale } from './score-scale'
 import { useVault, type Note } from '../stores/vault'
 import { useDiscovery } from '../stores/discovery'
 import { useUi } from '../stores/ui'
@@ -18,24 +20,27 @@ defineOptions({ name: 'GraphView' }) // kept alive by EditorArea (CR-6: zoom, la
 
 type Kind = 'seed' | 'lit' | 'note' | 'ghost' | 'bridge' | 'lib'
 interface GNode extends d3.SimulationNodeDatum { id: string; kind: Kind; label: string; sub: string; note?: Note; cand?: Candidate; lib?: LibPaper; component?: string }
-interface GLink extends d3.SimulationLinkDatum<GNode> { source: string | GNode; target: string | GNode; kind: 'wiki' | 'cite' }
+interface GLink extends d3.SimulationLinkDatum<GNode> { source: string | GNode; target: string | GNode; kind: 'wiki' | 'cite' | 'seed' }
 
 const MAX_GHOSTS = 25
 const MAX_LIB = 60
 const vault = useVault(), disc = useDiscovery(), ui = useUi(), lib = useLibrary()
 
 // Library papers that pass the rule (D-20/D-23/D-27: the candidate layer). Papers already kept as notes show as notes.
-const libNodes = computed(() => lib.passedAll.filter(p => !vault.byPaper(p.paper.id)).slice(0, MAX_LIB))
-// F-45: library node radius ∝ total score (4 px at 0 → 16 px at 1); vault notes keep their fixed size. Read live from
-// the store so a re-score resizes nodes without re-running the layout.
-const libRadius = (total: number) => 4 + 12 * Math.max(0, Math.min(1, total))
-const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, libRadius(p.total)])))
-const SCALE = [0.5, 0.75, 1]
-/** Vault note for a known paper id (OpenAlex id, DOI, PMID or arXiv id): by note.paperId, else by the id in its text. */
-function noteForPaper(id: string): Note | undefined {
-  const k = id.toLowerCase()
-  return vault.notes.find(n => n.paperId?.toLowerCase() === k) || (k.length >= 6 ? vault.notes.find(n => n.content.toLowerCase().includes(k)) : undefined)
-}
+// CR-10: "kept as a note" matches any id form (OpenAlex id, DOI, PMID, arXiv), not only note.paperId.
+const noteIdKeys = computed(() => new Set(vault.notes.flatMap(n => notePaperKeys({ paperId: n.paperId, content: n.content, seed: n.kind === 'seed' }))))
+const libNodes = computed(() => lib.passedAll.filter(p => !vault.byPaper(p.paper.id) && !paperKeys(p.paper).some(k => noteIdKeys.value.has(k))).slice(0, MAX_LIB))
+// F-45 + CR-12 (decided 18:20): library node size AND blue fill follow the total score over the drawn nodes' min–max score
+// (lowest drawn → 5 px, lightest blue; highest → 18 px, darkest blue; all equal → middle size and colour). One mapping
+// (score-scale.ts) drives both, so they always agree; vault notes keep their fixed size. Read live from the store so a
+// re-score resizes and recolours nodes without re-running the layout. The ramp itself is CSS (--ramp-lo / --ramp-hi, per
+// theme); each node only carries its position t on it.
+const scoreRange = computed(() => scoreScale(libNodes.value.map(p => p.total)))
+const libR = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, scoreRange.value!.radius(p.total)])))
+const libT = computed(() => new Map(libNodes.value.map(p => ['lib:' + p.paper.id, scoreRange.value!.t(p.total)])))
+const rampPct = (t: number) => Math.round(Math.max(0, Math.min(1, t)) * 100) + '%'
+const legendEl = ref<HTMLDivElement | null>(null)
+const SCALE = [0, 0.5, 1] // legend sample positions on the drawn range
 const wrap = ref<HTMLDivElement | null>(null)
 const svgEl = ref<SVGSVGElement | null>(null)
 const tip = ref<{ x: number; y: number; title: string; sub: string } | null>(null)
@@ -53,7 +58,7 @@ const ghosts = computed(() => {
     }, [])
 })
 
-/** Graph data: vault notes + ghost candidates; edges = wikilinks + candidate↔seed citation links. */
+/** Graph data: vault notes + ghost candidates + library papers; edges = wikilinks + citation links (CR-10 E-1). */
 const data = computed(() => {
   const DG = new DirectedGraph()
   DG.startOperation()
@@ -69,7 +74,9 @@ const data = computed(() => {
   const addLink = (a: string, b: string, kind: GLink['kind']) => {
     const key = a < b ? a + '|' + b : b + '|' + a
     if (a === b || seen.has(key)) return
-    seen.add(key); links.push({ source: a, target: b, kind }); DG.addArc(a, b)
+    // an edge touching a seed note is a seed edge
+    const k = kind !== 'wiki' && (nodes.get(a)?.kind === 'seed' || nodes.get(b)?.kind === 'seed') ? 'seed' : kind
+    seen.add(key); links.push({ source: a, target: b, kind: k }); DG.addArc(a, b)
   }
   for (const n of notes) for (const t of extractLinks(n.content)) {
     const to = resolveLink(t, notes); if (to) addLink('note:' + n.path, 'note:' + to.path, 'wiki')
@@ -84,22 +91,21 @@ const data = computed(() => {
     DG.addVertex(id, c.paper.title)
     for (const sn of [...c.features.out, ...c.features.in]) { const sid = seedNode(sn); if (sid) addLink(id, sid, 'cite') }
   }
-  // Library papers: edges to the vault notes they cite / are cited by, and to other passed library papers.
-  const libIds = new Set(libNodes.value.map(p => p.paper.id))
+  // Library papers (CR-10 E-1): citation edges from referencedWorks and cites / cited_by relations, resolved through one id
+  // index (OpenAlex id, DOI, PMID, arXiv) over the drawn library papers and the vault notes.
   for (const p of libNodes.value) {
     const id = 'lib:' + p.paper.id
     nodes.set(id, { id, kind: 'lib', label: `${lastName(firstAuthor(p.paper))} ${p.paper.year ?? ''}`.trim(), // J-5: short "Author Year"
        sub: `Library #${p.rank} · score ${p.total.toFixed(2)} · ${p.paper.title}`, lib: p })
     DG.addVertex(id, p.paper.title)
   }
-  for (const p of [...libNodes.value, ...lib.passedAll.filter(x => vault.byPaper(x.paper.id))]) {
-    const from = libIds.has(p.paper.id) ? 'lib:' + p.paper.id : 'note:' + vault.byPaper(p.paper.id)!.path
-    for (const r of p.relations) {
-      if (r.type !== 'cites' && r.type !== 'cited_by') continue
-      if (libIds.has(r.paperId)) { addLink(from, 'lib:' + r.paperId, 'cite'); continue }
-      const n = noteForPaper(r.paperId); if (n) addLink(from, 'note:' + n.path, 'cite')
-    }
-  }
+  const pool: PoolPaper[] = [...lib.papers, ...disc.seeds, ...disc.candidates.map(c => c.paper)]
+  const cites = buildCitationEdges({
+    libs: libNodes.value.map(p => ({ node: 'lib:' + p.paper.id, lib: p })),
+    notes: notes.map(n => ({ node: 'note:' + n.path, paperId: n.paperId, content: n.content, seed: n.kind === 'seed' })),
+    pool,
+  })
+  for (const e of cites.edges) addLink(e.source, e.target, e.kind)
   // Kept literature notes also link to their seeds through the run's features when the note has no wikilinks yet.
   for (const n of notes) if (n.kind === 'lit' && n.paperId) {
     const c = disc.byId(n.paperId); if (!c) continue
@@ -109,11 +115,17 @@ const data = computed(() => {
   for (const v of DG.graph.nodes) { const g = nodes.get(v.id); if (g) g.component = v.component }
   return { nodes: [...nodes.values()], links }
 })
+/** Measured counts for the header and legend: paper nodes drawn and citation links among them. */
+const edgeCounts = computed(() => {
+  let cite = 0, seed = 0
+  for (const l of data.value.links) { if (l.kind === 'cite') cite++; else if (l.kind === 'seed') seed++ }
+  return { cite, seed, all: cite + seed }
+})
 
 const counts = computed(() => {
   const k = { seed: 0, lit: 0, note: 0, ghost: 0, lib: 0 }
   for (const n of data.value.nodes) { if (n.kind === 'bridge' || n.kind === 'ghost') k.ghost++; else k[n.kind]++ }
-  return k
+  return { ...k, papers: k.lib + k.ghost + k.seed + data.value.nodes.filter(n => n.kind === 'lit' || (n.kind === 'note' && n.note?.paperId)).length }
 })
 
 // F-40 / D-24: IMS Dictionary look and motion. The d3 force simulation only lays out; a rAF loop owns what is drawn
@@ -230,7 +242,8 @@ function render(animate: boolean, replay = false) {
 
   linkSel = zoomLayer.select<SVGGElement>('g.edges').selectAll<SVGLineElement, GLink>('line')
     .data(links, linkKey)
-    .join(enter => enter.append('line').attr('class', d => 'ge ' + d.kind))
+    .join(enter => enter.append('line'))
+    .attr('class', d => 'ge ' + d.kind)
 
   nodeSel = zoomLayer.select<SVGGElement>('g.nodes').selectAll<SVGGElement, GNode>('g.gn')
     .data(nodes, d => d.id)
@@ -253,7 +266,7 @@ function render(animate: boolean, replay = false) {
     .on('blur', () => setActive(null))
     .on('mouseenter', (e: MouseEvent, d) => {
       const r = wrap.value!.getBoundingClientRect()
-      tip.value = { x: e.clientX - r.left + 14, y: e.clientY - r.top + 14, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} · passed (top ${lib.topPercent}%, ≥ ${lib.threshold.toFixed(2)}) · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
+      tip.value = { x: e.clientX - r.left + 14, y: e.clientY - r.top + 14, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} · passed (top ${lib.topPercent}%, ≥ ${lib.threshold.toFixed(2)}) · ${adj.get(d.id)?.length ?? 0} citation links drawn · click for the evidence` : d.sub }
       setActive(d.id)
     })
     .on('mousemove', (e: MouseEvent) => { if (tip.value) { const r = wrap.value!.getBoundingClientRect(); tip.value = { ...tip.value, x: e.clientX - r.left + 14, y: e.clientY - r.top + 14 } } })
@@ -263,11 +276,16 @@ function render(animate: boolean, replay = false) {
       .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; if (reduce) { d.x = e.x; d.y = e.y } })
       .on('end', (e, d) => { if (!e.active) sim?.alphaTarget(0); d.fx = null; d.fy = null }))
 
-  const forceLink = d3.forceLink<GNode, GLink>(links).id(d => d.id).distance(l => l.kind === 'wiki' ? 60 : 75).strength(l => l.kind === 'wiki' ? 0.6 : 0.25)
+  // CR-10: hundreds of citation edges would pull everything into one blob at a fixed strength; scale each edge by the
+  // busier end's degree (d3's default idea) and keep cite edges weaker than wikilinks / seed edges so linked papers cluster.
+  const deg = (id: string) => adj.get(id)?.length ?? 1
+  const forceLink = d3.forceLink<GNode, GLink>(links).id(d => d.id)
+    .distance(l => l.kind === 'wiki' ? 60 : l.kind === 'seed' ? 80 : 90)
+    .strength(l => { const m = Math.max(1, Math.min(deg(idOf(l.source)), deg(idOf(l.target)))); return (l.kind === 'wiki' ? 0.6 : l.kind === 'seed' ? 0.5 : 0.22) / Math.sqrt(m) })
   if (!sim) {
     sim = d3.forceSimulation<GNode, GLink>(nodes)
       .force('link', forceLink)
-      .force('charge', d3.forceManyBody<GNode>().strength(d => d.kind === 'seed' ? -260 : -110))
+      .force('charge', d3.forceManyBody<GNode>().strength(d => d.kind === 'seed' ? -260 : d.kind === 'lib' ? -170 : -110))
       .force('collide', d3.forceCollide<GNode>(d => rad(d) + 4))
       .force('x', d3.forceX<GNode>().strength(0.06))
       .force('y', d3.forceY<GNode>().strength(0.06))
@@ -327,7 +345,8 @@ function frame(nowT: number) {
     if (!sa || !sb) return
     const hot = active !== null && (a1 === active || b1 === active)
     const el = this as SVGLineElement
-    const prev = +(el.dataset.o ?? '0.1'), want = active ? (hot ? 0.75 : 0.03) : 0.1
+    const rest = l.kind === 'cite' ? 0.13 : l.kind === 'seed' ? 0.18 : 0.22 // CR-10: faint at rest, strong for the active node
+    const prev = +(el.dataset.o ?? String(rest)), want = active ? (hot ? 0.8 : 0.03) : rest
     const o = prev + (want - prev) * k(0.2); el.dataset.o = String(o)
     el.setAttribute('x1', String(sa.x)); el.setAttribute('y1', String(sa.y)); el.setAttribute('x2', String(sb.x)); el.setAttribute('y2', String(sb.y))
     el.style.opacity = String(o * Math.min(sa.dim, sb.dim, (sa as NState & { e?: number }).e ?? 1, (sb as NState & { e?: number }).e ?? 1) / (active && !hot ? 1 : 1))
@@ -349,8 +368,10 @@ function frame(nowT: number) {
   // labels: priority declutter every few frames (screen space), eased visibility
   if (frameNo % 6 === 0 || reduce) {
     const sx = (x: number) => x * transform.k + transform.x, sy = (y: number) => y * transform.k + transform.y
+    // CR-12: the 10 best-scoring library papers (the biggest, darkest nodes) are labelled first and may overlap dots.
+    const top = new Set(cur.filter(n => n.lib).sort((p, q) => q.lib!.total - p.lib!.total).slice(0, 10).map(n => n.id))
     const order = [...cur].sort((p, q) => score(q) - score(p))
-    function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
+    function score(n: GNode) { return (n.id === active ? 1000 : nb.has(n.id) ? 500 : 0) + (top.has(n.id) ? 300 : 0) + PRIORITY[n.kind] + (adj.get(n.id)?.length ?? 0) }
     const placed: { x0: number; y0: number; x1: number; y1: number; id?: string }[] = cur.map(n => {
       const s = st.get(n.id); const r = (rad(n) + 1) * transform.k
       return s ? { x0: sx(s.x) - r, y0: sy(s.y) - r, x1: sx(s.x) + r, y1: sy(s.y) + r, id: n.id } : { x0: 0, y0: 0, x1: 0, y1: 0, id: n.id }
@@ -364,7 +385,7 @@ function frame(nowT: number) {
       const x0 = flip ? sx(s.x) - gap - lw : sx(s.x) + gap, y0 = sy(s.y) - lh / 2
       ;(s as NState & { flip?: boolean }).flip = flip
       const box = { x0, y0, x1: x0 + lw, y1: y0 + lh }
-      const clash = placed.some(p => p.id !== n.id && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
+      const clash = placed.some(p => p.id !== n.id && (!top.has(n.id) || p.id?.startsWith('#')) && box.x0 < p.x1 + 4 && box.x1 > p.x0 - 4 && box.y0 < p.y1 && box.y1 > p.y0)
       // Q-11: labels stay inside the canvas; a node off the edge keeps its dot but not a clipped label.
       const inside = W <= 0 || (box.x0 >= -W / 2 + 4 && box.x1 <= W / 2 - 4 && box.y0 >= -H / 2 + 4 && box.y1 <= H / 2 - 4)
       const show = inside && (n.id === active || !clash)
@@ -380,6 +401,7 @@ function frame(nowT: number) {
     const breathe = reduce ? 1 : 1 + 0.05 * Math.sin(nowT / 1000 * 0.9 + s.ph)
     const g = this as SVGGElement
     const c = g.firstChild as SVGCircleElement, t = g.lastChild as SVGTextElement
+    if (n.kind === 'lib') { const v = rampPct(libT.value.get(n.id) ?? 0.5); if (c.dataset.t !== v) { c.dataset.t = v; c.style.setProperty('--t', v) } }
     c.setAttribute('cx', String(s.x)); c.setAttribute('cy', String(s.y)); c.setAttribute('r', String(rad(n) * breathe * (n.id === active ? 1.35 : 1) * (0.4 + 0.6 * e)))
     c.style.opacity = String(Math.min(1, e * 1.5) * s.dim)
     const flip = (s as NState & { flip?: boolean }).flip
@@ -398,8 +420,10 @@ function fit(nodes: GNode[]) {
   for (const n of nodes) { x0 = Math.min(x0, n.x!); y0 = Math.min(y0, n.y!); x1 = Math.max(x1, n.x! + 120 * (n.kind === 'seed' ? 1 : 0)); y1 = Math.max(y1, n.y!) }
   const { width, height } = wrap.value.getBoundingClientRect()
   if (width <= 0 || height <= 0) return // hidden (kept alive behind another tab)
-  const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - 160) / Math.max(1, y1 - y0)))
-  const t = d3.zoomIdentity.scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
+  // Q2-14: the free area is between the header row (~52 px) and the legend panel at the bottom left.
+  const top = 52, bottom = (legendEl.value?.offsetHeight ?? 0) + 24
+  const k = Math.max(0.4, Math.min(1.3, (width - 120) / Math.max(1, x1 - x0), (height - top - bottom - 40) / Math.max(1, y1 - y0)))
+  const t = d3.zoomIdentity.translate(0, (top - bottom) / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2)
   const sel = d3.select(svgEl.value)
   if (reduce) sel.call(zoomer.transform, t)
   else sel.transition().duration(900).ease(d3.easeCubicOut).call(zoomer.transform, t)
@@ -463,7 +487,7 @@ watch(signature, () => render(true))
       <button class="g-back" type="button" :disabled="!ui.canBack" :title="ui.backEntry ? 'Back to ' + ui.backEntry.tab.title + ' (⌘[ or Alt+←)' : 'Nothing to go back to'" @click="ui.back()">
         <span aria-hidden="true">←</span> <span class="bt">{{ ui.backEntry ? ui.backEntry.tab.title : 'Back' }}</span>
       </button>
-      <div class="eyebrow">Graph · {{ counts.seed + counts.lit + counts.note }} notes · {{ counts.lib }} library<template v-if="counts.ghost"> · {{ counts.ghost }} candidates</template></div>
+      <div class="eyebrow">Graph · {{ counts.papers }} papers · {{ edgeCounts.all }} citation links<span class="sub"> · {{ counts.seed + counts.lit + counts.note }} notes · {{ counts.lib }} library<template v-if="counts.ghost"> · {{ counts.ghost }} candidates</template></span></div>
     </div>
     <div v-if="!data.nodes.length" class="empty">
       <template v-if="disc.status === 'running'"><b>Resolving seeds…</b> Seed notes appear here first, then candidates grow out of them.</template>
@@ -472,16 +496,19 @@ watch(signature, () => render(true))
     <div class="g-status">
       <div v-if="lib.status === 'running'" class="g-live" role="status"><i />Library building · passed papers appear when scoring finishes</div>
       <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
+      <div v-if="counts.papers > 1 && !edgeCounts.all && lib.status !== 'running' && disc.status !== 'running'" class="g-noedges" role="note">No citation links found: the sources returned no reference lists for these papers (OpenAlex rate-limited?)</div>
     </div>
-    <div class="g-legend">
+    <div ref="legendEl" class="g-legend">
       <span><i class="d seed" />Seed note · {{ counts.seed }}</span>
       <span><i class="d note" />Note · {{ counts.lit + counts.note }}</span>
       <span><i class="d lib" />Library · passed top {{ lib.topPercent }}%, ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
-      <span v-if="counts.lib" class="scale" aria-label="Library node size is proportional to the total score: 4 px at 0, 16 px at 1">
-        <svg :width="SCALE.length * 34 + 4" height="34" aria-hidden="true"><g v-for="(v, i) in SCALE" :key="v"><circle class="sc" :cx="i * 34 + 17" cy="17" :r="libRadius(v)" /></g></svg>
-        <span class="sclbl">size ∝ score · <template v-for="(v, i) in SCALE" :key="v">{{ i ? ' · ' : '' }}{{ v.toFixed(2) }}</template><br>4 px at 0 → 16 px at 1 · vault notes fixed</span>
+      <span v-if="counts.lib && scoreRange" class="scale" :aria-label="scoreRange.flat ? `All drawn library papers score ${scoreRange.min.toFixed(2)}: middle size and colour` : `Library node size and colour follow the score: ${scoreRange.min.toFixed(2)} light and small to ${scoreRange.max.toFixed(2)} dark and big, among the drawn papers`">
+        <svg :width="(scoreRange.flat ? 1 : SCALE.length) * 40 + 4" height="40" aria-hidden="true"><g v-for="(v, i) in (scoreRange.flat ? [0.5] : SCALE)" :key="v"><circle class="sc" :style="{ '--t': rampPct(v) }" :cx="i * 40 + 20" cy="20" :r="radiusAt(v)" /></g></svg>
+        <span class="sclbl"><template v-if="scoreRange.flat">size and colour = score · all drawn papers score {{ scoreRange.min.toFixed(2) }} (middle size and colour)</template><template v-else>size and colour = score, {{ scoreRange.min.toFixed(2) }} (light/small) → {{ scoreRange.max.toFixed(2) }} (dark/big) among the drawn papers</template><br><i v-if="!scoreRange.flat" class="bar" />vault notes fixed</span>
       </span>
       <span v-if="counts.ghost"><i class="d ghost" />Candidate · {{ counts.ghost }}</span>
+      <span class="lgi" title="Citation link between two papers (one cites the other)"><svg width="22" height="8" aria-hidden="true"><line class="lg cite" x1="1" y1="4" x2="21" y2="4" /></svg>Citation · {{ edgeCounts.cite }}</span>
+      <span class="lgi" title="Citation link to or from a seed note"><svg width="22" height="8" aria-hidden="true"><line class="lg seed" x1="1" y1="4" x2="21" y2="4" /></svg>Seed link · {{ edgeCounts.seed }}</span>
     </div>
     <div class="corner">
       <button class="icon-btn" type="button" title="Zoom to fit" aria-label="Zoom to fit" @click="fitNow">
@@ -515,16 +542,17 @@ svg:active{cursor:grabbing}
 .g-live i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.3}}
 @media (prefers-reduced-motion: reduce){.g-live i{animation:none}}
-.g-legend{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 140px);z-index:2;display:flex;flex-wrap:wrap;column-gap:16px;row-gap:7px;align-items:center;pointer-events:none;padding:7px 9px;border-radius:6px;background:color-mix(in srgb,var(--paper) 86%,transparent)}
+.g-legend{position:absolute;left:12px;bottom:12px;max-width:calc(100% - 140px);z-index:2;display:flex;flex-wrap:wrap;column-gap:16px;row-gap:7px;align-items:center;pointer-events:none;padding:8px 10px;border-radius:8px;border:1px solid var(--hair);background:color-mix(in srgb,var(--paper-2) 94%,transparent);box-shadow:0 1px 6px color-mix(in srgb,var(--ink) 8%,transparent)}
 .g-legend span{display:inline-flex;gap:9px;align-items:center}
 .g-legend .d{width:9px;height:9px;border-radius:50%;display:inline-block;box-sizing:border-box}
 .g-legend .d.seed{background:var(--ink)}
 .g-legend .d.note{background:var(--ink-64);width:7px;height:7px;margin:0 1px}
-.g-legend .d.lib{border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
+.g-legend .d.lib{border:1px solid var(--ramp-stroke);background:color-mix(in oklch,var(--ramp-hi) 60%,var(--ramp-lo))}
+.g-legend .sclbl .bar{display:inline-block;vertical-align:middle;width:72px;height:8px;margin-right:8px;border-radius:2px;border:1px solid var(--ramp-stroke);background:linear-gradient(in oklch to right,var(--ramp-lo),var(--ramp-hi))}
 .g-legend .d.ghost{border:1.2px solid var(--ink-64);background:var(--paper)}
 .g-legend .scale{gap:8px;align-items:center}
-.g-legend .sc{fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.2}
-.g-legend .sclbl{letter-spacing:.06em;line-height:1.5;text-transform:none}
+.g-legend .sc{fill:color-mix(in oklch,var(--ramp-hi) var(--t,50%),var(--ramp-lo));stroke:var(--ramp-stroke);stroke-width:1}
+.g-legend .sclbl{display:block;max-width:300px;letter-spacing:.06em;line-height:1.5;text-transform:none}
 .corner{position:absolute;right:18px;bottom:16px;z-index:2;display:flex;gap:8px}
 .icon-btn{width:2.4rem;height:2.4rem;border-radius:50%;border:1px solid var(--ink-26);background:transparent;color:var(--ink);display:grid;place-items:center;cursor:pointer;transition:background .4s var(--reveal),border-color .4s var(--reveal),transform .4s var(--reveal)}
 .icon-btn:hover{background:var(--ink-8);border-color:var(--ink-46)}
@@ -533,7 +561,14 @@ svg:active{cursor:grabbing}
 .tip{position:absolute;pointer-events:none;max-width:300px;background:var(--paper-2);border:1px solid var(--hair);border-radius:4px;padding:8px 10px;font-size:12px;line-height:1.35;color:var(--ink);display:flex;flex-direction:column;gap:3px;z-index:3}
 .tip small{color:var(--ink-64);font:500 10px/1.3 var(--font-mono);letter-spacing:.04em}
 :deep(.ge){stroke:var(--ink);stroke-width:1;fill:none;transition:stroke .4s var(--reveal)}
+:deep(.ge.seed){stroke:var(--accent)}
 :deep(.ge.hot){stroke-width:1.2}
+.g-legend .lgi{white-space:nowrap;gap:7px}
+.g-legend .lg{stroke-width:1.4}
+.g-legend .lg.cite{stroke:var(--ink-46)}
+.g-legend .lg.seed{stroke:var(--accent)}
+.eyebrow .sub{color:var(--ink-46)}
+.g-noedges{max-width:420px;border:1px solid var(--hair);border-radius:6px;padding:6px 10px;background:var(--paper-2);color:var(--ink-64);font-size:12px;line-height:1.4}
 :deep(.ring){fill:none;stroke:var(--ink-26);stroke-width:1;stroke-dasharray:2 4;pointer-events:none;opacity:0}
 :deep(.particle){fill:var(--ink);pointer-events:none}
 :deep(.gn){cursor:pointer;outline:none}
@@ -545,7 +580,15 @@ svg:active{cursor:grabbing}
 :deep(.nd-note){fill:var(--ink-64)}
 :deep(.nd-ghost){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2}
 :deep(.nd-bridge){fill:var(--paper);stroke:var(--ink-64);stroke-width:1.2;stroke-dasharray:2.5 2}
-:deep(.nd-lib){fill:color-mix(in srgb,var(--accent) 30%,var(--paper));stroke:var(--accent);stroke-width:1.6}
+:deep(.nd-lib){fill:color-mix(in oklch,var(--ramp-hi) var(--t,50%),var(--ramp-lo));stroke:var(--ramp-stroke);stroke-width:1}
 :deep(.glbl){font:400 var(--fs,10px) var(--font-sans);fill:var(--ink-64);pointer-events:none;transition:fill .4s var(--reveal)}
 :deep(.glbl.on){font-weight:700;fill:var(--ink)}
+</style>
+
+<style>
+/* CR-12: one sequential blue ramp for library nodes (lightest = lowest score, darkest = highest). Light theme: a thin darker
+   stroke keeps the lightest blue visible on the paper; dark theme: a lighter stroke keeps the darkest blue visible. */
+.graphwrap{--ramp-lo:oklch(0.9 0.05 235);--ramp-hi:oklch(0.36 0.15 262);--ramp-stroke:oklch(0.34 0.12 262 / 0.75)}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .graphwrap{--ramp-lo:oklch(0.88 0.07 235);--ramp-hi:oklch(0.45 0.18 262);--ramp-stroke:oklch(0.9 0.05 235 / 0.7)} }
+:root[data-theme="dark"] .graphwrap{--ramp-lo:oklch(0.88 0.07 235);--ramp-hi:oklch(0.45 0.18 262);--ramp-stroke:oklch(0.9 0.05 235 / 0.7)}
 </style>

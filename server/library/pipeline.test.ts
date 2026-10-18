@@ -44,6 +44,22 @@ describe('library pipeline without keys (fixture source)', () => {
     const id = first.file.replace(/^papers\//, '').replace(/\.json$/, '')
     const file = readPaperFile('lib_test_1', id)
     expect(file && file !== 'bad' && LibPaper.safeParse(file).success).toBe(true)
+    // Q2-7: the client sends paper ids ("pmid:38082384", "W…", DOIs); every paper resolves by its id as well as its file id
+    for (const p of s.papers) {
+      const byId = readPaperFile('lib_test_1', p.paper.id)
+      expect(byId && byId !== 'bad' && byId.paper.id).toBe(p.paper.id)
+    }
+    const { writeFileSync, mkdirSync } = await import('node:fs')
+    const { libraryDir } = await import('./store')
+    const dir = libraryDir('lib_test_1')!
+    mkdirSync(join(dir, 'papers'), { recursive: true })
+    writeFileSync(join(dir, 'papers', 'pmid_38082384.json'), JSON.stringify({ ...first, paper: { ...first.paper, id: 'pmid:38082384' } }))
+    for (const form of ['pmid:38082384', 'pmid_38082384', 'pmid_38082384.json']) {
+      const r = readPaperFile('lib_test_1', form)
+      expect(r && r !== 'bad' && r.paper.id).toBe('pmid:38082384')
+    }
+    expect(readPaperFile('lib_test_1', 'pmid:999')).toBeNull()
+    ;(await import('node:fs')).rmSync(join(dir, 'papers', 'pmid_38082384.json'))
     expect(readPaperFile('lib_test_1', '../goals')).toBe('bad')
     expect(readPaperFile('../x', 'W1')).toBe('bad')
     expect(readLibrary('lib_test_1')?.papers.length).toBe(s.papers.length)

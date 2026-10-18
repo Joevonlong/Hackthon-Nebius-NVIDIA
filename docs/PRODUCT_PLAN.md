@@ -434,6 +434,7 @@ Readers should get the score at a glance, not by reading text.
 
 ## 24. CR-12 · Graph node colour follows score (user, 18:05; clear, started immediately)
 Library nodes keep size ∝ total score and also get a blue colour ramp on the same score: biggest/highest = darkest blue → smallest/lowest = lightest blue (one sequential blue scale, readable in light and dark themes; legend shows the ramp with its score range). Vault notes / seeds keep their own styling.
+- Domain = the drawn nodes' min–max score (decided 18:20, so the gradient is visible)
 
 ## 25. CR-13 · QA2 findings on the final build (18:10; bug fixes, behaviour as already specified)
 Clean start passes. Fixes:
