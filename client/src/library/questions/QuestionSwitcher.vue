@@ -78,7 +78,7 @@ const onSelect = (e: Event) => { vault.setCurrent((e.target as HTMLSelectElement
     </form>
 
     <div v-if="mode === 'delete' && cur" class="confirm" role="alertdialog" aria-label="Confirm delete">
-      <p>Delete <b>{{ cur.name }}</b> and its {{ curCount }} note{{ curCount === 1 ? '' : 's' }} (question, seeds, notes in that folder) from this browser vault? Saved libraries on the server stay in History.</p>
+      <p>Delete <b>{{ cur.name }}</b> and its {{ curCount }} note{{ curCount === 1 ? '' : 's' }} (question, seeds, notes)? The whole folder, with its saved libraries, moves to workspace/.trash/ on the server (not erased).</p>
       <div class="row"><button class="pill danger solid" type="button" @click="doDelete">Delete question</button><button class="pill" type="button" @click="mode = 'idle'">Cancel</button></div>
     </div>
     <p v-if="err" class="bad">{{ err }}</p>

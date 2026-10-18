@@ -155,7 +155,7 @@ async function useAsSeeds() {
 .menu{position:absolute;right:0;top:26px;z-index:20;background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:4px;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
 .menu button{display:flex;gap:8px;align-items:center;width:100%;border:0;background:transparent;color:var(--fg);padding:7px 8px;border-radius:5px;font-size:12.5px;cursor:pointer;text-align:left}
 .menu button:hover{background:var(--surface-2)}
-.dir{display:flex;align-items:center;gap:4px;padding:5px 4px;font-weight:600;color:var(--fg);border:0;background:transparent;width:100%;cursor:pointer;font-size:12.5px;border-radius:5px}
+.dir{display:flex;align-items:center;gap:4px;text-align:left;padding:5px 4px;font-weight:600;color:var(--fg);border:0;background:transparent;width:100%;cursor:pointer;font-size:12.5px;border-radius:5px}
 .dir:hover{background:var(--surface-2)}
 .dir small{margin-left:auto;font:500 10.5px var(--font-mono);color:var(--muted)}
 .chev{width:12px;height:12px;transition:transform .15s;color:var(--muted)}
