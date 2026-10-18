@@ -312,12 +312,16 @@ export const DEFAULT_TOP_PERCENT = 25
  * AND its total is at least `threshold` (the absolute floor). Pure; returns one boolean per input, in input order.
  * Top-k uses k = ceil(M × topPercent / 100) (at least 1 when M > 0); ties are broken by input order.
  */
-export function passFlags(items: { total: number; excluded: string | null }[], rule: PassRule): boolean[] {
+/** D-38: the LLM read rated relevance 0–1 of 3 → the paper can never pass (it stays listed, flagged with that evidence). */
+export const offTopicByLlm = (p: { llmRead?: { relevance: number } | null }) => !!p.llmRead && p.llmRead.relevance <= 1
+export const OFF_TOPIC_TAG = 'off-topic (LLM read)'
+
+export function passFlags(items: { total: number; excluded: string | null; llmRead?: { relevance: number } | null }[], rule: PassRule): boolean[] {
   const idx = items.map((p, i) => ({ p, i })).filter(x => !x.p.excluded).sort((a, b) => b.p.total - a.p.total || a.i - b.i)
   const pctl = Math.min(100, Math.max(0, rule.topPercent))
   const k = idx.length ? Math.max(1, Math.ceil((idx.length * pctl) / 100)) : 0
   const out = items.map(() => false)
-  idx.forEach((x, r) => { if (r < k && x.p.total >= rule.threshold) out[x.i] = true })
+  idx.forEach((x, r) => { if (r < k && x.p.total >= rule.threshold && !offTopicByLlm(x.p)) out[x.i] = true })
   return out
 }
 
@@ -364,6 +368,7 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
     // Track brief: "new" means absent from the starting collection — papers already in the vault are never recommended.
     const excluded = gateOf(item.rec, dups.get(item.rec.key)) ?? (ctx.knownKeys.has(item.rec.key) ? 'already in your vault' : null)
     const labels = ctx.knownKeys.has(item.rec.key) && !item.labels.tags.includes('in-vault') ? { ...item.labels, tags: [...item.labels.tags, 'in-vault'] } : item.labels
+    if (offTopicByLlm({ llmRead: item.llm }) && !labels.tags.includes(OFF_TOPIC_TAG)) labels.tags = [...labels.tags, OFF_TOPIC_TAG]
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,
       components, total, passed: false, excluded, rank: 0, llmRead: item.llm, file: fileFor(item.rec),

@@ -398,3 +398,5 @@ The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browse
 | Q-12 | BibTeX authors capped at 10 without "and others" | captain |
 | Q-13 | Raw OpenAlex ids in paper relations | G1 |
 | Q-14/15 | Keyboard shortcuts fire while typing / without focus | G1 |
+
+**D-38 (17:15, user choice for Q-6):** LLM off-topic gate — when the LLM read rates relevance 0–1 of 3, the paper cannot pass (no backfill of its slot), stays listed with the tag "off-topic (LLM read)" and the model's evidence; weights unchanged. Same rule in server/library/score.ts and client/src/library/score.ts.

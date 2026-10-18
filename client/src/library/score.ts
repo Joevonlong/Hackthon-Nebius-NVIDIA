@@ -47,7 +47,8 @@ export function rescore(papers: LibPaper[], rule: PassRule & { weights?: Weights
   })
   next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total)
   const cut = passCut(next.filter(p => !p.excluded).length, rule.topPercent)
-  next.forEach((p, i) => { p.rank = i + 1; p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 })
+  // D-38: an LLM read with relevance 0–1 of 3 can never pass (same rule as server/library/score.ts offTopicByLlm).
+  next.forEach((p, i) => { p.rank = i + 1; p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 && !(p.llmRead && p.llmRead.relevance <= 1) })
   return next
 }
 
