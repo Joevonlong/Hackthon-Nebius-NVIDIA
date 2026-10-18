@@ -14,35 +14,82 @@ export interface WebIds { kind: UrlKind; doi: string | null; pmid: string | null
 /** HTTP status of the last Tavily call (smoke script / diagnostics). */
 export let lastTavilyStatus = 0
 
-export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number } = {}): Promise<TavilyHit[]> {
-  if (!env.tavilyKey || !query.trim()) return []
+export interface TavilySearchOpts {
+  maxResults?: number // 1..20 (Tavily cap)
+  includeDomains?: string[]
+  /** 'advanced' costs 2 credits and returns better snippets (D-21: used for subtopics). */
+  searchDepth?: 'basic' | 'advanced'
+  timeRange?: 'day' | 'week' | 'month' | 'year'
+  timeoutMs?: number
+}
+
+/** Tavily POST with one 429 retry (Retry-After capped at 3 s). Returns the response or null on network error / timeout. */
+async function tavilyPost(path: 'search' | 'extract', body: Record<string, unknown>, timeoutMs: number): Promise<Response | null> {
+  const call = () => fetch(`https://api.tavily.com/${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.tavilyKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
   try {
-    const call = () => fetch('https://api.tavily.com/search', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env.tavilyKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: query.slice(0, 380),
-        search_depth: 'basic',
-        max_results: opts.maxResults ?? 5,
-        ...(opts.includeDomains?.length ? { include_domains: opts.includeDomains } : {}),
-      }),
-      signal: AbortSignal.timeout(opts.timeoutMs ?? 12000),
-    })
-    const t0 = Date.now()
     let res = await call()
-    if (res.status === 429) { // one retry, honouring Retry-After (capped at 3 s)
+    if (res.status === 429) {
       const ra = Number(res.headers.get('retry-after'))
       await new Promise(r => setTimeout(r, Math.min(Number.isNaN(ra) || !ra ? 1500 : ra * 1000, 3000)))
       res = await call()
     }
-    lastTavilyStatus = res.status
-    if (!res.ok) { trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: 0 }); return [] }
+    return res
+  } catch {
+    return null
+  }
+}
+
+export async function tavilySearch(query: string, opts: TavilySearchOpts = {}): Promise<TavilyHit[]> {
+  if (!env.tavilyKey || !query.trim()) return []
+  try {
+    const t0 = Date.now()
+    const res = await tavilyPost('search', {
+      query: query.slice(0, 380),
+      search_depth: opts.searchDepth ?? 'basic',
+      max_results: Math.max(1, Math.min(20, opts.maxResults ?? 5)),
+      ...(opts.includeDomains?.length ? { include_domains: opts.includeDomains } : {}),
+      ...(opts.timeRange ? { time_range: opts.timeRange } : {}),
+    }, opts.timeoutMs ?? (opts.searchDepth === 'advanced' ? 20000 : 12000))
+    lastTavilyStatus = res?.status ?? 0
+    const meta = { query, includeDomains: opts.includeDomains, searchDepth: opts.searchDepth ?? 'basic', timeRange: opts.timeRange, status: lastTavilyStatus, ms: Date.now() - t0 }
+    if (!res?.ok) { trace('tavily', { ...meta, count: 0 }); return [] }
     const data: any = await res.json()
     const hits: TavilyHit[] = (Array.isArray(data?.results) ? data.results : [])
       .filter((r: any) => typeof r?.url === 'string')
       .map((r: any) => ({ url: r.url, title: String(r.title ?? ''), content: String(r.content ?? ''), score: Number(r.score ?? 0) }))
-    trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
+    trace('tavily', { ...meta, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
     return hits
+  } catch {
+    return []
+  }
+}
+
+export interface TavilyPage { url: string; text: string }
+
+/**
+ * Reads page text (Markdown) for up to 20 URLs via Tavily extract. Pages Tavily cannot fetch are left out
+ * (measured 15:20: pubmed.ncbi.nlm.nih.gov → 2.3k chars incl. the abstract; a cell.com full-text page → "Failed to fetch url").
+ */
+export async function tavilyExtract(urls: string[], opts: { depth?: 'basic' | 'advanced'; timeoutMs?: number } = {}): Promise<TavilyPage[]> {
+  const list = [...new Set(urls.filter(u => /^https?:\/\//i.test(u)))].slice(0, 20)
+  if (!env.tavilyKey || !list.length) return []
+  try {
+    const t0 = Date.now()
+    const res = await tavilyPost('extract', { urls: list, extract_depth: opts.depth ?? 'basic' }, opts.timeoutMs ?? 30000)
+    lastTavilyStatus = res?.status ?? 0
+    if (!res?.ok) { trace('tavily', { endpoint: 'extract', urls: list, status: lastTavilyStatus, ms: Date.now() - t0, count: 0 }); return [] }
+    const data: any = await res.json()
+    const pages: TavilyPage[] = (Array.isArray(data?.results) ? data.results : [])
+      .filter((r: any) => typeof r?.url === 'string' && typeof r?.raw_content === 'string' && r.raw_content.trim())
+      .map((r: any) => ({ url: r.url, text: String(r.raw_content) }))
+    const failed = (Array.isArray(data?.failed_results) ? data.failed_results : []).map((f: any) => ({ url: f?.url, error: clip(f?.error, 120) }))
+    trace('tavily', { endpoint: 'extract', status: res.status, ms: Date.now() - t0, count: pages.length, pages: pages.map(p => ({ url: p.url, chars: p.text.length, head: clip(p.text, 200) })), failed })
+    return pages
   } catch {
     return []
   }

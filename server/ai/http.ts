@@ -153,24 +153,28 @@ export interface ChatOpts {
   maxTokens?: number
   schema?: { name: string; schema: Record<string, unknown> }
   timeoutMs: number
+  /** Rejects parsed-but-useless output (e.g. Nemotron's `{"queries": [">>>"]}`); triggers the fallback model. */
+  validate?: (data: any) => boolean
+  /** Asked once, inside the same deadline, when the primary model fails or `validate` rejects its output. */
+  fallbackModel?: string
 }
 
 /** Extra body params that switch off reasoning traces on Nemotron / Qwen3 chat templates. */
 export const noThinkParams = () => (env.raw.TF_NO_THINK === '0' ? {} : { chat_template_kwargs: { enable_thinking: false } })
 
-/** Chat completion returning the message content (think-stripped) or null. Falls back from json_schema to json_object. */
-export async function chatJson(o: ChatOpts): Promise<{ data: any; raw: string } | null> {
+/** One model, json_schema then json_object. Returns the message content (think-stripped) or null. */
+async function chatOnce(o: ChatOpts, model: string, timeoutMs: number): Promise<{ data: any; raw: string } | null> {
   const messages = [
     ...(o.system ? [{ role: 'system', content: o.system }] : []),
     { role: 'user', content: o.user },
   ]
-  const base = { model: o.model, messages, temperature: o.temperature ?? 0, max_tokens: o.maxTokens ?? 800, ...noThinkParams() }
+  const base = { model, messages, temperature: o.temperature ?? 0, max_tokens: o.maxTokens ?? 800, ...noThinkParams() }
   const formats: any[] = o.schema
     ? [{ type: 'json_schema', json_schema: { name: o.schema.name, schema: o.schema.schema, strict: true } }, { type: 'json_object' }]
     : [{ type: 'json_object' }]
   for (const response_format of formats) {
     const err: TfError = { status: 0, body: '' }
-    const res = await tfFetch<any>('chat/completions', { ...base, response_format }, o.timeoutMs, { err })
+    const res = await tfFetch<any>('chat/completions', { ...base, response_format }, timeoutMs, { err })
     if (!res) {
       if (err.status >= 400 && err.status < 500 && err.status !== 429) continue // format unsupported: try next
       return null
@@ -182,4 +186,39 @@ export async function chatJson(o: ChatOpts): Promise<{ data: any; raw: string } 
     return { data: null, raw }
   }
   return null
+}
+
+/**
+ * Chat completion returning parsed JSON. Falls back from json_schema to json_object, and from
+ * `model` to `fallbackModel` (once) when the reply is missing, unparseable or rejected by `validate`.
+ * `model` in the result names the model whose answer is returned.
+ */
+export async function chatJson(o: ChatOpts): Promise<{ data: any; raw: string; model: string } | null> {
+  const deadline = Date.now() + o.timeoutMs
+  const ok = (r: { data: any } | null) => !!r?.data && (!o.validate || safeValidate(o.validate, r.data))
+  const first = await chatOnce(o, o.model, o.timeoutMs)
+  if (ok(first) || !o.fallbackModel || o.fallbackModel === o.model) return first && { ...first, model: o.model }
+  const left = deadline - Date.now()
+  if (left < 1000) return first && { ...first, model: o.model }
+  trace('llm', { endpoint: 'fallback', model: o.fallbackModel, from: o.model, reason: first ? `rejected output: ${clip(first.raw, 200)}` : (lastError ? `${lastError.status} ${clip(lastError.body, 200)}` : 'no reply') })
+  const second = await chatOnce(o, o.fallbackModel, left)
+  if (ok(second)) return { ...second!, model: o.fallbackModel }
+  return first && { ...first, model: o.model }
+}
+
+function safeValidate(v: (d: any) => boolean, d: any): boolean {
+  try { return v(d) } catch { return false }
+}
+
+const modelIds = new Map<string, Promise<Set<string> | null>>()
+
+/** Whether Token Factory lists `id` in GET /models (cached per process; null = list unavailable). */
+export async function modelListed(id: string): Promise<boolean | null> {
+  if (!hasKey()) return null
+  if (!modelIds.has('all')) {
+    modelIds.set('all', tfFetch<any>('models', undefined, 15000).then(r => (Array.isArray(r?.data) ? new Set<string>(r.data.map((m: any) => String(m?.id))) : null)))
+  }
+  const ids = await modelIds.get('all')!
+  if (!ids) { modelIds.delete('all'); return null } // retry the list next time
+  return ids.has(id)
 }
