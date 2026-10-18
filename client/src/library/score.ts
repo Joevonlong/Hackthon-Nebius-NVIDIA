@@ -45,9 +45,13 @@ export function rescore(papers: LibPaper[], rule: PassRule & { weights?: Weights
     const { components, total } = combine(p.components, rule.weights)
     return { ...p, components, total }
   })
-  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total)
+  // same order as server/library/score.ts: the cut is taken by total (ties: title), then excluded last, passed first,
+  // total desc, title — so client ranks match the server's and the chat's after re-weighting.
+  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
   const cut = passCut(next.filter(p => !p.excluded).length, rule.topPercent)
-  next.forEach((p, i) => { p.rank = i + 1; p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 })
+  next.forEach((p, i) => { p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 })
+  next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
+  next.forEach((p, i) => { p.rank = i + 1 })
   return next
 }
 

@@ -1,24 +1,48 @@
-// Owner: lane L2. Library files: ${DATA_DIR}/library/<id>/{goals.json, library.json, papers/<paperId>.json}.
+// Owner: lane L2 / W2. Library files: {goals.json, library.json, graph.json, papers/<paperId>.json} in
+// ${WORKSPACE_DIR}/<question>/libraries/<id>/ (D-37) — or ${DATA_DIR}/library/<id>/ for builds without a question folder.
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
 import type { Goals, LibPaper, LibraryRequest, LibrarySummary } from '@shared/library'
 import { env } from '../env'
 import type { LibraryState } from './pipeline'
+import { findQuestionLibrary, questionLibraryDir, questionLibraryIds, questionDir } from './workspace'
 
 const ID_RE = /^[A-Za-z0-9_-]{1,100}$/
 export const libraryRoot = () => resolve(env.dataDir, 'library')
 export const isSafeId = (id: string) => ID_RE.test(id)
 
-export function libraryDir(id: string): string | null {
+/** Legacy location DATA_DIR/library/<id> (builds without a question folder, and builds before D-37). */
+export function legacyLibraryDir(id: string): string | null {
   if (!isSafeId(id)) return null
   const dir = resolve(libraryRoot(), id)
   return dir.startsWith(libraryRoot() + sep) ? dir : null
 }
 
+/** D-37: WORKSPACE_DIR/<question>/libraries/<id> when it exists, else DATA_DIR/library/<id>. */
+export function libraryDir(id: string): string | null {
+  if (!isSafeId(id)) return null
+  return findQuestionLibrary(id)?.dir ?? legacyLibraryDir(id)
+}
+
+/** graph.json: the passed papers as nodes + their citation links among each other (what the graph view draws). */
+function graphOf(papers: LibPaper[]) {
+  const passed = papers.filter(p => p.passed && !p.excluded)
+  const ids = new Set(passed.map(p => p.paper.id))
+  const edges: { source: string; target: string; type: string }[] = []
+  for (const p of passed) for (const r of p.relations) {
+    if ((r.type === 'cites' || r.type === 'cited_by') && ids.has(r.paperId)) edges.push(r.type === 'cites' ? { source: p.paper.id, target: r.paperId, type: 'cites' } : { source: r.paperId, target: p.paper.id, type: 'cites' })
+  }
+  const seen = new Set<string>()
+  return {
+    nodes: passed.map(p => ({ id: p.paper.id, rank: p.rank, title: p.paper.title, year: p.paper.year ?? null, total: Math.round(p.total * 1000) / 1000 })),
+    edges: edges.filter(e => { const k = e.source + '>' + e.target; if (seen.has(k)) return false; seen.add(k); return true }),
+  }
+}
+
 /** Writes all files; returns the library folder (or null on failure — files are a cache, never break the run). */
 export function writeLibraryFiles(s: LibraryState): string | null {
   try {
-    const dir = libraryDir(s.id)
+    const dir = questionLibraryDir(s.request.questionId, s.id) ?? legacyLibraryDir(s.id)
     if (!dir) return null
     mkdirSync(join(dir, 'papers'), { recursive: true })
     writeFileSync(join(dir, 'goals.json'), JSON.stringify(s.goals, null, 2))
@@ -42,6 +66,7 @@ export function writeLibraryFiles(s: LibraryState): string | null {
     }
     writeFileSync(join(dir, 'library.json'), JSON.stringify(library, null, 2))
     for (const p of s.papers) writeFileSync(join(dir, p.file), JSON.stringify(p, null, 2))
+    writeFileSync(join(dir, 'graph.json'), JSON.stringify(graphOf(s.papers), null, 2))
     return dir
   } catch (e) {
     console.warn(`[library ${s.id}] writing files failed`, (e as Error).message)
@@ -108,15 +133,24 @@ export function summarize(id: string, lib: LibraryJson, goals: Goals | null): Li
 
 /** Saved libraries, newest first; with questionId only that question's (null = libraries without a question). Dot folders (.trash) are skipped. */
 export function listLibraries(questionId?: string | null): LibrarySummary[] {
-  const root = libraryRoot()
-  if (!existsSync(root)) return []
   const out: LibrarySummary[] = []
-  for (const id of readdirSync(root)) {
-    if (id.startsWith('.') || !isSafeId(id)) continue
-    const dir = join(root, id)
+  const add = (dir: string, id: string, qid?: string) => {
     const lib = readJson(join(dir, 'library.json')) as LibraryJson | null
-    if (!lib) continue
-    out.push(summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null))
+    if (!lib) return
+    const sum = summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null)
+    if (qid) { sum.questionId = qid; sum.questionName = qid }
+    out.push(sum)
+  }
+  // D-37: WORKSPACE_DIR/<question>/libraries/<id>
+  if (questionId) {
+    const qdir = questionDir(questionId)
+    if (qdir) for (const id of questionLibraryIds(questionId)) if (isSafeId(id)) add(join(qdir, 'libraries', id), id, questionId)
+  }
+  // legacy DATA_DIR/library/<id> (old builds without questionId are "Earlier libraries")
+  const root = libraryRoot()
+  if (existsSync(root)) for (const id of readdirSync(root)) {
+    if (id.startsWith('.') || !isSafeId(id) || out.some(l => l.libraryId === id)) continue
+    add(join(root, id), id)
   }
   out.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return questionId === undefined ? out : out.filter(l => (l.questionId ?? null) === questionId)
@@ -133,11 +167,11 @@ export function renameLibrary(id: string, name: string): LibrarySummary | null {
   return summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null)
 }
 
-/** Moves the library folder to DATA_DIR/library/.trash/<id> (never hard-deletes). */
+/** Moves the library folder to .trash/<id> next to it (question libraries/.trash or DATA_DIR/library/.trash); never hard-deletes. */
 export function trashLibrary(id: string): boolean {
   const dir = libraryDir(id)
   if (!dir || !existsSync(dir)) return false
-  const trash = join(libraryRoot(), '.trash')
+  const trash = join(dir, '..', '.trash')
   mkdirSync(trash, { recursive: true })
   let dest = join(trash, id); let k = 2
   while (existsSync(dest)) dest = join(trash, `${id}_${k++}`)

@@ -34,7 +34,7 @@ export function questionNote (question: string, name?: string): Omit<Note, 'upda
     path: name ? questionPath(name) : QUESTION_PATH,
     kind: 'note',
     title: 'Question',
-    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n# Question\n\n${question}\n\n## Seeds\n\nAdd trusted papers in the **Library** tab (paste ids or upload a .bib / .ris / CSL JSON / CSV / PDF). Their notes land in seeds/ next to this note, and only this question's builds read them.\n`,
+    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n# Question\n\n${question}\n\n## Seeds\n\nAdd trusted papers in the **Library** tab (paste ids or upload a .bib / .ris / CSL JSON / CSV / PDF). Their notes land in seeds/ next to this note, and only this question's builds read them.\n\n## Kept so far\n\n- [ ] Build the library from this question\n- [ ] Keep the papers worth reading\n`,
   }
 }
 
@@ -42,6 +42,33 @@ const lsGet = (k: string) => { try { return localStorage.getItem(k) } catch { re
 const lsSet = (k: string, v: string | null) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v) } catch { /* private mode */ } }
 
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+
+// ---- D-37: write-through to the server's question folders (WORKSPACE_DIR/<question>/…) ----
+/** "Questions/<q>/<rel>" → { q, rel } (rel = path inside the question folder). */
+export function splitQuestionPath(path: string): { q: string; rel: string } | null {
+  const m = path.match(/^Questions\/([^/]+)\/(.+\.md)$/)
+  return m ? { q: m[1], rel: m[2] } : null
+}
+const qUrl = (q: string) => `/api/questions/${encodeURIComponent(q)}`
+const noteUrl = (q: string, rel: string) => `${qUrl(q)}/notes/${rel.split('/').map(encodeURIComponent).join('/')}`
+const pending = new Map<string, ReturnType<typeof setTimeout>>()
+let serverOk = true
+async function call(url: string, init?: RequestInit): Promise<Response | null> {
+  try { const r = await fetch(url, init); serverOk = true; return r } catch { serverOk = false; return null }
+}
+const json = (method: string, body: unknown): RequestInit => ({ method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+function pushNote(path: string, content: string) {
+  const sp = splitQuestionPath(path); if (!sp) return
+  clearTimeout(pending.get(path))
+  pending.set(path, setTimeout(() => { pending.delete(path); void call(noteUrl(sp.q, sp.rel), json('PUT', { content })) }, 300))
+}
+function dropNote(path: string) {
+  const sp = splitQuestionPath(path); if (!sp) return
+  clearTimeout(pending.get(path)); pending.delete(path)
+  void call(noteUrl(sp.q, sp.rel), { method: 'DELETE' })
+}
+const kindOf = (rel: string): NoteKind => rel.startsWith('seeds/') ? 'seed' : 'note'
+const paperIdOf = (content: string) => content.match(/^paper_id:\s*(\S+)/m)?.[1]
 
 const topFolder = (p: string) => (p.includes('/') ? p.split('/')[0] : '')
 
@@ -81,10 +108,38 @@ export const useVault = defineStore('vault', {
         this.error = 'Could not open the browser vault (IndexedDB). Notes will not persist.'
       }
       this.migrate()
+      await this.pull()
       const saved = lsGet(CURRENT_KEY)
       this.current = this.questions.find(q => q.id === saved)?.id ?? this.questions[0]?.id ?? null
       this.ready = true
       this.persist()
+    },
+    /**
+     * D-37: the server's question folders are the source of truth. Server questions replace the local copy of that folder;
+     * local-only question folders (migrated or created offline) are uploaded. Without a server the local cache is used.
+     */
+    async pull() {
+      const res = await call('/api/questions')
+      if (!res?.ok) { this.error = this.error || (res ? '' : 'Server unreachable: question folders are only in this browser for now.'); return }
+      const { questions = [] } = await res.json().catch(() => ({})) as { questions?: { id: string }[] }
+      const onServer = new Set(questions.map(q => q.id))
+      for (const q of questions) {
+        const r = await call(`${qUrl(q.id)}/notes`)
+        if (!r?.ok) continue
+        const { notes = [] } = await r.json().catch(() => ({})) as { notes?: { path: string; content: string; updatedAt: number }[] }
+        const prefix = questionFolder(q.id) + '/'
+        this.notes = this.notes.filter(n => !n.path.startsWith(prefix))
+        for (const n of notes) {
+          const path = prefix + n.path
+          this.notes.push({ path, kind: kindOf(n.path), title: path.split('/').pop()!.replace(/\.md$/, ''), content: n.content, paperId: kindOf(n.path) === 'seed' ? paperIdOf(n.content) : undefined, updatedAt: n.updatedAt })
+        }
+      }
+      for (const q of this.questions.filter(x => !onServer.has(x.id))) {
+        const note = this.byPath(q.path)
+        const r = await call('/api/questions', json('POST', { id: q.id, content: note?.content ?? '' }))
+        if (!r?.ok) continue
+        for (const n of this.notesIn(q.id)) if (n.path !== q.path) pushNote(n.path, n.content)
+      }
     },
     /** One-time D-33 migration: Notes/Question.md + Seeds/* → Questions/<name>/{Question.md, seeds/}. User notes stay. */
     migrate() {
@@ -117,12 +172,19 @@ export const useVault = defineStore('vault', {
       const base = safeQuestionName(rawName) || nameFromQuestion(text)
       if (!base) return null
       let name = base; let k = 2
+      const note = (n: string) => questionNote(text.trim() || 'Write your research question here.', n)
       while (this.notes.some(n => n.path.toLowerCase().startsWith(questionFolder(name).toLowerCase() + '/'))) name = `${base} ${k++}`
-      await this.upsert(questionNote(text.trim() || 'Write your research question here.', name))
+      // D-37: create the folder on the server first (409 = a folder with that name exists there: take the next name)
+      for (let tries = 0; tries < 20; tries++) {
+        const r = await call('/api/questions', json('POST', { id: name, content: note(name).content }))
+        if (!r || r.ok || r.status !== 409) break
+        name = `${base} ${k++}`
+      }
+      await this.upsert(note(name))
       this.setCurrent(name)
       return name
     },
-    /** Moves every note under Questions/<old>/ to Questions/<new>/. */
+    /** Moves every note under Questions/<old>/ to Questions/<new>/ (and renames the server folder). */
     renameQuestion(oldName: string, rawNew: string): string | null {
       const next = safeQuestionName(rawNew)
       if (!next || next === oldName) return null
@@ -131,22 +193,27 @@ export const useVault = defineStore('vault', {
       for (const n of this.notes) if (n.path.startsWith(from)) { n.path = questionFolder(next) + '/' + n.path.slice(from.length); n.updatedAt = Date.now() }
       if (this.current === oldName) this.setCurrent(next)
       this.persist()
+      void call(qUrl(oldName), json('PATCH', { name: next }))
+      try { const last = localStorage.getItem(`papertrail:lastLibrary:${oldName}`); if (last) { localStorage.setItem(`papertrail:lastLibrary:${next}`, last); localStorage.removeItem(`papertrail:lastLibrary:${oldName}`) } } catch { /* private mode */ }
       return next
     },
-    /** Removes the whole question folder (Question.md, seeds, notes in it). */
+    /** Removes the whole question folder (Question.md, seeds, notes in it); the server moves it to workspace/.trash/. */
     deleteQuestion(name: string) {
       const from = questionFolder(name) + '/'
+      for (const n of this.notes) if (n.path.startsWith(from)) { clearTimeout(pending.get(n.path)); pending.delete(n.path) }
       this.notes = this.notes.filter(n => !n.path.startsWith(from))
       if (this.current === name) this.setCurrent(this.questions[0]?.id ?? null)
       this.persist()
+      void call(qUrl(name), { method: 'DELETE' })
     },
     async upsert(note: Omit<Note, 'updatedAt'>) {
       const n = { ...note, updatedAt: Date.now() }
       const i = this.notes.findIndex(x => x.path === n.path)
       if (i >= 0) this.notes[i] = n; else this.notes.push(n)
       this.persist()
+      pushNote(n.path, n.content)
     },
-    async remove(path: string) { this.notes = this.notes.filter(n => n.path !== path); this.persist() },
+    async remove(path: string) { this.notes = this.notes.filter(n => n.path !== path); this.persist(); dropNote(path) },
     async rename(path: string, newPath: string) {
       if (!newPath.endsWith('.md')) newPath += '.md'
       if (path === newPath || this.notes.some(n => n.path === newPath)) return false
@@ -155,11 +222,12 @@ export const useVault = defineStore('vault', {
       n.title = newPath.split('/').pop()!.replace(/\.md$/, '')
       n.updatedAt = Date.now()
       this.persist()
+      pushNote(newPath, n.content); dropNote(path)
       return true
     },
-    /** Creates an empty note with a unique name (in the current question folder by default) and returns its path. */
+    /** Creates an empty note with a unique name (in the current question's notes/ folder by default) and returns its path. */
     async create(name = 'Untitled', folder?: string) {
-      const dir = folder ?? (this.current ? questionFolder(this.current) : 'Notes')
+      const dir = folder ?? (this.current ? questionFolder(this.current) + '/notes' : 'Notes')
       let path = `${dir}/${name}.md`; let k = 2
       while (this.notes.some(n => n.path.toLowerCase() === path.toLowerCase())) path = `${dir}/${name} ${k++}.md`
       const title = path.split('/').pop()!.replace(/\.md$/, '')

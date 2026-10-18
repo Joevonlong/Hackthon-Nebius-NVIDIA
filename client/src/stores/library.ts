@@ -104,12 +104,20 @@ export const useLibrary = defineStore('library', {
     papers(): LibPaper[] {
       const base = this.allPapers.length ? this.allPapers : this.streamed
       const out = rescore(base, { topPercent: this.topPercent, threshold: this.threshold, weights: this.reweighted ? this.weights : undefined })
-      // D-27 on the whole library: while only the streamed top is held, the top-X% cut counts every scored paper
-      if (!this.allPapers.length && this.total > base.length) {
-        const cut = passCut(this.total, this.topPercent)
-        for (const p of out) p.passed = !p.excluded && p.rank <= cut && p.total >= this.threshold - 1e-12
+      // D-27 is a rule over the WHOLE library: when only part of it is loaded (streamed top, or a demo replay that keeps
+      // 150 of 599), keep the server's recorded passed flags instead of re-cutting the partial set.
+      if (!this.complete) {
+        const server = new Map(base.map(p => [p.paper.id, p.passed]))
+        for (const p of out) p.passed = !!server.get(p.paper.id) && !p.excluded
+        out.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
+        out.forEach((p, i) => { p.rank = i + 1 })
       }
       return out
+    },
+    /** True when every scored paper of the library is loaded (then the pass rule is re-applied in the browser). */
+    complete(): boolean {
+      const n = this.allPapers.length || this.streamed.length
+      return !this.total || n >= this.total
     },
     /** Alias kept for older callers (App.vue status line). */
     scored(): LibPaper[] { return this.papers },
@@ -123,12 +131,9 @@ export const useLibrary = defineStore('library', {
     passedTop(): LibPaper[] { return this.top.filter(p => p.passed && !p.excluded) },
     /** Every passed paper in the filtered view (the graph layer). */
     passedAll(): LibPaper[] { return this.view.filter(p => p.passed && !p.excluded) },
-    eligibleCount(): number { return this.allPapers.length || this.total <= this.streamed.length ? this.papers.filter(p => !p.excluded).length : this.total },
-    /** D-27 passed count (top X% of the non-excluded papers AND total >= the minimum score). Before every paper is loaded, the server's count. */
-    passedCount(): number {
-      if (this.allPapers.length || this.total <= this.streamed.length) return this.papers.filter(p => p.passed).length
-      return this.passed
-    },
+    eligibleCount(): number { return this.complete ? this.papers.filter(p => !p.excluded).length : this.total },
+    /** D-27 passed count (top X% of the non-excluded papers AND total >= the minimum score); the server's count while the library is partial. */
+    passedCount(): number { return this.complete ? this.papers.filter(p => p.passed).length : this.passed },
     /** Number of papers inside the top X% (before the minimum score). */
     cutCount(): number { return passCut(this.eligibleCount, this.topPercent) },
     /** Papers the pile has beyond what was streamed: true when topK exceeds what we hold. */

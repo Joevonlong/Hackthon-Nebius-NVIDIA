@@ -3,7 +3,7 @@
 import { computed, reactive, ref } from 'vue'
 import { useVault, type Note } from '../stores/vault'
 import { useUi } from '../stores/ui'
-import { useDiscovery } from '../stores/discovery'
+import { useLibrary } from '../stores/library'
 import { noteName } from '../stores/vault-utils'
 import { extractDois } from './importRefs'
 import Icon from './Icon.vue'
@@ -19,10 +19,42 @@ const importError = ref('')
 const activePath = computed(() => ui.activeTab?.kind === 'note' ? ui.activeTab.ref : ui.activeTab?.kind === 'preview' ? vault.byPaper(ui.activeTab.ref)?.path : '')
 const dot = (n: Note) => n.kind === 'seed' ? 'var(--seed)' : n.kind === 'lit' ? 'var(--cand)' : 'var(--line-2)'
 const emptyText: Record<string, string> = {
-  Seeds: 'Resolve seeds in Discover.',
+  Questions: 'Create your first research question in the Library tab.',
   Discovered: 'Kept papers land here.',
   Notes: 'No notes yet.',
 }
+
+// D-33: nested folders (Questions/<name>/seeds/…) as indented rows; folders first, then files.
+type Row = { kind: 'dir'; path: string; name: string; depth: number; count: number; empty: boolean } | { kind: 'file'; note: Note; depth: number }
+interface Dir { dirs: Map<string, Dir>; files: Note[] }
+const tree = computed(() => {
+  const root: Dir = { dirs: new Map(), files: [] }
+  for (const f of vault.folders) if (f.name) root.dirs.set(f.name, { dirs: new Map(), files: [] })
+  for (const n of vault.notes) {
+    const parts = n.path.split('/'); parts.pop()
+    let d = root
+    for (const p of parts) { if (!d.dirs.has(p)) d.dirs.set(p, { dirs: new Map(), files: [] }); d = d.dirs.get(p)! }
+    d.files.push(n)
+  }
+  return root
+})
+const countIn = (d: Dir): number => d.files.length + [...d.dirs.values()].reduce((s, x) => s + countIn(x), 0)
+const rows = computed<Row[]>(() => {
+  const out: Row[] = []
+  const walk = (d: Dir, prefix: string, depth: number) => {
+    const dirs = [...d.dirs.entries()].sort(([a], [b]) => depth === 0 ? (a === 'Questions' ? -1 : b === 'Questions' ? 1 : a.localeCompare(b)) : a.localeCompare(b))
+    for (const [name, sub] of dirs) {
+      const path = prefix ? `${prefix}/${name}` : name
+      const count = countIn(sub)
+      out.push({ kind: 'dir', path, name, depth, count, empty: !count })
+      if (!collapsed[path]) walk(sub, path, depth + 1)
+    }
+    for (const n of [...d.files].sort((a, b) => (a.path.endsWith('/Question.md') ? -1 : b.path.endsWith('/Question.md') ? 1 : a.path.localeCompare(b.path)))) out.push({ kind: 'file', note: n, depth })
+  }
+  walk(tree.value, '', 0)
+  return out
+})
+const indent = (depth: number, file = false) => ({ paddingLeft: `${4 + depth * 14 + (file ? 18 : 0)}px` })
 
 function open(n: Note) { ui.openNote(n.path, noteName(n.path)) }
 async function newNote() {
@@ -54,11 +86,14 @@ async function onImport(e: Event) {
   } catch { importError.value = `Could not read ${f.name}.` }
   finally { (e.target as HTMLInputElement).value = '' }
 }
-function useAsSeeds() {
+/** D-36: imported DOIs become seeds of the CURRENT research question (Questions/<name>/seeds/). */
+async function useAsSeeds() {
   if (!imported.value) return
-  useDiscovery().seedInputs = [...imported.value.dois]
-  ui.sideTab = 'discover'
+  const dois = imported.value.dois
   imported.value = null
+  ui.sideTab = 'library'
+  if (!vault.current) { importError.value = 'Create a research question in the Library tab first: seeds belong to one question.'; return }
+  await useLibrary().addSeeds(dois.join('\n'), vault.current)
 }
 </script>
 
@@ -80,24 +115,24 @@ function useAsSeeds() {
     <div v-if="!vault.ready" class="files-empty">Opening vault…</div>
     <template v-else>
       <div v-if="vault.error" class="files-err">{{ vault.error }}</div>
-      <div v-for="f in vault.folders" :key="f.name" class="folder">
-        <button class="dir" type="button" :aria-expanded="!collapsed[f.name]" @click="collapsed[f.name] = !collapsed[f.name]">
-          <Icon name="chevron" class="chev" :class="{ open: !collapsed[f.name] }" />
-          {{ f.name || 'Vault' }} <small>{{ f.notes.length }}</small>
-        </button>
-        <template v-if="!collapsed[f.name]">
-          <div v-if="!f.notes.length" class="files-empty">{{ emptyText[f.name] || 'Empty' }}</div>
-          <div v-for="n in f.notes" :key="n.path" class="file" :class="{ on: activePath === n.path }" role="button" tabindex="0"
-               :title="n.path" @click="open(n)" @keydown.enter="open(n)" @dblclick.stop="rename(n)">
-            <i :style="{ background: dot(n) }" />
-            <span class="fname">{{ noteName(n.path) }}</span>
-            <span class="facts">
-              <button type="button" class="ibtn sm" title="Rename" @click.stop="rename(n)"><Icon name="edit" /></button>
-              <button type="button" class="ibtn sm" title="Delete" @click.stop="remove(n)"><Icon name="trash" /></button>
-            </span>
-          </div>
+      <template v-for="r in rows" :key="r.kind === 'dir' ? 'd:' + r.path : r.note.path">
+        <template v-if="r.kind === 'dir'">
+          <button class="dir" type="button" :style="indent(r.depth)" :aria-expanded="!collapsed[r.path]" :title="r.path" @click="collapsed[r.path] = !collapsed[r.path]">
+            <Icon name="chevron" class="chev" :class="{ open: !collapsed[r.path] }" />
+            <span class="fname">{{ r.name }}</span> <small>{{ r.count }}</small>
+          </button>
+          <div v-if="r.empty && !collapsed[r.path] && r.depth === 0" class="files-empty">{{ emptyText[r.name] || 'Empty' }}</div>
         </template>
-      </div>
+        <div v-else class="file" :class="{ on: activePath === r.note.path }" role="button" tabindex="0" :style="indent(r.depth, true)"
+             :title="r.note.path" @click="open(r.note)" @keydown.enter="open(r.note)" @dblclick.stop="rename(r.note)">
+          <i :style="{ background: dot(r.note) }" />
+          <span class="fname">{{ noteName(r.note.path) }}</span>
+          <span class="facts">
+            <button type="button" class="ibtn sm" title="Rename" @click.stop="rename(r.note)"><Icon name="edit" /></button>
+            <button type="button" class="ibtn sm" title="Delete" @click.stop="remove(r.note)"><Icon name="trash" /></button>
+          </span>
+        </div>
+      </template>
     </template>
 
     <div v-if="importError" class="files-err">{{ importError }}</div>
@@ -105,7 +140,7 @@ function useAsSeeds() {
       <b>{{ imported.dois.length }} DOIs</b> from {{ imported.file }}
       <ul><li v-for="d in imported.dois.slice(0, 8)" :key="d">{{ d }}</li><li v-if="imported.dois.length > 8">+ {{ imported.dois.length - 8 }} more</li></ul>
       <div class="row">
-        <button class="btn primary" type="button" @click="useAsSeeds">Use as seeds</button>
+        <button class="btn primary" type="button" @click="useAsSeeds">Add as seeds of {{ vault.current || 'the current question' }}</button>
         <button class="btn" type="button" @click="imported = null">Cancel</button>
       </div>
     </div>
