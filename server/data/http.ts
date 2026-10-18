@@ -46,7 +46,13 @@ const gates: Record<string, Gate> = {
   openalex: new Gate(8, 0),
   pubmed: new Gate(1, 350), // ≤3 req/s without an NCBI key
   europepmc: new Gate(4, 100),
+  arxiv: new Gate(1, 3100), // arXiv API etiquette: ≤1 request / 3 s
+  serpapi: new Gate(2, 200),
 }
+
+/** Circuit breaker: an API whose budget is exhausted (429 with a long Retry-After) gets no more network calls until then. Cache reads still work. */
+export const blockedUntil: Record<string, number> = {}
+export const isBlocked = (api: string) => (blockedUntil[api] ?? 0) > Date.now()
 
 export const stats = { hits: 0, misses: 0 }
 
@@ -67,6 +73,7 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
     } catch { /* corrupt entry: refetch */ }
   }
   stats.misses++
+  if (isBlocked(api)) throw new HttpError(429, key, `${api} budget exhausted — circuit open until ${new Date(blockedUntil[api]).toISOString()}`)
   const gate = gates[api] ?? gates.openalex
   const retries = opts.retries ?? 4
   let lastErr: unknown
@@ -79,6 +86,10 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
       if (res.status === 429 || res.status >= 500) {
         lastErr = new HttpError(res.status, key, body)
         const ra = Number(res.headers.get('retry-after'))
+        if (res.status === 429 && ((Number.isFinite(ra) && ra > 60) || /insufficient budget/i.test(body))) {
+          blockedUntil[api] = Date.now() + Math.min(Number.isFinite(ra) && ra > 0 ? ra : 3600, 3600) * 1000
+          throw lastErr
+        }
         await sleep(Number.isFinite(ra) && ra > 0 ? Math.min(ra, 10) * 1000 : 800 * 2 ** attempt)
         continue
       }
@@ -89,7 +100,7 @@ export async function cachedGet(api: keyof typeof gates | string, url: string, o
       return { ...env, hash, cached: false }
     } catch (e) {
       if (!(e instanceof HttpError)) trace('api', { api, url: key, cached: false, attempt, error: String((e as Error)?.message ?? e).slice(0, 200) })
-      if (e instanceof HttpError && e.status < 500 && e.status !== 429) throw e
+      if (e instanceof HttpError && ((e.status < 500 && e.status !== 429) || isBlocked(api))) throw e
       lastErr = e
       await sleep(800 * 2 ** attempt)
     }
