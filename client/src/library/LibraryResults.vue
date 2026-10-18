@@ -2,7 +2,7 @@
 // Library results (lanes L3, U1, W1): pass rule (top X% + minimum score), filters, and the ranked papers as score
 // tiles (default) or a sortable sparkbar table (F-60, D-34; choice kept in localStorage). Every field of the old text
 // row is on the tile / row, in its hover card, or in the paper view + report card (click / "Report card").
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Labels, SourceName } from '@shared/library'
 import { useLibrary, SOURCE_LABEL, RECENT_FROM } from '../stores/library'
 import { useUi } from '../stores/ui'
@@ -14,11 +14,38 @@ import PassRule from './PassRule.vue'
 import ResultTiles from './results/ResultTiles.vue'
 import ResultTable from './results/ResultTable.vue'
 import MiniRadar from './results/MiniRadar.vue'
-import { loadView, saveView, type ResultsView } from './results/facts'
+import { loadView, rankMoves, saveView, type ResultsView } from './results/facts'
 
 const lib = useLibrary(), ui = useUi(), vault = useVault()
 const view = ref<ResultsView>(loadView())
 watch(view, saveView)
+
+// Q-4: the header counts every paper once (found = scored + excluded); "Show all N passed" raises the visible count
+// locally (no rebuild), "Show top K" goes back.
+const showAll = ref(false)
+const excludedCount = computed(() => lib.papers.length - lib.eligibleCount)
+const canShowAll = computed(() => lib.passedAll.length > lib.top.length)
+const shown = computed(() => {
+  const base = showAll.value ? lib.view.slice(0, Math.max(lib.topK, lib.passedAll.length)) : lib.top
+  return base.filter(p => (!lib.passedOnly || p.passed) && (!lib.filterSource || p.labels.sources.includes(lib.filterSource)))
+})
+watch(() => lib.dir, () => { showAll.value = false })
+
+// Q-8: rank moves after ANY re-score (weights, pass rule, filters, chat Apply): diff the previous order against the new
+// one; the arrows fade out after ~8 s. Skipped while a build streams in and when another library was opened.
+const MOVE_MS = 8000
+const moves = ref<Record<string, number>>({}), gen = ref(0)
+let timer: ReturnType<typeof setTimeout> | undefined
+watch(() => lib.papers, (next, prev) => {
+  if (!prev?.length || prev.length !== next.length || lib.status !== 'done') return
+  const m = rankMoves(prev, next)
+  if (!Object.keys(m).length) return
+  moves.value = m; gen.value++
+  clearTimeout(timer)
+  timer = setTimeout(() => { moves.value = {} }, MOVE_MS)
+})
+watch(() => lib.dir, () => { moves.value = {}; clearTimeout(timer) })
+onBeforeUnmount(() => clearTimeout(timer))
 // Legend radar: an even shape that only illustrates the axis order.
 const legend = (['relevance', 'graph', 'citations', 'venue', 'authors', 'llm'] as const).map(key => ({ key, label: key, weight: DEFAULT_WEIGHTS[key], value: 0.8, contribution: 0, how: '', evidence: [] }))
 const kinds = computed(() => Labels.shape.kind.options.filter(k => lib.papers.some(p => p.labels.kind === k)))
@@ -56,7 +83,9 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
         <h2>{{ lib.goals?.topic || 'Library' }}</h2>
         <p class="muted">
           <template v-if="lib.status === 'running'">Building… {{ lib.calls.length }} source calls so far.</template>
-          <template v-else-if="lib.status === 'done'"><b class="ink">{{ lib.passedCount }} of {{ lib.eligibleCount }}</b> pass · top {{ lib.topPercent }}% and score ≥ {{ f2(lib.threshold) }} · showing {{ lib.top.length }} of {{ lib.view.length }}<template v-if="nFilters"> filtered</template> papers</template>
+          <template v-else-if="lib.status === 'done'"><b class="ink">{{ lib.passedCount }} pass</b> of {{ lib.eligibleCount }} scored <span class="tipd" :title="`${lib.papers.length} papers found = ${lib.eligibleCount} scored + ${excludedCount} excluded by a hard gate (retracted, duplicate, off-language…). A paper passes when it is inside the top ${lib.topPercent}% of the scored papers and its total is at least ${f2(lib.threshold)}.`">({{ excludedCount }} excluded of {{ lib.papers.length }} found)</span> · top {{ lib.topPercent }}% and score ≥ {{ f2(lib.threshold) }} · showing {{ showAll ? 'all ' + shown.length : 'top ' + shown.length }}<template v-if="nFilters"> filtered</template>
+            <button v-if="!showAll && canShowAll" type="button" class="lnk more" @click="showAll = true">Show all {{ lib.passedAll.length }} passed</button>
+            <button v-else-if="showAll" type="button" class="lnk more" @click="showAll = false">Show top {{ lib.topK }}</button></template>
           <template v-else-if="lib.status === 'idle'">No library yet. Type a research question in the Library tab and press Build library.</template>
         </p>
       </div>
@@ -68,7 +97,7 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
       <button class="pill" type="button" @click="lib.start()">Retry</button>
     </div>
     <p v-if="lib.notice" class="notice">{{ lib.notice }}</p>
-    <p v-if="lib.lastApplied" class="notice applied">Applied from chat: {{ lib.lastApplied.rationale }} · ▲/▼ show rank moves since then.</p>
+    <p v-if="lib.lastApplied" class="notice applied">Applied from chat: {{ lib.lastApplied.rationale }} · ▲/▼ show rank moves for a few seconds.</p>
     <p v-if="lib.reweighted" class="notice">Re-scored in the browser with your weights. Build again to search with them.</p>
     <p v-if="lib.short" class="notice">Only {{ lib.view.length }} papers are loaded; build again to return {{ lib.topK }}.</p>
 
@@ -90,7 +119,7 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
           <label class="chk"><input v-model="lib.passedOnly" type="checkbox" /> passed only</label>
           <label class="sel">Found by <select v-model="lib.filterSource"><option value="">any source</option><option v-for="s in sources" :key="s" :value="s">{{ SOURCE_LABEL[s] }}</option></select></label>
           <button v-if="nFilters" type="button" class="lnk" @click="lib.clearFilters()">clear {{ nFilters }} filter{{ nFilters === 1 ? '' : 's' }}</button>
-          <span class="ct">{{ lib.filtered.length }} shown</span>
+          <span class="ct">{{ shown.length }} shown</span>
         </div>
       </div>
     </template>
@@ -107,10 +136,10 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
     </div>
 
     <div v-if="lib.status === 'running' && !lib.top.length" class="skels" :class="view"><div v-for="i in 6" :key="i" class="skel" /></div>
-    <p v-else-if="lib.papers.length && !lib.filtered.length" class="empty">No paper matches these filters. <button type="button" class="lnk" @click="lib.clearFilters(); lib.passedOnly = false; lib.filterSource = ''">Clear filters</button></p>
-    <template v-else-if="lib.filtered.length">
-      <ResultTiles v-if="view === 'tiles'" :papers="lib.filtered" :in-vault="inVault" @open="openPaper" />
-      <ResultTable v-else :papers="lib.filtered" :in-vault="inVault" @open="openPaper" />
+    <p v-else-if="lib.papers.length && !shown.length" class="empty">No paper matches these filters. <button type="button" class="lnk" @click="lib.clearFilters(); lib.passedOnly = false; lib.filterSource = ''">Clear filters</button></p>
+    <template v-else-if="shown.length">
+      <ResultTiles v-if="view === 'tiles'" :papers="shown" :moves="moves" :gen="gen" :in-vault="inVault" @open="openPaper" />
+      <ResultTable v-else :papers="shown" :moves="moves" :gen="gen" :in-vault="inVault" @open="openPaper" />
     </template>
   </div>
 </template>
@@ -125,6 +154,8 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
 h2{margin:4px 0 2px;font:700 1.5rem/1.15 var(--font-sans);letter-spacing:-.03em;text-wrap:balance}
 .muted{color:var(--ink-55);font-size:.78rem;margin:0}
 .ink{color:var(--ink)}
+.tipd{cursor:help;text-decoration:underline dotted;text-underline-offset:3px}
+.more{margin-left:8px;color:var(--ink);font-weight:600}
 .notice{margin:0;font-size:.74rem;color:var(--ink-64);border:1px dashed var(--ink-26);border-radius:10px;padding:7px 10px;line-height:1.45}
 .notice.applied{border-color:var(--accent);color:var(--ink)}
 .errbox{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.78rem;border:1px solid var(--accent);border-radius:12px;padding:10px 12px}

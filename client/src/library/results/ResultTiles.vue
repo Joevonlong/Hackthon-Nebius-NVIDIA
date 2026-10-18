@@ -5,7 +5,7 @@ import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../../stores/library'
 import ResultTile from './ResultTile.vue'
 
-defineProps<{ papers: LibPaper[]; inVault: (id: string) => boolean }>()
+defineProps<{ papers: LibPaper[]; inVault: (id: string) => boolean; moves: Record<string, number>; gen: number }>()
 const emit = defineEmits<{ open: [id: string] }>()
 const lib = useLibrary()
 const expanded = reactive<Record<string, boolean>>({})
@@ -14,7 +14,7 @@ const expanded = reactive<Record<string, boolean>>({})
 <template>
   <ol class="grid">
     <li v-for="(p, i) in papers" :key="p.paper.id" :class="{ wide: expanded[p.paper.id] }">
-      <ResultTile :paper="p" :index="i" :threshold="lib.threshold" :move="lib.rankMove(p.paper.id, p.rank)" :in-vault="inVault(p.paper.id)" :expanded="!!expanded[p.paper.id]"
+      <ResultTile :paper="p" :index="i" :threshold="lib.threshold" :move="moves[p.paper.id]" :gen="gen" :in-vault="inVault(p.paper.id)" :expanded="!!expanded[p.paper.id]"
         @open="emit('open', p.paper.id)" @toggle="expanded[p.paper.id] = !expanded[p.paper.id]" />
     </li>
   </ol>

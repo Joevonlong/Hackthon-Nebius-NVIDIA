@@ -9,7 +9,7 @@ import { sortPapers, type SortKey } from './facts'
 import ResultRow from './ResultRow.vue'
 import WhyScore from '../WhyScore.vue'
 
-const props = defineProps<{ papers: LibPaper[]; inVault: (id: string) => boolean }>()
+const props = defineProps<{ papers: LibPaper[]; inVault: (id: string) => boolean; moves: Record<string, number>; gen: number }>()
 const emit = defineEmits<{ open: [id: string] }>()
 const lib = useLibrary()
 const sortKey = ref<SortKey>('rank'), sortDir = ref<1 | -1>(1)
@@ -40,7 +40,7 @@ const cols: { k: SortKey; label: string; cls: string; title?: string }[] = [
     </thead>
     <tbody>
       <template v-for="p in rows" :key="p.paper.id">
-        <ResultRow :paper="p" :threshold="lib.threshold" :move="lib.rankMove(p.paper.id, p.rank)" :in-vault="inVault(p.paper.id)" :expanded="!!expanded[p.paper.id]"
+        <ResultRow :paper="p" :threshold="lib.threshold" :move="moves[p.paper.id]" :gen="gen" :in-vault="inVault(p.paper.id)" :expanded="!!expanded[p.paper.id]"
           @open="emit('open', p.paper.id)" @toggle="expanded[p.paper.id] = !expanded[p.paper.id]" />
         <tr v-if="expanded[p.paper.id]" class="exp"><td :colspan="cols.length + 1"><WhyScore :paper="p" /></td></tr>
       </template>
@@ -56,10 +56,10 @@ th button{all:unset;box-sizing:border-box;display:block;width:100%;padding:7px 6
 th button:hover,th[aria-sort="ascending"] button,th[aria-sort="descending"] button{color:var(--ink)}
 th button:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
 .ar{margin-left:3px}
-.c-rk{width:54px}.c-yr{width:50px}.c-kd{width:112px}.c-sb{width:58px}.c-tot{width:52px}.c-g{width:46px}.c-ps{width:64px}.c-x{width:32px}
+.c-rk{width:78px}.c-yr{width:50px}.c-kd{width:112px}.c-sb{width:58px}.c-tot{width:52px}.c-g{width:46px}.c-ps{width:64px}.c-x{width:32px}
 .c-tt{width:auto}
 .c-sb button{letter-spacing:.06em}
-@container (max-width: 720px){.c-yr,.c-kd,.c-g{display:none}.c-sb{width:30px}.c-rk{width:42px}.c-tot{width:62px}.c-ps{width:26px}.c-ps button{font-size:0}.c-x{width:28px}.c-sb button{padding:7px 1px;font-size:.5rem;letter-spacing:0;text-align:center}}
+@container (max-width: 720px){.c-yr,.c-kd,.c-g{display:none}.c-sb{width:30px}.c-rk{width:66px}.c-tot{width:62px}.c-ps{width:26px}.c-ps button{font-size:0}.c-x{width:28px}.c-sb button{padding:7px 1px;font-size:.5rem;letter-spacing:0;text-align:center}}
 .exp td{padding:4px 0 12px;border-bottom:1px solid var(--hair)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>

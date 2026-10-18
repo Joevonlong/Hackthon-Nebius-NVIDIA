@@ -11,6 +11,26 @@ export function loadView(): ResultsView {
 }
 export function saveView(v: ResultsView) { try { localStorage.setItem(VIEW_KEY, v) } catch { /* storage blocked */ } }
 
+/**
+ * Q-5: a total that sits within 0.005 of the minimum is shown with enough decimals that its display never contradicts
+ * passed / below (0.8496 vs minimum 0.85 reads "0.850"-ish only when it truly is; otherwise 3 or 4 decimals).
+ */
+export function fmtScore(total: number, threshold: number): string {
+  if (Math.abs(total - threshold) >= 0.005) return f2(total)
+  const pass = total >= threshold - 1e-12
+  for (const d of [3, 4, 5]) {
+    const t = total.toFixed(d), m = threshold.toFixed(d)
+    if (pass ? Number(t) >= Number(m) : Number(t) < Number(m)) return t
+  }
+  return total.toFixed(5)
+}
+/** Q-8: rank change per paper id between two scored piles (positive = moved up); unchanged papers are left out. */
+export function rankMoves(prev: LibPaper[], next: LibPaper[]): Record<string, number> {
+  const before = new Map(prev.map(p => [p.paper.id, p.rank]))
+  const out: Record<string, number> = {}
+  for (const p of next) { const b = before.get(p.paper.id); if (b != null && b !== p.rank) out[p.paper.id] = b - p.rank }
+  return out
+}
 export const status = (p: LibPaper) => p.excluded ? 'excluded' : p.passed ? 'passed' : 'below'
 export const statusTip = (p: LibPaper) => p.excluded ? 'hard gate: ' + p.excluded : p.passed ? 'inside the top X% and above the minimum score' : 'outside the top X% or under the minimum score'
 export const authorYear = (p: LibPaper) => `${lastName(firstAuthor(p.paper))}${p.paper.authors.length > 1 ? ' et al.' : ''} ${p.paper.year ?? 'n.d.'}`
