@@ -1,0 +1,44 @@
+/* Adapted from Zettlr source/common/modules/markdown-editor/editor.css (GPL-3.0, Hendrik Erz).
+   Hard-coded panel/tooltip colors replaced with PaperTrail tokens; desktop-only parts (iframes, vim, formatting bar) dropped. */
+
+.cm-scroller { flex-grow: 1; outline: 0; }
+
+.cm-editor {
+  outline: 0 !important;
+  height: 100%;
+  user-select: text;
+  background-color: inherit;
+  cursor: auto;
+
+  .cm-layer.cm-cursorLayer .cm-cursor { width: 2px; border: 0; z-index: 1; transform: translateZ(0); background: var(--seed); }
+  .cm-cursor { border-left-color: var(--seed); }
+  .cm-completionInfo { overflow: hidden; }
+  .cm-tooltip { padding: 4px; max-width: 800px; }
+  pre { padding: 0; }
+
+  input[type="checkbox"] {
+    transform: scale(1.2);
+    margin: 0.2em;
+    min-width: auto;
+    vertical-align: middle;
+    accent-color: var(--seed);
+  }
+
+  .cm-panels, .cm-tooltip, .cm-statusbar {
+    color: var(--fg);
+    background-color: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  }
+  .cm-tooltip-autocomplete > ul { font: 13px var(--font-body); max-height: 240px; }
+  .cm-tooltip-autocomplete > ul > li { padding: 4px 8px; border-radius: 4px; }
+  .cm-tooltip-autocomplete > ul > li[aria-selected] { background: var(--seed-soft); color: var(--fg); }
+  .cm-completionIcon { display: none; }
+
+  /* Zettlr's rendered list bullets and blockquote wrapper */
+  .rendered-bullet { color: var(--muted); }
+  .blockquote-wrapper { border-left: 3px solid var(--seed); padding-left: 12px; color: var(--muted); }
+  .cm-hr { color: var(--line-2); }
+  hr { border: 0; border-top: 1px solid var(--line-2); }
+}

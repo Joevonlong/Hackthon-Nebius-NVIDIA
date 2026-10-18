@@ -1,0 +1,25 @@
+/* Window chrome shared by the workspace (adapted from Zettlr window-register/assets/{main,geometry}.css and the
+   docs/plan.html workspace mockup). Colors come from tokens.css only. */
+html,body{overflow:hidden}
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:var(--seed-soft)}
+
+/* Scrollbars (thin, track-less, as in Zettlr) */
+*{scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+
+/* Toolbar buttons */
+.tb{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;background:transparent;border-radius:6px;padding:5px 8px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tb:hover{border-color:var(--line-2);color:var(--fg)}
+.tb[aria-pressed="true"]{background:var(--surface);border-color:var(--line-2);color:var(--fg)}
+
+/* Icon buttons */
+.ibtn{display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted);border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:14px;line-height:1}
+.ibtn:hover{background:var(--surface-2);color:var(--fg)}
+.ibtn.sm{width:20px;height:20px}
+.ibtn.sm .ic{width:12px;height:12px}
+
+/* Pill buttons */
+.btn{font:600 12.5px/1 var(--font-body);border:1px solid var(--line-2);background:var(--surface);color:var(--fg);border-radius:99px;padding:8px 12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn:disabled{opacity:.55;cursor:default}

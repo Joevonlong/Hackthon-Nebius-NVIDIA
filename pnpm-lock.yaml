@@ -11,6 +11,9 @@ importers:
       '@ai-sdk/openai-compatible':
         specifier: ^3.0.71
         version: 3.0.71(zod@4.6.7)
+      '@codemirror/autocomplete':
+        specifier: ^6.20.3
+        version: 6.20.3
       '@codemirror/commands':
         specifier: ^6.11.1
         version: 6.11.1
@@ -29,6 +32,12 @@ importers:
       '@hono/node-server':
         specifier: ^2.1.5
         version: 2.1.5(hono@4.13.13)
+      '@lezer/common':
+        specifier: ^1.5.3
+        version: 1.5.3
+      '@lezer/highlight':
+        specifier: ^1.2.5
+        version: 1.2.5
       '@lezer/markdown':
         specifier: ^1.8.0
         version: 1.8.0
