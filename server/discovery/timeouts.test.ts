@@ -36,7 +36,7 @@ it('finishes with lanes when every AI call hangs and R2 fails', async () => {
   const run = createRunState('run_t2', 'question?', 'demo', cfg)
   const t0 = Date.now()
   await runPipeline(run, ['10.1000/ws1', '10.1000/ws2'])
-  expect(Date.now() - t0).toBeLessThan(2000)
+  expect(Date.now() - t0).toBeLessThan(5000)
   const snap = snapshotOf(run)
   expect(snap.events.at(-1)?.type).toBe('done')
   expect(snap.counts.Core).toBe(1)

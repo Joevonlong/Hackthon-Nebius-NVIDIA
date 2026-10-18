@@ -14,8 +14,10 @@ export interface WebIds { kind: UrlKind; doi: string | null; pmid: string | null
 /** HTTP status of the last Tavily call (smoke script / diagnostics). */
 export let lastTavilyStatus = 0
 
-export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number; searchDepth?: 'basic' | 'advanced' } = {}): Promise<TavilyHit[]> {
+/** `throwOnError`: timeouts / HTTP errors reject (with a short message) instead of resolving to [] — Library mode reports them. */
+export async function tavilySearch(query: string, opts: { maxResults?: number; includeDomains?: string[]; timeoutMs?: number; searchDepth?: 'basic' | 'advanced'; throwOnError?: boolean } = {}): Promise<TavilyHit[]> {
   if (!env.tavilyKey || !query.trim()) return []
+  const t0 = Date.now()
   try {
     const call = () => fetch('https://api.tavily.com/search', {
       method: 'POST',
@@ -28,7 +30,6 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 12000),
     })
-    const t0 = Date.now()
     let res = await call()
     if (res.status === 429) { // one retry, honouring Retry-After (capped at 3 s)
       const ra = Number(res.headers.get('retry-after'))
@@ -36,15 +37,22 @@ export async function tavilySearch(query: string, opts: { maxResults?: number; i
       res = await call()
     }
     lastTavilyStatus = res.status
-    if (!res.ok) { trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: 0 }); return [] }
+    if (!res.ok) {
+      trace('tavily', { query, includeDomains: opts.includeDomains, status: res.status, ms: Date.now() - t0, count: 0 })
+      if (opts.throwOnError) throw new Error(`tavily HTTP ${res.status}`)
+      return []
+    }
     const data: any = await res.json()
     const hits: TavilyHit[] = (Array.isArray(data?.results) ? data.results : [])
       .filter((r: any) => typeof r?.url === 'string')
       .map((r: any) => ({ url: r.url, title: String(r.title ?? ''), content: String(r.content ?? ''), score: Number(r.score ?? 0) }))
     trace('tavily', { query, includeDomains: opts.includeDomains, searchDepth: opts.searchDepth ?? 'basic', status: res.status, ms: Date.now() - t0, count: hits.length, results: hits.map(h => ({ title: h.title, url: h.url, score: h.score, content: clip(h.content, 400) })) })
     return hits
-  } catch {
-    return []
+  } catch (e: any) {
+    if (!opts.throwOnError) return []
+    const timedOut = e?.name === 'TimeoutError' || e?.name === 'AbortError'
+    if (timedOut) trace('tavily', { query, searchDepth: opts.searchDepth ?? 'basic', status: 0, ms: Date.now() - t0, count: 0, error: 'timeout' })
+    throw timedOut ? new Error(`straggler skipped — no answer within ${opts.timeoutMs ?? 12000} ms`) : e
   }
 }
 

@@ -61,7 +61,7 @@ Method: hide all but 5 references of a real review; those are the seeds; the hid
 | Links to the papers you trust are a strong ranking signal | Ranking by seed links puts 40% and 35% relevant papers in the top 20, against a base rate of 5.2% and 4.5%. Citation count alone: 0% and 25% |
 | The seed-based pool for the melanoma example is large and varied | 980 candidates: Core 545, Linked 216, Bridges 218, 1 retracted paper flagged |
 
-What the hold-out does not show: it tested the seed-link pipeline, not the six-component Library score. The default Library weights (relevance 0.30, graph 0.15, citations 0.18, venue 0.15, authors 0.12, LLM 0.10) are design defaults, not tuned on the hold-out. A hold-out run of the full Library pipeline: `TBD-3 (from the recorded demo run / eval lane)`; if it is not done, say "not yet evaluated".
+What the hold-out does not show: it tested the seed-link pipeline, not the six-component Library score. The default Library weights (relevance 0.30, graph 0.15, citations 0.18, venue 0.15, authors 0.12, LLM 0.10) are design defaults, not tuned on the hold-out. A hold-out run of the full Library pipeline: Hold-out on two real immunology reviews (5 of each review's references as seeds, the rest hidden; 7 runs): the Library put 6–10 hidden references in its top 30 (precision@30 0.20–0.33) where a PubMed title search found 0–4 and an OpenAlex search 0–1; the review itself, not in the vault, ranked in the top 4 every run. Lower bounds: ground truth is one review's reference list and 7–14 of each top 30 were published after the review. Details: eval/RESULTS_LIBRARY.md.
 
 ## Why now
 
@@ -125,7 +125,7 @@ The scoring rubric and weights are not in hack/HACKATHON.md. Open item: captain 
 |---|---|---|
 | TBD-1 | PubMed result count for the final typed question | Pitch hook, Q&A |
 | TBD-2 | Final run: seconds, source calls, papers scored, abstracts read, quotes verified | Pitch proof, README, SUBMISSION |
-| TBD-3 | Hold-out or other evaluation of the full Library score (P@20 or recall) | Pitch proof, Q&A 2 |
+| TBD-3 | ✅ filled 16:40 from eval/RESULTS_LIBRARY.md | Pitch proof, Q&A 2 |
 | TBD-4 | Replay length of `?demo=1`; recording length | Runbook |
 | TBD-5 | Final question wording and the five seed papers (titles) | Runbook, SUBMISSION |
 | TBD-6 | Goals: number of goals and subtopics found | Runbook beat 3 |
