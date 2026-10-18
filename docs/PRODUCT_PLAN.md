@@ -221,3 +221,47 @@ nebius ai endpoint get $ID --format json | jq -r '.status.public_endpoints[] | s
 2. Share the plan page with the team; assign lanes A–D.
 3. Run `hack-init` (start 13:05, submit_by 18:00, deadline 18:30).
 4. D scaffolds and starts deploy v1; A writes contracts + store; B copies Zettlr assets; C builds the Discover tab on the fixtures in `docs/data`.
+
+---
+
+## 13. Change request CR-1 · Library mode (confirmed 15:25)
+
+Status: **CONFIRMED** 15:25. Requested by the user at 15:00. Detailed spec: [LIBRARY_SPEC.md](LIBRARY_SPEC.md); contracts: `shared/library.ts`.
+Note: three build agents were started at 15:15 before this confirmation step; their branches are not merged and will only be merged after confirmation.
+
+### Decisions added since 13:05
+| # | Decision |
+|---|---|
+| D-18 | Run locally (`PORT=3030 pnpm start` or `scripts/docker-local.sh` → :3040); Nebius deploy postponed |
+| D-19 | Token Factory has no reranker: the rerank step uses embedding similarity to the question, labelled as such |
+| D-20 | Library mode as below (confirmed) |
+| D-21 | Google Scholar dropped (no SerpAPI key, no scraping); Tavily gets high priority: question + every subtopic + every keyword group, max 10 results, advanced depth for subtopics, scholarly host list, ≤ 25 calls per library |
+| D-22 | Defaults confirmed: top-N 30, threshold 0.55, LLM reads abstracts only |
+
+### Requirements (from the user's request)
+| ID | Requirement |
+|---|---|
+| R-1 | Treat the whole vault as one research topic; an agent derives the goals (topic, question, goals, subtopics, keywords) from the notes, with the note passages as evidence |
+| R-2 | Find many papers: keyword search + subtopic search on Tavily, Google Scholar, PubMed, arXiv and OpenAlex, using every useful API parameter; expand through references, citing papers and similar articles; record every relation |
+| R-3 | Label every paper (type: journal article, conference paper, preprint, review, systematic review, meta-analysis, book, chapter, dataset, thesis, editorial; study design; peer reviewed; open access; field/topic; recency; tags) and save the labels in one JSON file per paper |
+| R-4 | Clean the pile: keep high-quality, truly relevant papers using citations, venue/conference standing, author reliability and affiliation, and an LLM read (abstract or full text) whose weight is lower than every other signal |
+| R-5 | Papers above a threshold join the citation graph |
+| R-6 | Every grade shows its evidence: the weighted items, how each was scored, the source of each number |
+| R-7 | The number of papers returned is a UI parameter |
+
+### Features and board (all P1 unless noted)
+| ID | Card | Lane | Est |
+|---|---|---|---|
+| F-30 | Goals agent from vault notes with verified note quotes (R-1) | L2 | 30m |
+| F-31 | Multi-source search: OpenAlex, PubMed (+ publication types, MeSH), arXiv, Tavily, Google Scholar via SerpAPI only; graph expansion; dedupe with provenance (R-2) | L1 | 75m |
+| F-32 | Enrichment: venues (h-index, core, DOAJ, type), authors (h-index, works, institution/ROR) (R-4) | L1 | 30m |
+| F-33 | Labels + per-paper JSON files (R-3) | L2 | 30m |
+| F-34 | Quality score: relevance .30 · graph .15 · citations .18 · venue .15 · authors .12 · LLM read .10, each with rule + evidence; hard gates; threshold → graph (R-4, R-5, R-6) | L2 | 45m |
+| F-35 | Library UI: top-N, threshold, sources, weights; goals card; sources table; score bars; evidence lists; labels; paper JSON view; add to vault; graph (R-5, R-6, R-7) | L3 | 75m |
+| F-36 | Traced live run + summary.md with goals, sources, labels, top N with evidence | captain | 20m |
+
+### Answers (15:25)
+1. Google Scholar: dropped; Tavily high priority instead (D-21).
+2. LLM read: abstract only for now (D-22).
+3. Defaults: top-N 30, threshold 0.55 (D-22).
+4. Placement next to or replacing Discover: open — user asked for a visual comparison first.
