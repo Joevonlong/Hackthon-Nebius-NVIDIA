@@ -16,7 +16,7 @@ export function questionNote (question: string): Omit<Note, 'updatedAt'> {
     path: QUESTION_PATH,
     kind: 'note',
     title: 'Question',
-    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n# Question\n\n${question}\n\n## Seeds\n\nAdd five trusted papers in the **Discover** tab. Their notes land in Seeds/ and you can link them here with \`[[wikilinks]]\`.\n\n## Kept so far\n\n- [ ] Run discovery\n- [ ] Keep the papers worth reading\n`,
+    content: `---\ntype: question\ncreated: ${new Date().toISOString().slice(0, 10)}\n---\n# Question\n\n${question}\n\n## Seeds\n\nAdd trusted papers with **Add seed papers** in the **Library** tab. Their notes land in Seeds/ and every library build expands from them.\n\n## Kept so far\n\n- [ ] Build the library from the vault\n- [ ] Keep the papers worth reading\n`,
   }
 }
 
