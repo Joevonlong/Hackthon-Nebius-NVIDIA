@@ -400,3 +400,12 @@ The server owns this folder (`WORKSPACE_DIR`, default `./workspace`); the browse
 | Q-14/15 | Keyboard shortcuts fire while typing / without focus | G1 |
 
 **D-38 (17:15, user choice for Q-6):** LLM off-topic gate — when the LLM read rates relevance 0–1 of 3, the paper cannot pass (no backfill of its slot), stays listed with the tag "off-topic (LLM read)" and the model's evidence; weights unchanged. Same rule in server/library/score.ts and client/src/library/score.ts.
+
+---
+
+## 20. CR-8 · Obsidian-style note titles (user, 17:25)
+| # | Requirement | Card | Owner |
+|---|---|---|---|
+| R-8.1 | Every note page shows an **inline title = the note's name** (Obsidian / Apple Notes style), above the body; no separate generic "# Question" heading | F-64 | W2 |
+| R-8.2 | For a question note the title is the question's **subject** — the same name as its folder `workspace/<subject>/` and its row in the file tree; a new question's name defaults to a short subject derived from the typed question (first ~6 meaningful words) | F-64 | W2 |
+| R-8.3 | Editing the inline title renames the note (question: renames the folder and the switcher entry); file tree, tabs and History update live; links `[[old name]]` are updated | F-64 | W2 |
