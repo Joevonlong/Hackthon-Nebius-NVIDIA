@@ -335,3 +335,17 @@ New items proposed:
 
 Decisions (16:15): **D-31** J-1 rejected by the user — the app stays local (laptop / Docker); the submission states that only the models run on Nebius Token Factory and that `scripts/deploy.sh` is ready but not run. **D-32** J-2…J-5 confirmed; J-2/J-3/J-4/J-5 UI go to lane U1, J-2 server (LLM read covers every returned paper) and J-5 field label go to lane U2.
 
+
+---
+
+## 17. Change request CR-5 · Visual library list + saved library history (proposed 16:20)
+| # | Requirement (user, 16:18) | Proposal | Card | Est |
+|---|---|---|---|---|
+| R-5.1 | The Library list is too text-heavy; redesign it to be visual without losing information; still show the score basis | Replace the text rows with the layout chosen from the candidates below. Every field stays reachable (hover / expand), scores keep their evidence | F-60 | 60m |
+| R-5.2 | Every generated library is saved locally and stays available; a new build never replaces old results | Server already writes `data/library/<id>/` per build. Add `GET /api/libraries` (id, question, created, counts, top paper) and a **History** list in the Library panel (open, rename, delete-with-confirm, compare counts); the last opened library reopens on reload; "Add to vault" notes keep a link to their library id. Export a library as one JSON/zip file | F-61 | 40m |
+
+Layout candidates for R-5.1 (pick one or two):
+- **V1 Score tiles grid** — card grid; each card: grade badge, big score ring, 6-segment mini radar, 3 chips (kind, year, OA); hover = verdict + quote.
+- **V2 Bubble map** — x = year, y = total score, size = citations, colour = kind; click a bubble → report card side panel.
+- **V3 Compact table + sparkbars** — one dense row per paper: rank, title, 6 tiny bars (one per component), grade, chips; sortable columns.
+- **V4 Ranked lanes** — columns by grade A/B/C/D with small cards, drag-free; counts on top.
