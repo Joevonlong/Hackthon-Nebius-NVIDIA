@@ -8,6 +8,9 @@ import { chatJson, hasKey, lastError } from '../ai/http'
 import { env } from '../env'
 import { clip, trace } from '../trace'
 import { rescorePapers } from './score'
+import { existsSync, appendFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { libraryDir } from './store'
 
 const KEYS = ['relevance', 'graph', 'citations', 'venue', 'authors', 'llm'] as const
 type Key = (typeof KEYS)[number]
@@ -225,6 +228,8 @@ export function sanitizeProposal(raw: unknown, current: ChatRequest['current'], 
 /** Rewrites loose citations (#9 "Title", **#9** Title…) into the [#9 Title] form the UI links. */
 export function normalizeCitations(reply: string): string {
   return reply
+    // some model replies arrive double-escaped: a literal "\n" before "#14" instead of a line break
+    .replace(/\\r/g, '').replace(/\\n/g, '\n').replace(/\\t/g, ' ')
     .replace(/(^|[^[\w])\*{0,2}#(\d{1,4})\*{0,2}[ :.\-–]*["“]([^"”\n]{3,200})["”]/g, (_m, pre, n, t) => `${pre}[#${n} ${t.trim()}]`)
     .replace(/\[\s*#(\d{1,4})\s*\]\s*["“]([^"”\n]{3,200})["”]/g, (_m, n, t) => `[#${n} ${t.trim()}]`)
     // a list line that starts with a bare "#9 Title (2020)" → "- [#9 Title] (2020)"
@@ -298,7 +303,9 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
     const why = error === 'no TOKEN_FACTORY_API_KEY' ? 'the server has no model key configured' : error ?? 'unknown error'
     res = { reply: `Sorry, I could not answer just now (${why}). Nothing was changed; please try again.`, cited: [], proposal: null, model: null }
   }
-  trace('chat', { type: 'turn', prompt: clip(lastUser, 2000), turns: req.messages.length, current: req.current, reply: clip(res.reply, 3000), cited: res.cited.map(c => c.rank), proposal: res.proposal, model: res.model, attempts, error, contextChars: ctx.text.length, ms: (deps.now?.() ?? Date.now()) - t0 }, libraryId)
+  const turn = { type: 'turn', prompt: clip(lastUser, 2000), turns: req.messages.length, current: req.current, reply: clip(res.reply, 3000), cited: res.cited.map(c => c.rank), proposal: res.proposal, model: res.model, attempts, error, contextChars: ctx.text.length, ms: (deps.now?.() ?? Date.now()) - t0 }
+  trace('chat', turn, libraryId)
+  saveChatTurn(libraryId, turn)
   return res
 }
 
@@ -308,6 +315,16 @@ export type AppliedBody = z.infer<typeof AppliedBody>
 export function logApplied(libraryId: string, b: AppliedBody): { ok: true; movedIn: number } {
   const movedIn = b.after.filter(id => !b.before.includes(id))
   const movedOut = b.before.filter(id => !b.after.includes(id))
-  trace('chat', { type: 'applied', prompt: clip(b.prompt, 2000), proposal: b.proposal, before: b.before, after: b.after, movedIn, movedOut }, libraryId)
+  const rec = { type: 'applied', prompt: clip(b.prompt, 2000), proposal: b.proposal, before: b.before, after: b.after, movedIn, movedOut }
+  trace('chat', rec, libraryId)
+  saveChatTurn(libraryId, rec)
   return { ok: true, movedIn: movedIn.length }
+}
+
+/** D-37: the chat history also lives with the library (<library folder>/chat.jsonl); the demo library has no folder. */
+function saveChatTurn(libraryId: string, rec: Record<string, unknown>) {
+  try {
+    const dir = libraryDir(libraryId)
+    if (dir && existsSync(dir)) appendFileSync(join(dir, 'chat.jsonl'), JSON.stringify({ t: new Date().toISOString(), ...rec }) + '\n')
+  } catch { /* the trace still has it */ }
 }
