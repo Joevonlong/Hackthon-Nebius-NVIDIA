@@ -2,7 +2,7 @@
 
 Form: _TBD (captain to paste the form link)_ · deadline 18:30 CEST · our target 18:00. The human submits; nothing here is submitted, published, or uploaded yet.
 
-Rewritten for the Library flow (CR-1 to CR-3). Numbers are measured or marked `TBD-n (from the recorded demo run / eval lane)`; the registry is in hack/PITCH.md. Replace or keep every TBD label before submitting.
+Rewritten for the Library flow (CR-1 to CR-3). Numbers are measured, with the source named in the TBD registry in hack/PITCH.md (filled 2026-10-18 from the `?demo=1` recording and named checks), or marked "not measured". The human-only items below stay TBD: form link, team, video.
 
 ## Project name
 
@@ -39,8 +39,16 @@ Live Library runs on the real backend (melanoma example, local):
 | Papers scored per build | 599 |
 | Abstracts read by the language model | 40 |
 | Model quotes verified word for word against the abstract | 38 of 40 (95%); earlier seed pipeline: 32 of 35 (91%) |
-| Figures for the final recorded run | TBD-2 (from the recorded demo run / eval lane) |
-| Cost per build | TBD-10 (from the recorded demo run / eval lane) |
+| Final recorded run (the `?demo=1` replay, recorded 2026-10-18 14:01 UTC) | 84.9 s; 82 source calls logged (81 ran: OpenAlex 36, PubMed 19, arXiv 13, Tavily 13; Google Scholar skipped, no key); 599 papers scored; 40 of 40 abstracts read; 37 of 40 quotes verified (92.5%); 150 passed (top 25%, floor 0.50), 5 excluded. Source: server/demo/recordings/library-melanoma.json |
+| Goals found in the recorded run | 5 goals, 8 subtopics, 15 keywords, 5 note quotes verified |
+| Top paper in the recorded run | "A Cancer Cell Program Promotes T Cell Exclusion and Resistance to Checkpoint Blockade" (Cell, 2018), total 0.98, grade A |
+| PubMed results for the question as typed | 15 (NCBI esearch, count only, 2026-10-18 15:11 UTC) |
+| Chat step on the recording | "Prioritize recent clinical studies": the proposal raises the relevance weight from 0.30 to 0.40 and keeps articles and reviews from 2023 on; in the top 10, 8 papers enter and 8 leave (150 held papers, client re-score, same proposal in 5 of 5 calls) |
+| Cost per build | Tokens measured, price not measured. Eight other builds of the same example used 213,682 to 223,076 tokens each (embeddings 180,304 to 186,217; judge 29,086 to 32,871; planner 4,292 to 5,825); the recorded run's own trace was not kept. No Token Factory price is in the repo docs |
+| Citation graph | Demo graph: 60 papers and 287 citation links (measured in the browser on main ba70395). A real library's graph.json: 1,296 edges, 1,112 paper to paper (lib_20261018141959_87bff3) |
+| Europe PMC reference fallback | Added 227 citation links in a caffeine build with OpenAlex off; reference step 9.1 s (lib_20261018144844_4cda2c, as reported by the captain; run files not re-checked) |
+| OpenAlex entity cache | Keeps builds working when the OpenAlex API budget is spent: 12,416 distinct cached entities (8,186 works, 3,766 authors, 464 sources); the backfill processed 41,479 entity records from 1,013 cached responses (counts taken 2026-10-18 15:14 UTC) |
+| Score donut and value bars | "Why this score" at a glance: where each paper's points come from, row by row (a view, no number) |
 | Evaluation of the full six-component score against known references | Hold-out on two real immunology reviews (5 of each review's references as seeds, the rest hidden; 7 runs): the Library put 6–10 hidden references in its top 30 (precision@30 0.20–0.33) where a PubMed title search found 0–4 and an OpenAlex search 0–1; the review itself, not in the vault, ranked in the top 4 every run. Lower bounds: ground truth is one review's reference list and 7–14 of each top 30 were published after the review. Details: eval/RESULTS_LIBRARY.md |
 
 Hold-out test on two real reviews (Nat Rev Cancer 2023, 235 references; 2020 review, 93 references), for the citation routes of the earlier seed pipeline: hide all but 5 references as seeds, build a pool, count hidden references. One review's reference list is incomplete, so every number is a lower bound. Method and tables: `docs/RANKING_AND_STORAGE.md` section 1.
@@ -65,8 +73,8 @@ _TBD (names and roles)._
 | Item | Link |
 |---|---|
 | Repository | https://github.com/Joevonlong/Hackthon-Nebius-NVIDIA (visibility to be checked by the human) |
-| Live app | _TBD (none if the app stays local; Nebius URL if deployed)_ |
-| Demo mode | _TBD_ `/?demo=1` (local) |
+| Live app | None: the app runs locally (laptop or Docker), no hosted URL. Models run on Nebius Token Factory |
+| Demo mode | `http://localhost:3030/?demo=1` (local, after `pnpm build && PORT=3030 pnpm start`; replays a recorded real run, no keys and no network needed) |
 | Video | _TBD (not recorded or uploaded)_ |
 
 ## License and credits
@@ -84,7 +92,7 @@ GPL-3.0-or-later. PaperTrail includes code and styles adapted from Zettlr (GPL-3
 | Chat model name confirmed from server config | open |
 | Repo visibility matches the rules; full git history scanned for keys before making it public | not done; ask the human first |
 | Video plays signed out | no video yet |
-| Every TBD-n in this file replaced or still labelled TBD | open |
+| Every TBD-n number in this file replaced | done 2026-10-18 (measured, sources named in hack/PITCH.md); human-only TBDs remain: form link, team, video |
 
 ## Checklist for the human
 

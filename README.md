@@ -9,21 +9,31 @@ PaperTrail is a paper discovery tool inside a Zettlr-style research workspace. Y
 1. **Type the question** in the Library panel. It is saved as `Notes/Question.md`.
 2. **Add 5 seed papers** (DOIs or PMIDs in notes). They are the papers you trust.
 3. **Build library.** A goals agent reads every note in the vault and writes the topic, goals, subtopics and keywords, with a verbatim quote from your notes as evidence for each goal. Search then runs on OpenAlex, PubMed (publication types, MeSH), arXiv and Tavily (high priority), and graph expansion follows references, citing papers and PubMed similar articles from the seeds. Papers already in the vault and retracted papers are excluded.
-4. **Review verdicts and report cards.** Each paper gets a one-sentence verdict and a "Why this score" report card: a letter grade, a one-line reason and a weight for six components (relevance, graph links, citations, venue, authors, language-model read). Evidence, with source links, is folded under each row. The model read has the lowest weight by design, and its quote is checked word for word against the abstract.
+4. **Review verdicts and report cards.** Each paper gets a one-sentence verdict and a "Why this score" report card: a letter grade, a one-line reason and a weight for six components (relevance, graph links, citations, venue, authors, language-model read). Evidence, with source links, is folded under each row, and a score donut with value bars shows at a glance where the points come from. The model read has the lowest weight by design, and its quote is checked word for word against the abstract.
 5. **Chat.** A column on the right answers questions about the library and proposes weight, pass-rule or filter changes as a diff with a reason. Nothing changes until you click **Apply**; then the list re-scores in the browser and shows rank changes. Applied changes are logged.
-6. **Keep.** **Add to vault** writes a literature note with front matter, the quote and `[[seed]]` links; the paper joins the graph (node size follows the grade). Export BibTeX for Zotero.
+6. **Keep.** **Add to vault** writes a literature note with front matter, the quote and `[[seed]]` links; the paper joins the graph (node size follows the grade), where citation links between papers are drawn as edges. Export BibTeX for Zotero.
 
 A paper passes if it is in the top X% of its library (default 25%) and above an absolute floor (default 0.50); both are adjustable in the UI and by the chat agent. Every paper is saved as one JSON file under `data/library/<libraryId>/papers/`, and every source and model call is traced under `logs/runs/<libraryId>/`.
 
 ## Measured results
 
-Only measured numbers are listed. Numbers from the final recorded run are marked TBD until the team fills them in.
+Only measured numbers are listed, each with its source. The figures for the final recorded run come from the `?demo=1` recording (`server/demo/recordings/library-melanoma.json`, recorded 2026-10-18 14:01 UTC from run `lib_20261018135951_a27857`).
 
 **Live Library runs** (real backend, melanoma single-cell example, 5 seed papers; local):
 
 - A build takes **94 to 102 s**, makes **74 to 107 source calls**, and scores **599 papers**.
 - The language model reads **40 abstracts**; **38 of 40 quotes (95%)** are verbatim substrings of the abstract. The earlier seed pipeline verified 32 of 35 (91%).
-- Final recorded run figures: TBD-2 (from the recorded demo run / eval lane). Cost per build: TBD-10 (from the recorded demo run / eval lane).
+- **Final recorded run** (the `?demo=1` replay): **84.9 s**, 82 source calls logged (81 ran; Google Scholar was skipped because no SerpAPI key is set), **599 papers scored**, 40 of 40 abstracts read, **37 of 40 quotes verified** (92.5%). 150 papers passed (top 25%, floor 0.50), 5 were excluded. The goals agent wrote 5 goals and 8 subtopics. The top paper is "A Cancer Cell Program Promotes T Cell Exclusion and Resistance to Checkpoint Blockade" (Cell, 2018), total 0.98, grade A. The replay keeps the top 150 and plays back in 6.2 s.
+- **Question as typed:** PubMed returns 15 results for "Which single-cell methods help study melanoma immune cells?" (NCBI esearch, count only, 2026-10-18 15:11 UTC).
+- **Chat step on the recording:** "Prioritize recent clinical studies" gives a proposal that raises the relevance weight from 0.30 to 0.40 and keeps articles and reviews from 2023 on. Applied to the 150 held papers with the browser re-score, 8 papers enter the top 10 and 8 leave (the same proposal came back in 5 of 5 calls).
+- **Cost per build:** tokens measured, price not measured. Eight other builds of the same example used 213,682 to 223,076 tokens each (embeddings 180,304 to 186,217; judge 29,086 to 32,871; planner 4,292 to 5,825). The recorded run's own trace was not kept, and no Token Factory price is in the repo docs.
+
+**Citation graph and resilience** (measured):
+
+- **Citation graph.** The demo graph shows **60 papers and 287 citation links** (measured in the browser on main `ba70395`). A real library's `graph.json` has **1,296 edges**, 1,112 of them paper to paper (`lib_20261018141959_87bff3`, recomputed from its papers).
+- **Europe PMC fallback.** When OpenAlex has no references, Europe PMC fills in: it added **227 citation links** in a caffeine build with OpenAlex switched off, and the reference step took 9.1 s (`lib_20261018144844_4cda2c`, figures from the team's run notes; the run files are not in this checkout).
+- **OpenAlex entity cache.** Builds keep working when the OpenAlex API budget is spent. The cache holds 12,416 distinct entities (8,186 works, 3,766 authors, 464 sources) and 14,836 DOI and PMID aliases; filling it from the older URL cache processed 41,479 entity records from 1,013 cached responses (counts taken 2026-10-18 15:14 UTC).
+- **Score donut and value bars.** "Why this score" shows where each paper's points come from at a glance (a view of the same numbers, no extra figure).
 
 **Hold-out test on two real reviews** (earlier seed pipeline, citation routes): hide all but 5 references (the seeds), build a pool from the seeds, count hidden references found. Ground truth is one review's reference list, so every number is a lower bound. Details: [docs/RANKING_AND_STORAGE.md](docs/RANKING_AND_STORAGE.md) section 1.
 
@@ -73,14 +83,14 @@ pnpm dev                     # server on :3001, client on http://localhost:5173
 
 Keys in `.env.local`: `TOKEN_FACTORY_API_KEY`, `TAVILY_API_KEY`, `OPENALEX_API_KEY`, `OPENALEX_MAILTO`.
 
-**Run for the demo (local).**
+**Run for the demo (local).** The live app runs locally (laptop or Docker); there is no hosted URL. Models run on Nebius Token Factory.
 
 ```bash
 pnpm build && PORT=3030 pnpm start   # http://localhost:3030
 scripts/docker-local.sh              # Docker alternative: http://localhost:3040 (HOST_PORT to change)
 ```
 
-**Demo mode.** Open the app with `?demo=1` (for example `http://localhost:3030/?demo=1`) to replay a recorded real Library run; no keys and no network needed. The recording is being replaced by the real run on the melanoma question (F-52); the replay is labelled as a recording. See `scripts/record-demo.ts` to record a run.
+**Demo mode.** Open the app with `?demo=1` (for example `http://localhost:3030/?demo=1`) to replay a recorded real Library run; no keys and no network needed. The recording is a real run on the melanoma question (599 papers scored, top 150 kept, recorded 2026-10-18 14:01 UTC); the replay is labelled as a recording. See `scripts/record-demo.ts` to record a run.
 
 Other commands: `pnpm typecheck`, `pnpm test`, `pnpm gate` (typecheck + tests + build).
 
