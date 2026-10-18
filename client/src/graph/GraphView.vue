@@ -5,6 +5,8 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as d3 from 'd3'
 import type { Candidate } from '@shared/contracts'
+import type { LibPaper } from '@shared/library'
+import { useLibrary } from '../stores/library'
 import DirectedGraph from './directed-graph'
 import { useVault, type Note } from '../stores/vault'
 import { useDiscovery } from '../stores/discovery'
@@ -12,12 +14,21 @@ import { useUi } from '../stores/ui'
 import { extractLinks, noteName, resolveLink } from '../stores/vault-utils'
 import { shortTitle } from '../discover/literatureNote'
 
-type Kind = 'seed' | 'lit' | 'note' | 'ghost' | 'bridge'
-interface GNode extends d3.SimulationNodeDatum { id: string; kind: Kind; label: string; sub: string; note?: Note; cand?: Candidate; component?: string }
+type Kind = 'seed' | 'lit' | 'note' | 'ghost' | 'bridge' | 'lib'
+interface GNode extends d3.SimulationNodeDatum { id: string; kind: Kind; label: string; sub: string; note?: Note; cand?: Candidate; lib?: LibPaper; component?: string }
 interface GLink extends d3.SimulationLinkDatum<GNode> { source: string | GNode; target: string | GNode; kind: 'wiki' | 'cite' }
 
 const MAX_GHOSTS = 25
-const vault = useVault(), disc = useDiscovery(), ui = useUi()
+const MAX_LIB = 60
+const vault = useVault(), disc = useDiscovery(), ui = useUi(), lib = useLibrary()
+
+// Library papers that passed the threshold (D-20/D-23: the candidate layer). Papers already kept as notes show as notes.
+const libNodes = computed(() => lib.passedTop.filter(p => !vault.byPaper(p.paper.id)).slice(0, MAX_LIB))
+/** Vault note for a known paper id (OpenAlex id, DOI, PMID or arXiv id): by note.paperId, else by the id in its text. */
+function noteForPaper(id: string): Note | undefined {
+  const k = id.toLowerCase()
+  return vault.notes.find(n => n.paperId?.toLowerCase() === k) || (k.length >= 6 ? vault.notes.find(n => n.content.toLowerCase().includes(k)) : undefined)
+}
 const wrap = ref<HTMLDivElement | null>(null)
 const svgEl = ref<SVGSVGElement | null>(null)
 const tip = ref<{ x: number; y: number; title: string; sub: string } | null>(null)
@@ -66,6 +77,21 @@ const data = computed(() => {
     DG.addVertex(id, c.paper.title)
     for (const sn of [...c.features.out, ...c.features.in]) { const sid = seedNode(sn); if (sid) addLink(id, sid, 'cite') }
   }
+  // Library papers: edges to the vault notes they cite / are cited by, and to other passed library papers.
+  const libIds = new Set(libNodes.value.map(p => p.paper.id))
+  for (const p of libNodes.value) {
+    const id = 'lib:' + p.paper.id
+    nodes.set(id, { id, kind: 'lib', label: shortTitle(p.paper), sub: `Library #${p.rank} · score ${p.total.toFixed(2)} · ${p.paper.title}`, lib: p })
+    DG.addVertex(id, p.paper.title)
+  }
+  for (const p of [...libNodes.value, ...lib.passedTop.filter(x => vault.byPaper(x.paper.id))]) {
+    const from = libIds.has(p.paper.id) ? 'lib:' + p.paper.id : 'note:' + vault.byPaper(p.paper.id)!.path
+    for (const r of p.relations) {
+      if (r.type !== 'cites' && r.type !== 'cited_by') continue
+      if (libIds.has(r.paperId)) { addLink(from, 'lib:' + r.paperId, 'cite'); continue }
+      const n = noteForPaper(r.paperId); if (n) addLink(from, 'note:' + n.path, 'cite')
+    }
+  }
   // Kept literature notes also link to their seeds through the run's features when the note has no wikilinks yet.
   for (const n of notes) if (n.kind === 'lit' && n.paperId) {
     const c = disc.byId(n.paperId); if (!c) continue
@@ -77,7 +103,7 @@ const data = computed(() => {
 })
 
 const counts = computed(() => {
-  const k = { seed: 0, lit: 0, note: 0, ghost: 0 }
+  const k = { seed: 0, lit: 0, note: 0, ghost: 0, lib: 0 }
   for (const n of data.value.nodes) { if (n.kind === 'bridge' || n.kind === 'ghost') k.ghost++; else k[n.kind]++ }
   return k
 })
@@ -88,11 +114,12 @@ let ro: ResizeObserver | null = null
 let zoomer: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null
 let userZoomed = false
 const pos = new Map<string, { x: number; y: number; vx?: number; vy?: number }>()
-const R: Record<Kind, number> = { seed: 9, lit: 7, note: 6, ghost: 5.5, bridge: 5.5 }
+const R: Record<Kind, number> = { seed: 9, lit: 7, note: 6, ghost: 5.5, bridge: 5.5, lib: 6 }
 
 function openNode(d: GNode) {
   if (d.note) ui.openNote(d.note.path, noteName(d.note.path))
   else if (d.cand) ui.openPreview(d.cand.paper.id, shortTitle(d.cand.paper))
+  else if (d.lib) ui.openLibPaper(d.lib.paper.id, shortTitle(d.lib.paper))
 }
 
 function render(animate: boolean) {
@@ -143,7 +170,7 @@ function render(animate: boolean) {
     .on('keydown', (e: KeyboardEvent, d) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openNode(d) } })
     .on('mouseenter', (e: MouseEvent, d) => {
       const r = wrap.value!.getBoundingClientRect()
-      tip.value = { x: e.clientX - r.left + 12, y: e.clientY - r.top + 12, title: d.cand ? d.cand.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.sub }
+      tip.value = { x: e.clientX - r.left + 12, y: e.clientY - r.top + 12, title: d.cand ? d.cand.paper.title : d.lib ? d.lib.paper.title : d.label, sub: d.cand ? `${d.cand.lane} #${d.cand.rank} · not in vault · click to preview` : d.lib ? `Library #${d.lib.rank} · score ${d.lib.total.toFixed(2)} ≥ ${lib.threshold.toFixed(2)} · ${d.lib.relations.filter(r => r.type === 'cites' || r.type === 'cited_by').length} citation links · click for the evidence` : d.sub }
       linkSel.classed('hot', l => (l.source as GNode).id === d.id || (l.target as GNode).id === d.id)
     })
     .on('mouseleave', () => { tip.value = null; linkSel.classed('hot', false) })
@@ -226,15 +253,17 @@ watch(signature, () => render(true))
     <svg ref="svgEl" role="img" aria-label="Vault graph: seeds, kept notes and candidates" />
     <div v-if="!data.nodes.length" class="empty">
       <template v-if="disc.status === 'running'"><b>Resolving seeds…</b> Seed notes appear here first, then candidates grow out of them.</template>
-      <template v-else><b>The graph is empty.</b> Run discovery: seed notes appear first, then candidates grow out of them as ghost nodes.</template>
+      <template v-else><b>The graph is empty.</b> Build a library from the Library tab: papers above the threshold appear here, linked to the notes they cite.</template>
     </div>
+    <div v-if="lib.status === 'running'" class="g-live" role="status"><i />Library building · passed papers appear when scoring finishes</div>
     <div v-if="disc.status === 'running'" class="g-live" role="status"><i />Run streaming · {{ counts.seed }} seeds · {{ counts.ghost }} candidates shown</div>
     <div class="g-legend">
       <span><i style="background:var(--seed)" />Seed note · {{ counts.seed }}</span>
       <span><i style="background:var(--cand)" />Kept note · {{ counts.lit }}</span>
       <span><i style="background:var(--line-2)" />Note · {{ counts.note }}</span>
-      <span><i class="hollow" />Candidate · {{ counts.ghost }}</span>
-      <span><i class="hollow dashed" />Bridge (no citation link)</span>
+      <span><i class="lib" />Library paper ≥ {{ lib.threshold.toFixed(2) }} · {{ counts.lib }}<template v-if="libNodes.length === MAX_LIB"> (first {{ MAX_LIB }})</template></span>
+      <template v-if="counts.ghost"><span><i class="hollow" />Seed-run candidate · {{ counts.ghost }}</span>
+      <span><i class="hollow dashed" />Bridge (no citation link)</span></template>
     </div>
     <div class="g-hint">scroll to zoom · drag to pan · click a node to open</div>
     <div v-if="tip" class="tip" :style="{ left: tip.x + 'px', top: tip.y + 'px' }"><b>{{ tip.title }}</b><small>{{ tip.sub }}</small></div>
@@ -251,6 +280,7 @@ svg:active{cursor:grabbing}
 .g-legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
 .g-legend i.hollow{border:1.5px solid var(--cand);background:var(--surface)}
 .g-legend i.dashed{border-style:dashed}
+.g-legend i.lib{background:color-mix(in srgb,var(--warn) 35%,var(--surface));border:1.5px solid var(--warn)}
 .g-live{position:absolute;left:10px;top:8px;display:inline-flex;align-items:center;gap:6px;font:500 11px var(--font-mono);color:var(--fg);background:var(--cand-soft);border:1px solid var(--cand);border-radius:99px;padding:3px 9px}
 .g-live i{width:7px;height:7px;border-radius:50%;background:var(--cand);animation:blink 1s ease-in-out infinite}
 @keyframes blink{50%{opacity:.3}}
@@ -267,6 +297,7 @@ svg:active{cursor:grabbing}
 :deep(.nd-lit){fill:var(--cand)}
 :deep(.nd-note){fill:var(--line-2)}
 :deep(.nd-ghost){fill:var(--surface);stroke:var(--cand);stroke-width:1.6}
+:deep(.nd-lib){fill:color-mix(in srgb,var(--warn) 35%,var(--surface));stroke:var(--warn);stroke-width:1.6}
 :deep(.nd-bridge){fill:var(--surface);stroke:var(--cand);stroke-width:1.4;stroke-dasharray:3 2}
 :deep(.glbl){font:500 10px var(--font-mono);fill:var(--muted);pointer-events:none}
 :deep(.glbl-seed){font-weight:600;fill:var(--fg)}

@@ -1,16 +1,16 @@
 <script setup lang="ts">
-// Owner: lane B. Zettlr's MainSidebar tabs: Discover (lane C's DiscoverPanel), Related (RelatedFilesTab), References (ReferencesTab).
+// Owner: lane B. Zettlr's MainSidebar tabs: Library (lane L3's LibraryPanel; replaced Discover per D-23), Related (RelatedFilesTab), References (ReferencesTab).
 import { computed } from 'vue'
 import { useUi, type SideTab } from '../stores/ui'
 import { useVault, type Note } from '../stores/vault'
 import { backlinks, extractLinks, noteName, resolveLink } from '../stores/vault-utils'
-import DiscoverPanel from '../discover/DiscoverPanel.vue'
+import LibraryPanel from '../library/LibraryPanel.vue'
 import { bibliography, exportBibTeX, exportCslJson, exportMarkdownZip } from './export'
 
 const ui = useUi()
 const vault = useVault()
 const tabs: { id: SideTab; label: string }[] = [
-  { id: 'discover', label: 'Discover' }, { id: 'related', label: 'Related' }, { id: 'references', label: 'References' },
+  { id: 'library', label: 'Library' }, { id: 'related', label: 'Related' }, { id: 'references', label: 'References' },
 ]
 
 const active = computed<Note | undefined>(() => {
@@ -37,10 +37,10 @@ function openRef(path: string) { const n = vault.byPath(path); if (n) open(n) }
 <template>
   <aside class="sidebar">
     <div class="sidetabs" role="tablist">
-      <button v-for="t in tabs" :key="t.id" type="button" role="tab" :aria-selected="ui.sideTab === t.id" @click="ui.sideTab = t.id">{{ t.label }}</button>
+      <button v-for="t in tabs" :key="t.id" type="button" role="tab" :aria-selected="ui.sideTab === t.id || (t.id === 'library' && ui.sideTab === 'discover')" @click="ui.sideTab = t.id">{{ t.label }}</button>
     </div>
     <div class="side-body">
-      <DiscoverPanel v-if="ui.sideTab === 'discover'" />
+      <LibraryPanel v-if="ui.sideTab === 'library' || ui.sideTab === 'discover'" />
 
       <div v-else-if="ui.sideTab === 'related'" class="side">
         <template v-if="active">

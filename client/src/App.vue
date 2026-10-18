@@ -8,12 +8,14 @@ import Icon from './workspace/Icon.vue'
 import { useVault, QUESTION_PATH } from './stores/vault'
 import { useUi } from './stores/ui'
 import { useDiscovery } from './stores/discovery'
+import { useLibrary } from './stores/library'
 import { noteName, parseFrontMatter } from './stores/vault-utils'
 import './styles/chrome.css'
 
 const vault = useVault()
 const ui = useUi()
 const discovery = useDiscovery()
+const library = useLibrary()
 const THEME_KEY = 'papertrail:theme'
 
 // Responsive shell: the editor keeps >= EDITOR_MIN px. As the window narrows, the file tree stops docking first
@@ -52,7 +54,7 @@ function toggleTheme() {
   try { localStorage.setItem(THEME_KEY, t) } catch { /* ignore */ }
 }
 function discover() {
-  ui.sideTab = 'discover'; showSidebar.value = true
+  ui.sideTab = 'library'; showSidebar.value = true // D-23: the toolbar's Discover button opens Library
   if (!filesDock.value) showFiles.value = false
 }
 
@@ -86,7 +88,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <span class="brand"><b>PaperTrail</b></span>
       <button class="tb" type="button" :aria-pressed="showFiles" title="Toggle file tree" @click="toggleFiles"><Icon name="files" /><span class="lbl">Files</span></button>
       <button class="tb" type="button" :aria-pressed="ui.activeTab?.kind === 'graph'" title="Open the graph view" @click="ui.openGraph()"><Icon name="graph" /><span class="lbl">Graph</span></button>
-      <button class="tb" type="button" :aria-pressed="showSidebar && ui.sideTab === 'discover'" title="Discover papers from your seeds" @click="discover"><Icon name="discover" />Discover</button>
+      <button class="tb" type="button" :aria-pressed="showSidebar && ui.sideTab === 'library'" title="Build a scored library from the whole vault" @click="discover"><Icon name="discover" />Library</button>
       <span class="title">{{ activeNote ? activeNote.path : 'Browser vault' }}</span>
       <button class="tb theme" type="button" :title="'Switch to ' + (ui.theme === 'dark' ? 'Brightfield' : 'Fluorescence')" @click="toggleTheme">
         <Icon :name="ui.theme === 'dark' ? 'moon' : 'sun'" /><span class="lbl">{{ themeName }}</span>
@@ -103,7 +105,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <span>{{ fmt(vault.notes.length) }} notes · {{ counts.seed }} seeds · {{ counts.lit }} discovered</span>
       <span>
         <template v-if="activeNote">{{ fmt(words) }} words · </template>
-        <template v-if="discovery.status !== 'idle'">Run {{ discovery.status }} · {{ fmt(discovery.total) }} candidates · </template>
+        <template v-if="library.status !== 'idle'">Library {{ library.status }} · {{ fmt(library.total) }} scored · {{ fmt(library.scored.filter(p => p.passed).length) }} passed · </template>
         {{ themeName }}
       </span>
     </footer>
