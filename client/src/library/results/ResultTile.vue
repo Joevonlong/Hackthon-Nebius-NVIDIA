@@ -7,12 +7,13 @@ import type { LibPaper } from '@shared/library'
 import { grade } from '../score'
 import { authorYear, status, statusTip, tileChips } from './facts'
 import { useHoverCard } from './useHoverCard'
+import MoveBadge from './MoveBadge.vue'
 import ScoreRing from './ScoreRing.vue'
 import MiniRadar from './MiniRadar.vue'
 import HoverCard from './HoverCard.vue'
 import WhyScore from '../WhyScore.vue'
 
-const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; inVault?: boolean; expanded?: boolean; index?: number }>()
+const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean; index?: number }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
 const g = computed(() => grade(props.paper.total))
 const st = computed(() => status(props.paper))
@@ -25,7 +26,7 @@ const hc = useHoverCard()
     <div class="face">
       <div class="eb">
         <span class="rk">#{{ paper.rank }}</span>
-        <span v-if="move" class="move" :class="move > 0 ? 'upm' : 'downm'" :title="`rank moved ${Math.abs(move)} after the last applied change`">{{ move > 0 ? '▲' : '▼' }}{{ Math.abs(move) }}</span>
+        <MoveBadge :move="move" :gen="gen" />
         <span v-if="inVault" class="iv" title="already in your vault">in vault</span>
         <span class="st" :title="statusTip(paper)">{{ st }}</span>
       </div>
@@ -57,7 +58,6 @@ const hc = useHoverCard()
 .card-x{flex:1;min-width:0}
 .eb{display:flex;align-items:center;gap:8px;font:600 .64rem var(--font-mono);color:var(--ink-55)}
 .rk{color:var(--ink);font-weight:700}
-.move{font-weight:700}.move.upm{color:var(--accent)}.move.downm{color:var(--ink-55)}
 .iv{border:1px solid var(--ink-26);border-radius:99px;padding:2px 6px;font-size:.58rem}
 .st{margin-left:auto;letter-spacing:.08em;text-transform:uppercase;font-size:.58rem;border:1px solid var(--ink-26);border-radius:99px;padding:3px 7px;cursor:help}
 .passed .st{border-color:var(--accent);color:var(--accent)}

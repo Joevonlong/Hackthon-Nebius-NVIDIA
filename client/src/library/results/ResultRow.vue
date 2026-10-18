@@ -4,12 +4,13 @@ import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../../stores/library'
 import { COMPONENT_KEYS, f2, grade } from '../score'
-import { authorYear, comp, compTip, status, statusTip } from './facts'
+import { fmtScore, authorYear, comp, compTip, status, statusTip } from './facts'
 import { useHoverCard } from './useHoverCard'
+import MoveBadge from './MoveBadge.vue'
 import SparkBar from './SparkBar.vue'
 import HoverCard from './HoverCard.vue'
 
-const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; inVault?: boolean; expanded?: boolean }>()
+const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
 const lib = useLibrary()
 const g = computed(() => grade(props.paper.total))
@@ -19,7 +20,7 @@ const hc = useHoverCard()
 
 <template>
   <tr class="row" :class="[st, { exp: expanded }]" @click="emit('open')">
-    <td class="rk">#{{ paper.rank }}<span v-if="move" class="move" :class="move > 0 ? 'upm' : 'downm'" :title="`rank moved ${Math.abs(move)} after the last applied change`">{{ move > 0 ? '▲' : '▼' }}{{ Math.abs(move) }}</span></td>
+    <td class="rk">#{{ paper.rank }}<MoveBadge class="mvb" :move="move" :gen="gen" /></td>
     <td :ref="el => (hc.host.value = el as HTMLElement)" class="tt" v-on="hc.on">
       <button type="button" :title="paper.paper.title" @click.stop="emit('open')">{{ paper.paper.title }}</button>
       <span class="sub">{{ authorYear(paper) }} · {{ paper.paper.venue || 'no venue' }}<span class="kn"> · {{ paper.labels.kind }}</span><template v-if="inVault"> · in vault</template></span>
@@ -28,7 +29,7 @@ const hc = useHoverCard()
     <td class="num yr">{{ paper.paper.year ?? 'n.d.' }}</td>
     <td class="kd" :title="paper.labels.kind">{{ paper.labels.kind }}</td>
     <td v-for="k in COMPONENT_KEYS" :key="k" class="sbc"><SparkBar :c="comp(paper, k)" :tip="compTip(comp(paper, k), lib.deK)" /></td>
-    <td class="num tot" :title="`total ${f2(paper.total)} · minimum ${f2(threshold)}`"><b class="gi" :class="{ hi: g === 'A' || g === 'B' }">{{ g }}</b>{{ f2(paper.total) }}</td>
+    <td class="num tot" :title="`total ${fmtScore(paper.total, threshold)} · minimum ${f2(threshold)}`"><b class="gi" :class="{ hi: g === 'A' || g === 'B' }">{{ g }}</b>{{ fmtScore(paper.total, threshold) }}</td>
     <td class="gc"><b class="g" :class="'g-' + g" :title="`grade ${g}`">{{ g }}</b></td>
     <td><span class="st" :title="statusTip(paper)">{{ st }}</span></td>
     <td><button type="button" class="x" :aria-expanded="!!expanded" :aria-label="(expanded ? 'Close' : 'Open') + ' report card'" :title="expanded ? 'Close report card' : 'Report card'" @click.stop="hc.close(); emit('toggle')"><span class="plus" :class="{ open: expanded }" aria-hidden="true" /></button></td>
@@ -42,7 +43,7 @@ const hc = useHoverCard()
 .row.excluded{opacity:.7}
 td{padding:7px 6px;vertical-align:middle}
 .rk{font:700 .68rem var(--font-mono);white-space:nowrap}
-.move{margin-left:4px;font-size:.6rem}.move.upm{color:var(--accent)}.move.downm{color:var(--ink-55)}
+.mvb{margin-left:5px}
 .tt{position:relative;min-width:0}
 .tt button{all:unset;display:block;max-width:100%;font:600 .8rem/1.3 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .tt button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
