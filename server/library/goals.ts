@@ -8,7 +8,7 @@ import { verifyQuote } from '../ai/verify'
 
 // ---------- known paper ids ----------
 // Output format (shared with L1): DOI "10.xxxx/…" (lowercase), "pmid:<n>", "arxiv:<id>", OpenAlex "W<n>".
-const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'<>\]\[(){}|,;]+)/gi
+const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'`<>\]\[(){}|,;]+)/gi
 const PMID_RE = /(?:\bPMID\s*:?\s*|pubmed\.ncbi\.nlm\.nih\.gov\/)(\d{5,9})\b/gi
 const ARXIV_RE = /(?:\barXiv\s*:?\s*|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(?:v\d+)?/gi
 const ARXIV_DOI_RE = /^10\.48550\/arxiv\.(\d{4}\.\d{4,5})/i
@@ -19,7 +19,7 @@ export function extractKnownPapers(notes: VaultNote[]): string[] {
   for (const n of notes) {
     const text = n.content
     for (const m of text.matchAll(DOI_RE)) {
-      const doi = m[1].replace(/[.)\]}>*_]+$/, '').toLowerCase()
+      const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
       const ax = doi.match(ARXIV_DOI_RE)
       out.add(ax ? `arxiv:${ax[1]}` : doi)
     }

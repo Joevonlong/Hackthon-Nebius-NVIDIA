@@ -37,7 +37,8 @@ const tex = (s: string) => s.replace(/[{}]/g, '').replace(/([&%$#_])/g, '\\$1')
 export function toBibTeX(entries: BibEntry[]): string {
   return entries.map(e => {
     const f: [string, string][] = [['title', `{${tex(e.title)}}`]]
-    if (e.authors.length) f.push(['author', tex(e.authors.join(' and '))])
+    // Notes store the first 10 authors; mark a capped list with BibTeX's "and others" (rendered as et al.).
+    if (e.authors.length) f.push(['author', tex([...e.authors, ...(e.authors.length >= 10 ? ['others'] : [])].join(' and '))])
     if (e.venue) f.push(['journal', tex(e.venue)])
     if (e.year) f.push(['year', e.year])
     if (e.doi) f.push(['doi', e.doi])
