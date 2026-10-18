@@ -18,7 +18,9 @@ REGISTRY_NAME="${REGISTRY_NAME:-papertrail}"
 NAME="papertrail-${VERSION}"
 say() { printf '==> %s\n' "$*"; }
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
-run() { if [[ $DRY_RUN == 1 ]]; then printf '[dry-run] %s\n' "$*"; else "$@"; fi; }
+# Prints commands with --env values redacted (KEY=***) so keys never reach terminal or CI logs.
+redact() { local out=() a; for a in "$@"; do if [[ "$a" == *=* && "$a" =~ ^[A-Z0-9_]+= ]]; then out+=("${a%%=*}=***"); else out+=("$a"); fi; done; printf '%s ' "${out[@]}"; }
+run() { if [[ $DRY_RUN == 1 ]]; then printf '[dry-run] %s\n' "$(redact "$@")"; else "$@"; fi; }
 
 # 1. Tools and login
 export PATH="$HOME/.nebius/bin:$PATH"
