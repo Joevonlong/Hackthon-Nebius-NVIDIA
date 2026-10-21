@@ -83,8 +83,7 @@ export function writeLibraryFiles(s: LibraryState): string | null {
       },
       papers: s.papers.map(p => ({ paperId: p.paper.id, rank: p.rank, total: Math.round(p.total * 1000) / 1000, passed: p.passed, excluded: p.excluded, file: p.file, title: p.paper.title })),
     }
-    // paper files are re-creatable from the run, so they skip fsync (still replaced atomically)
-    for (const p of s.papers) atomicWriteJsonSync(join(dir, p.file), p, { fsync: false })
+    for (const p of s.papers) atomicWriteJsonSync(join(dir, p.file), p) // fsynced before library.json, which lists them
     atomicWriteJsonSync(join(dir, 'graph.json'), graphOf(s.papers, s.goals?.knownPapers ?? []))
     atomicWriteJsonSync(join(dir, 'library.json'), library) // last: library.json is what makes the library listable
     return dir
@@ -99,6 +98,14 @@ export class LibraryCorruptError extends HTTPException {
   constructor(public libraryId: string, public file: string) {
     const message = `Library ${libraryId} is damaged: ${file} could not be read. Nothing was deleted; restore the file from a backup or remove the folder.`
     super(422, { message, res: Response.json({ error: message, code: 'library_corrupt', libraryId, file }, { status: 422 }) })
+  }
+}
+
+/** The build left a manifest but no results (killed before the first checkpoint): 409 with the status instead of a 404. */
+export class LibraryUnfinishedError extends HTTPException {
+  constructor(public libraryId: string, public buildStatus: string) { // not "status": HTTPException owns that name
+    const message = `Library ${libraryId} has no results: the build was ${buildStatus} before anything was saved. Start the build again.`
+    super(409, { message, res: Response.json({ error: message, code: 'library_unfinished', status: buildStatus, libraryId }, { status: 409 }) })
   }
 }
 
@@ -137,7 +144,11 @@ export interface StoredLibrary { goals: Goals | null; papers: LibPaper[]; reques
 
 export function readLibrary(id: string): StoredLibrary | null {
   const dir = libraryDir(id)
-  if (!dir || !existsSync(join(dir, 'library.json'))) return null
+  if (!dir) return null
+  if (!existsSync(join(dir, 'library.json'))) {
+    if (existsSync(join(dir, 'manifest.json'))) throw new LibraryUnfinishedError(id, libraryStatus(id) ?? 'interrupted')
+    return null
+  }
   let file = 'library.json'
   try {
     const lib = JSON.parse(readFileSync(join(dir, file), 'utf8'))
@@ -207,6 +218,15 @@ export function listLibraries(questionId?: string | null): LibrarySummary[] {
   const add = (dir: string, id: string, qid?: string) => {
     const file = join(dir, 'library.json')
     const lib = readJson(file) as LibraryJson | null
+    if (!lib && !existsSync(file) && existsSync(join(dir, 'manifest.json'))) {
+      // killed before the first checkpoint: only the manifest exists
+      const man = readJson(join(dir, 'manifest.json')) as Manifest | null
+      const st = man ? statusOf(man) : 'interrupted'
+      out.push({ libraryId: id, questionId: qid ?? man?.questionId ?? null, questionName: qid ?? man?.questionId ?? null, question: null,
+        name: st === 'running' ? 'Build in progress (no results yet)' : `${st === 'failed' ? 'Failed' : 'Interrupted'} build (no results yet)`,
+        createdAt: man?.startedAt ?? '', total: 0, passed: 0, topK: 30, topTitle: null })
+      return
+    }
     if (!lib) {
       // a damaged library.json stays listed (opening it gives the corrupt error) instead of vanishing
       if (existsSync(file)) out.push({ libraryId: id, questionId: qid ?? null, questionName: qid ?? null, question: null, name: 'Damaged library (library.json unreadable)', createdAt: '', total: 0, passed: 0, topK: 30, topTitle: null })

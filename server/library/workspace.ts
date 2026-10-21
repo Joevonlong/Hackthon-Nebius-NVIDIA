@@ -142,7 +142,7 @@ export function findQuestionLibrary(libraryId: string): { dir: string; questionI
     const dir = questionDir(q)
     if (!dir) continue
     const lib = join(dir, 'libraries', libraryId)
-    if (existsSync(join(lib, 'library.json'))) return { dir: lib, questionId: q }
+    if (existsSync(join(lib, 'library.json')) || existsSync(join(lib, 'manifest.json'))) return { dir: lib, questionId: q }
   }
   return null
 }

@@ -16,10 +16,16 @@ export function dataDir(): string {
 export function getDb(file?: string): DB {
   if (db) return db
   const path = file ?? (() => { mkdirSync(dataDir(), { recursive: true }); return join(dataDir(), 'papertrail.sqlite') })()
-  db = new Database(path)
-  db.pragma('journal_mode = WAL')
-  db.pragma('synchronous = NORMAL')
-  runMigrations(db)
+  const handle = new Database(path)
+  try {
+    handle.pragma('journal_mode = WAL')
+    handle.pragma('synchronous = NORMAL')
+    runMigrations(handle)
+  } catch (e) {
+    handle.close() // never cache a database whose migrations failed or were refused
+    throw e
+  }
+  db = handle
   return db
 }
 

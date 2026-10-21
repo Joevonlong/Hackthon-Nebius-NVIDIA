@@ -104,4 +104,32 @@ describe('durable storage (#16)', () => {
     const m = JSON.parse(readFileSync(join(legacyLibraryDir('lib_fail')!, 'manifest.json'), 'utf8'))
     expect(m.status).toBe('failed')
   }, 20000)
+
+  it('a build killed before the first checkpoint is listed as interrupted, and opening it gives a 409, not a 404', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'dur-'))
+    process.env.WORKSPACE_DIR = join(root, 'ws')
+    const { env } = await import('../env')
+    env.dataDir = join(root, 'data')
+    const { createLibraryState, runLibrary } = await import('./pipeline')
+    const store = await import('./store')
+    let release!: () => void
+    const hang = new Promise<never[]>(res => { release = () => res([]) })
+    const s = createLibraryState('lib_early', request())
+    const run = runLibrary(s, { gather: () => hang }) // stuck in the search stage: only manifest.json exists
+    await vi.waitFor(() => expect(s.events.some(e => e.type === 'stage' && e.stage === 'search')).toBe(true))
+    vi.resetModules()
+    const restarted = await import('./store')
+    const { env: env2 } = await import('../env')
+    env2.dataDir = join(root, 'data')
+    expect(existsSync(join(restarted.legacyLibraryDir('lib_early')!, 'library.json'))).toBe(false)
+    expect(restarted.libraryStatus('lib_early')).toBe('interrupted')
+    expect(restarted.listLibraries().find(l => l.libraryId === 'lib_early')).toMatchObject({ name: 'Interrupted build (no results yet)', total: 0 })
+    let err: unknown
+    try { restarted.readLibrary('lib_early') } catch (e) { err = e }
+    expect(err).toBeInstanceOf(restarted.LibraryUnfinishedError)
+    expect((err as { getResponse(): Response }).getResponse().status).toBe(409)
+    expect(store).toBeTruthy()
+    release()
+    await run
+  }, 20000)
 })

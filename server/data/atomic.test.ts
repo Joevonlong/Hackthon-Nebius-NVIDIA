@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { atomicHooks, atomicWriteFileSync, atomicWriteJsonSync } from './atomic'
@@ -27,5 +27,32 @@ describe('atomic writes', () => {
     expect(readFileSync(f, 'utf8')).toBe('{"old":true}')
     expect(readdirSync(dir)).toEqual(['library.json'])
     expect(existsSync(join(dir, 'never'))).toBe(false)
+  })
+
+  it('keeps the permissions of the file it replaces', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'atomic-'))
+    const f = join(dir, 'private.md')
+    writeFileSync(f, 'a'); chmodSync(f, 0o600)
+    atomicWriteFileSync(f, 'b')
+    expect(statSync(f).mode & 0o777).toBe(0o600)
+  })
+
+  it('writes through a symlink to the real file instead of replacing the link', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'atomic-'))
+    const real = join(dir, 'real.md'); const link = join(dir, 'link.md')
+    writeFileSync(real, 'old'); symlinkSync(real, link)
+    atomicWriteFileSync(link, 'new')
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
+    expect(readFileSync(real, 'utf8')).toBe('new')
+  })
+
+  it('removes stale temp files of its own naming from a crash, and nothing else', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'atomic-'))
+    const stale = join(dir, '.note.md.123.deadbeef.tmp'); const fresh = join(dir, '.other.md.123.cafebabe.tmp'); const foreign = join(dir, '.keep.tmp')
+    for (const f of [stale, fresh, foreign]) writeFileSync(f, 'x')
+    const old = new Date(Date.now() - 2 * 3600_000)
+    utimesSync(stale, old, old); utimesSync(foreign, old, old)
+    atomicWriteFileSync(join(dir, 'note.md'), 'y')
+    expect(readdirSync(dir).sort()).toEqual(['.keep.tmp', '.other.md.123.cafebabe.tmp', 'note.md'])
   })
 })
