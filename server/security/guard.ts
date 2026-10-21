@@ -6,6 +6,7 @@ import { getCookie, setCookie } from 'hono/cookie'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { BEARER_OK } from './auth'
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 /** Cookies are not scoped by port, so each server port gets its own cookie name. */
@@ -20,6 +21,12 @@ export interface GuardOptions {
   devClient?: boolean
   /** Extra origins, e.g. "http://localhost:8080,https://papertrail.example" (env ALLOWED_ORIGINS). */
   allowedOrigins?: string
+  /**
+   * Token mode (an access token is required, #35): the Host allowlist is skipped (a DNS-rebinding page cannot carry the access cookie
+   * or a bearer token) and a write may also come from the request's own origin (Host + x-forwarded-proto), so a deployment works
+   * under whatever name it is reached by. A cross-site Origin is still refused.
+   */
+  tokenMode?: boolean
 }
 
 /** Session token persisted in dataDir (atomic write, mode 0600), so a restart or tsx-watch reload keeps the browser's cookie valid. */
@@ -84,15 +91,16 @@ export function apiGuard(opts: GuardOptions): MiddlewareHandler {
 
   return async (c, next) => {
     const host = (c.req.header('host') ?? '').toLowerCase()
-    if (!hosts.has(host)) return c.json({ error: 'Forbidden: unexpected Host header' }, 403)
+    if (!opts.tokenMode && !hosts.has(host)) return c.json({ error: 'Forbidden: unexpected Host header' }, 403)
 
     if (MUTATING.has(c.req.method)) {
       const origin = c.req.header('origin')
       const site = c.req.header('sec-fetch-site')
-      if (origin !== undefined) { if (!origins.has(origin.replace(/\/+$/, ''))) return deny(c, 'foreign Origin') }
+      const own = () => `${c.req.header('x-forwarded-proto')?.split(',')[0].trim() || new URL(c.req.url).protocol.replace(':', '')}://${host}`
+      if (origin !== undefined) { const o = origin.replace(/\/+$/, ''); if (!origins.has(o) && !(opts.tokenMode && o.toLowerCase() === own())) return deny(c, 'foreign Origin') }
       else if (site && site !== 'same-origin' && site !== 'none') return deny(c, 'cross-site request')
       const cb = Buffer.from(getCookie(c, SESSION_COOKIE) ?? '')
-      if (cb.length !== tokenBuf.length || !timingSafeEqual(cb, tokenBuf)) return deny(c, 'missing session cookie')
+      if (!c.get(BEARER_OK) && (cb.length !== tokenBuf.length || !timingSafeEqual(cb, tokenBuf))) return deny(c, 'missing session cookie')
       const res = await limiterFor(bodyLimitFor(new URL(c.req.url).pathname))(c, next)
       if (res) return res
     } else {

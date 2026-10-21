@@ -23,6 +23,25 @@ describe('deploy scripts', () => {
     expect(code).not.toMatch(/-p "\$\{HOST_PORT/)
     expect(code).toContain('--env-file')
   })
+  it('deploy.sh takes its token from a deploy-only source, not from .env.local', () => {
+    const code = read('deploy.sh')
+    expect(code).toContain('PAPERTRAIL_DEPLOY_TOKEN')
+    expect(code).toContain('.env.deploy.local')
+    expect(code).not.toMatch(/envval PAPERTRAIL_ACCESS_TOKEN/)
+  })
+  it('deploy.sh does not require PUBLIC_ORIGIN and checks an authenticated /api call, with the token on stdin', () => {
+    const code = read('deploy.sh')
+    expect(code).not.toMatch(/die "PUBLIC_ORIGIN is required/)
+    expect(code).toMatch(/auth_get\(\)/)
+    expect(code).toMatch(/curl[^\n]* -K -/)
+    expect(code).not.toMatch(/curl[^\n]*Authorization/)
+    expect(code).toMatch(/Tear down/)
+  })
+  it('docker-local.sh prints the token URL only when it creates the token', () => {
+    const code = read('docker-local.sh')
+    expect(code.match(/\?token=\$\(cat/g)).toHaveLength(1)
+    expect(code).toMatch(/NEW_TOKEN==1|NEW_TOKEN == 1/)
+  })
   it('deploy.sh passes secrets with --env-file', () => {
     expect(read('deploy.sh')).toMatch(/ENV_ARGS=\(--env-file "\$SECRETS"\)/)
   })

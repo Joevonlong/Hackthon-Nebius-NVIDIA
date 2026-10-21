@@ -6,6 +6,8 @@ import { getCookie, setCookie } from 'hono/cookie'
 import { createHash, timingSafeEqual } from 'node:crypto'
 
 export const MIN_TOKEN_LENGTH = 16
+/** Context key set by accessAuth when the request carried a valid bearer token. */
+export const BEARER_OK = 'papertrailBearerOk'
 /** Cookies are not scoped by port, so each server port gets its own cookie name. */
 export const accessCookie = (port: number) => `pt_access_${port}`
 
@@ -24,7 +26,7 @@ export function accessTokenProblem(host: string, token: string): string | null {
 const digest = (s: string) => createHash('sha256').update(s).digest()
 function same(a: Buffer, b: Buffer): boolean { return a.length === b.length && timingSafeEqual(a, b) }
 
-export interface AccessOptions { token: string; port: number }
+export interface AccessOptions { token: string; port: number; /** ALLOWED_ORIGINS: an https origin with the request's host makes the cookie Secure. */ allowedOrigins?: string }
 
 export function accessAuth(opts: AccessOptions): MiddlewareHandler {
   const { token, port } = opts
@@ -35,7 +37,11 @@ export function accessAuth(opts: AccessOptions): MiddlewareHandler {
     const bearer = /^Bearer\s+(.+)$/i.exec(c.req.header('authorization') ?? '')?.[1]
     const cookie = getCookie(c, name)
     const ok = (bearer !== undefined && same(digest(bearer), want)) || (cookie !== undefined && same(Buffer.from(cookie, 'hex'), want))
-    if (ok) return next()
+    if (ok) {
+      // a valid bearer cannot be forged cross-site (browsers add Authorization only after a CORS preflight, and no CORS headers are sent): the guard lets it stand in for the session cookie
+      if (bearer !== undefined && same(digest(bearer), want)) c.set(BEARER_OK, true)
+      return next()
+    }
     // health stays open for container health checks but says nothing about models or keys
     if (c.req.path === '/api/health' && c.req.method === 'GET') return c.json({ ok: true })
     return c.json({ error: 'Unauthorized: access token required', code: 'unauthorized' }, 401)
@@ -53,8 +59,11 @@ export function tokenExchange(opts: AccessOptions): MiddlewareHandler {
     if (!same(digest(given), want)) return next()
     const u = new URL(c.req.url)
     u.searchParams.delete('token')
-    const secure = u.protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https'
+    const host = (c.req.header('host') ?? u.host).toLowerCase()
+    const httpsOrigin = (opts.allowedOrigins ?? '').split(',').some(o => { try { const x = new URL(o.trim()); return x.protocol === 'https:' && x.host.toLowerCase() === host } catch { return false } })
+    const secure = u.protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https' || httpsOrigin
     setCookie(c, accessCookie(port), want.toString('hex'), { httpOnly: true, sameSite: 'Strict', path: '/', secure, maxAge: 60 * 60 * 24 * 30 })
-    return c.redirect(u.pathname + u.search, 302)
+    // one leading "/" only: "//host/" would be a redirect to another site
+    return c.redirect('/' + (u.pathname + u.search).replace(/^\/+/, ''), 302)
   }
 }

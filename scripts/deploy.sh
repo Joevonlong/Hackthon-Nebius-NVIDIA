@@ -67,21 +67,22 @@ if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
 else
   say "no .env.local found; deploying without API keys (demo mode still works)"
 fi
-# Access token: the server refuses to start on a public address without one. Use PAPERTRAIL_ACCESS_TOKEN from the environment or
-# .env.local, else create one (shown once at the end of a real deploy).
-TOKEN="${PAPERTRAIL_ACCESS_TOKEN:-}"; NEW_TOKEN=0
-[[ -z "$TOKEN" && -n "$ENV_FILE" ]] && TOKEN="$(envval PAPERTRAIL_ACCESS_TOKEN)"
+# Access token: the server refuses to start on a public address without one. It comes from PAPERTRAIL_DEPLOY_TOKEN (environment) or
+# .env.deploy.local at the repo root (git-ignored), else one is created and shown once at the end of a real deploy. It is not read from
+# .env.local: a token there would also lock down your local `pnpm dev` / `pnpm start`.
+TOKEN="${PAPERTRAIL_DEPLOY_TOKEN:-}"; NEW_TOKEN=0
+if [[ -z "$TOKEN" && -f "$ROOT/.env.deploy.local" ]]; then
+  TOKEN="$(grep -E '^[[:space:]]*PAPERTRAIL_DEPLOY_TOKEN=' "$ROOT/.env.deploy.local" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//" || true)"
+fi
 if [[ -z "$TOKEN" ]]; then
   if [[ $DRY_RUN == 1 ]]; then TOKEN="<generated-token>"; else command -v openssl >/dev/null || die "openssl not found (needed to create the access token)"; TOKEN="$(openssl rand -hex 32)"; NEW_TOKEN=1; fi
 fi
-[[ ${#TOKEN} -ge 16 ]] || die "PAPERTRAIL_ACCESS_TOKEN must be at least 16 characters"
+[[ ${#TOKEN} -ge 16 ]] || die "the deploy token must be at least 16 characters"
 printf 'PAPERTRAIL_ACCESS_TOKEN=%s\n' "$TOKEN" >> "$SECRETS"
 say "env PAPERTRAIL_ACCESS_TOKEN: $([[ $NEW_TOKEN == 1 ]] && echo 'created' || echo 'set')"
-# The Host check only accepts the public name you give here (ALLOWED_ORIGINS), e.g. PUBLIC_ORIGIN=https://papertrail.example
+# Optional: a front-end origin that may call the API besides the endpoint itself (the server accepts its own origin when a token is set).
 PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-}"
-if [[ -n "$PUBLIC_ORIGIN" ]]; then printf 'ALLOWED_ORIGINS=%s\n' "$PUBLIC_ORIGIN" >> "$SECRETS"; say "env ALLOWED_ORIGINS: $PUBLIC_ORIGIN"
-elif [[ $DRY_RUN == 0 ]]; then die "PUBLIC_ORIGIN is required (the https origin the endpoint will be reached at); see docs/DEPLOY.md"
-else say "PUBLIC_ORIGIN not set (a real deploy requires it)"; fi
+if [[ -n "$PUBLIC_ORIGIN" ]]; then printf 'ALLOWED_ORIGINS=%s\n' "$PUBLIC_ORIGIN" >> "$SECRETS"; say "env ALLOWED_ORIGINS: $PUBLIC_ORIGIN"; fi
 ENV_ARGS=(--env-file "$SECRETS")
 
 # 3. Registry (create or reuse)
@@ -143,6 +144,12 @@ done
 say "public URL: ${URL}"
 if [[ $NEW_TOKEN == 1 ]]; then
   say "access token (shown once; store it in a password manager): ${TOKEN}"
-  say "sign in once with: ${URL%/}/?token=<token>"
+  say "sign in once with: ${URL%/}/?token=<token>  (keep it in ${ROOT}/.env.deploy.local as PAPERTRAIL_DEPLOY_TOKEN=... to reuse it)"
 fi
-curl -fsS --max-time 20 "${URL%/}/api/health" >/dev/null && say "health OK" || say "health check not yet answering; retry in a minute"
+# /api/health is open, so it proves nothing about access. Make an authenticated call; the token goes to curl on stdin, not on its command line.
+auth_get() { printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" | curl -fsS --max-time 20 -K - -o /dev/null "${URL%/}$1"; }
+OK=0
+for _ in 1 2 3 4 5 6; do auth_get /api/questions && { OK=1; break; }; sleep 10; done
+if [[ $OK == 1 ]]; then say "authenticated API call OK"; else
+  die "the endpoint is running but an authenticated /api call failed. Tear down: nebius ai endpoint delete ${ID} (check --help), remove the image tag ${IMAGE} from the registry, then deploy again with a new version (docs/DEPLOY.md)"
+fi

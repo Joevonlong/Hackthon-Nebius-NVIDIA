@@ -25,7 +25,9 @@ cd "$ROOT"
 # Access token: reuse the one from the last run so the browser's cookie stays valid; create it with mode 0600.
 mkdir -p "$DATA/data" "$DATA/logs"
 TOKEN_FILE="$DATA/data/access-token"
+NEW_TOKEN=0
 if [[ ! -s "$TOKEN_FILE" ]]; then
+  NEW_TOKEN=1
   if [[ $DRY_RUN == 1 ]]; then echo "[dry-run] would create $TOKEN_FILE (mode 0600)"; else
     command -v openssl >/dev/null || { echo "ERROR: openssl not found (needed to create the access token)"; exit 1; }
     (umask 077; openssl rand -hex 32 > "$TOKEN_FILE")
@@ -46,4 +48,10 @@ run docker run -d --name papertrail -p "127.0.0.1:${PORT}:3000" --env-file "$ENV
   -e PORT=3000 -e DATA_DIR=/data -e LOG_DIR=/logs \
   -v "$DATA/data:/data" -v "$DATA/logs:/logs" papertrail:local
 if [[ $DRY_RUN == 1 ]]; then echo "PaperTrail (dry run): http://127.0.0.1:${PORT}/?token=<contents of $TOKEN_FILE>"; exit 0; fi
-echo "PaperTrail: http://127.0.0.1:${PORT}/?token=$(cat "$TOKEN_FILE")  (opens once, then the cookie keeps you signed in; logs: $DATA/logs/runs/<runId>/, docker logs -f papertrail)"
+if [[ $NEW_TOKEN == 1 ]]; then
+  # shown only when it is created: the link stays in terminal scrollback and browser history, so it is not repeated on later starts
+  echo "PaperTrail: http://127.0.0.1:${PORT}/?token=$(cat "$TOKEN_FILE")  (open it once; the cookie keeps you signed in)"
+else
+  echo "PaperTrail: http://127.0.0.1:${PORT}/  (your browser's cookie signs you in; token: $TOKEN_FILE, sign in again with /?token=<token>)"
+fi
+echo "logs: $DATA/logs/runs/<runId>/, docker logs -f papertrail"

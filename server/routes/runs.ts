@@ -9,6 +9,7 @@ import { resolveConfig } from '@shared/config'
 import * as repo from '../data/repo'
 import { runPipeline } from '../discovery/pipeline'
 import { withRun } from '../trace'
+import { logServerError } from '../security/errors'
 import { createRunState, emit, getRunState, snapshotOf, subscribe } from '../discovery/registry'
 import { parseSeedInput, resolveSeeds } from '../discovery/seeds'
 import { getWork } from '../sources/openalex'
@@ -35,8 +36,8 @@ runs.post('/runs', async c => {
   const run = createRunState(runId, question, preset, cfg)
   try { repo.createRun({ id: runId, question, preset, params: cfg, models: { embed: process.env.EMBED_MODEL, rerank: process.env.RERANK_MODEL, judge: process.env.JUDGE_MODEL } }) } catch (e) { console.warn('createRun failed', (e as Error).message) }
   withRun(run.id, () => runPipeline(run, seeds)).catch(e => {
-    console.error(`[run ${runId}] crashed`, e)
-    emit(run, { type: 'error', message: (e as Error).message?.slice(0, 300) || 'run failed' })
+    logServerError(`run ${runId}`, e)
+    emit(run, { type: 'error', message: 'run failed (details are in the server log)' })
     emit(run, { type: 'done', runId, counts: run.counts, total: run.total, ms: Date.now() - run.startedAt })
   })
   return c.json({ runId })
@@ -91,6 +92,7 @@ runs.get('/papers/:id{.+}', async c => {
     try { repo.upsertPapers([r.value]) } catch { /* ignore */ }
     return c.json(r.value)
   } catch (e) {
-    return c.json({ error: (e as Error).message.slice(0, 200) }, 502)
+    logServerError('papers', e)
+    return c.json({ error: 'The source did not answer; try again later.', code: 'upstream_error' }, 502)
   }
 })

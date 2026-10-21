@@ -18,7 +18,7 @@ import { fixtureGather } from '../library/fixtures'
 import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, renameLibrary, trashLibrary } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
-import { PdfBusyError } from '../security/pdf-worker'
+import { PdfBusyError, PdfTimeoutError } from '../security/pdf-worker'
 import { logServerError } from '../security/errors'
 import { createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
@@ -52,7 +52,7 @@ library.get('/library/:id/export', c => {
   if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
   const r = exportLibrary(id)
   if (!r) return c.json({ error: 'library not found' }, 404)
-  // read-only: the copy in <question>/exports/ is saved by the client with PUT /questions/:id/exports/:name (#35)
+  // read-only (#35): this used to also write a copy to <question>/exports/<id>.json; library.json already holds the same content
   c.header('content-disposition', `attachment; filename="${id}.json"`)
   return c.json(r)
 })
@@ -162,7 +162,9 @@ library.post('/seeds/import', async c => {
     const r = parseSeedText(name, await file.text())
     return c.json({ file: name, format: r.format, ids: r.ids })
   } catch (e) {
-    if (e instanceof PdfBusyError) return c.json({ error: e.message }, 503)
+    // the app's own known causes keep their message; anything else (parser or library text) stays in the log
+    if (e instanceof PdfBusyError) return c.json({ error: e.message, code: 'pdf_busy' }, 503)
+    if (e instanceof PdfTimeoutError) return c.json({ error: e.message, code: 'seed_timeout' }, 422)
     logServerError('seeds/import', e)
     return c.json({ error: `Could not read ${name}.`, code: 'seed_unreadable' }, 422)
   }
@@ -176,7 +178,6 @@ library.post('/library', async c => {
   const libraryId = `lib_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}_${randomUUID().slice(0, 6)}`
   const s = createLibraryState(libraryId, body.data)
   withRun(libraryId, () => runLibrary(s, { gather: useFixture() ? fixtureGather : gather })).catch(e => {
-    console.error(`[library ${libraryId}] crashed`, e)
     logServerError(`library ${libraryId}`, e)
     emitLib(s, { type: 'error', message: 'library run failed (details are in the server log)' })
     emitLib(s, { type: 'done', libraryId, total: s.papers.length, passed: s.papers.filter(p => p.passed).length, ms: Date.now() - s.startedAt, dir: s.dir ?? '' })

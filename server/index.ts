@@ -7,9 +7,9 @@ import { health } from './routes/health'
 import { runs } from './routes/runs'
 import { demo } from './routes/demo'
 import { library } from './routes/library'
-import { apiGuard } from './security/guard'
-import { accessAuth, accessTokenProblem, tokenExchange } from './security/auth'
-import { inlineScriptHashes, securityHeaders } from './security/headers'
+import { accessTokenProblem } from './security/auth'
+import { inlineScriptHashes } from './security/headers'
+import { wireSecurity } from './security/wire'
 import { getDb } from './data/db'
 
 // Loopback only unless PAPERTRAIL_HOST says otherwise (the Docker image sets PAPERTRAIL_HOST=0.0.0.0). Not HOST: csh/tcsh export it.
@@ -26,15 +26,14 @@ const app = new Hono()
 // CSP allows the one inline script of the built index.html by hash
 let scriptHashes: string[] = []
 try { scriptHashes = inlineScriptHashes(readFileSync('./dist/client/index.html', 'utf8')) } catch { /* no built client (dev) */ }
-app.use('*', securityHeaders({ scriptHashes }))
-app.use('/api/*', accessAuth({ token: accessToken, port: env.port }))
-app.use('*', tokenExchange({ token: accessToken, port: env.port }))
-app.use('/api/*', apiGuard({
+wireSecurity(app, {
   port: env.port,
   dataDir: env.dataDir,
+  accessToken,
   allowedOrigins: process.env.ALLOWED_ORIGINS,
   devClient: import.meta.url.endsWith('.ts'), // true under tsx (pnpm dev), false in the built bundle; admits the Vite proxy origin
-}))
+  scriptHashes,
+})
 app.route('/api', health)
 app.route('/api', runs)
 app.route('/api', demo)

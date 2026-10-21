@@ -16,6 +16,7 @@ const { parentPort, workerData } = require('node:worker_threads')
 export const PDF_DEADLINE_MS = 20_000
 const MAX_WORKERS = 2
 const MAX_WAITING = 4 // each waiting upload holds up to 25 MB, so the queue is short
+export class PdfTimeoutError extends Error { constructor() { super('PDF parsing timed out') } }
 export class PdfBusyError extends Error { constructor() { super('Too many PDFs are being read right now; try again in a moment.') } }
 let running = 0
 const waiting: Array<() => void> = []
@@ -46,7 +47,7 @@ function runWorker(bytes: Uint8Array, opts: { maxPages?: number; deadlineMs?: nu
     })
     let finished = false
     const done = (fn: () => void) => { if (finished) return; finished = true; clearTimeout(timer); void worker.terminate(); fn() }
-    const timer = setTimeout(() => done(() => reject(new Error('PDF parsing timed out'))), opts.deadlineMs ?? PDF_DEADLINE_MS)
+    const timer = setTimeout(() => done(() => reject(new PdfTimeoutError())), opts.deadlineMs ?? PDF_DEADLINE_MS)
     worker.once('message', (m: { pages?: string[]; error?: string }) => done(() => (m.pages ? resolve(m.pages) : reject(new Error(m.error ?? 'PDF parse failed')))))
     worker.once('error', e => done(() => reject(e)))
     worker.once('exit', code => done(() => reject(new Error(`PDF worker exited (${code})`))))
