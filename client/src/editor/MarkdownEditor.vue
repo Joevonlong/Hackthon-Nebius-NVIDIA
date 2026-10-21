@@ -4,7 +4,7 @@ import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { EditorState } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { editorExtensions } from './extensions'
-import { useVault } from '../stores/vault'
+import { onVaultExit, useVault } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName, resolveLink } from '../stores/vault-utils'
 import './zettlr/editor.css'
@@ -21,10 +21,17 @@ let lastSaved = ''
 
 function save(doc: string) {
   const n = vault.byPath(props.path); if (!n) return
+  const base = lastSaved
   lastSaved = doc
-  vault.upsert({ ...n, content: doc })
+  void vault.saveEdit({ ...n, content: doc }, base) // flags a conflict if the stored note changed behind the editor's back
   emit('saving', false)
 }
+
+/** pagehide / tab hidden: the store calls this first (the last <400 ms of typing goes into the store), then flushes once. */
+function pushPending() {
+  if (timer && view) { clearTimeout(timer); timer = undefined; const d = view.state.doc.toString(); if (d !== lastSaved) save(d) }
+}
+let offExit: (() => void) | undefined
 
 async function openLink(target: string) {
   if (!target) return
@@ -52,6 +59,7 @@ onMounted(() => {
       }),
     }),
   })
+  offExit = onVaultExit(pushPending)
 })
 
 // External updates (e.g. lane C rewrites a literature note) replace the doc when we have no pending edits.
@@ -62,6 +70,7 @@ watch(() => vault.byPath(props.path)?.content, c => {
 })
 
 onBeforeUnmount(() => {
+  offExit?.()
   if (timer && view) { clearTimeout(timer); const d = view.state.doc.toString(); if (d !== lastSaved) save(d) }
   view?.destroy()
 })

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LibPaper } from '@shared/library'
-import { fmtScore, loadView, rankMoves, saveView, sortPapers, tileChips } from './facts'
+import { fmtScore, loadView, radarShapeKeys, statusTip, rankMoves, saveView, sortPapers, tileChips } from './facts'
 
 const mk = (rank: number, total: number, rel: number | null, year: number | null, title: string): LibPaper => ({
   rank, total, passed: rank === 1, excluded: null,
@@ -19,6 +19,20 @@ describe('results facts (F-60)', () => {
     expect(sortPapers(ps, 'year', -1).map(p => p.rank)).toEqual([2, 1, 3])
     expect(sortPapers(ps, 'title', 1).map(p => p.rank)).toEqual([2, 1, 3])
     expect(sortPapers(ps, 'rank', -1).map(p => p.rank)).toEqual([3, 2, 1])
+  })
+  it('MiniRadar leaves a not-assessed axis out of the shape (not drawn as 0)', () => {
+    const c = (key: string, value: number | null) => ({ key, value }) as unknown as LibPaper['components'][number]
+    expect(radarShapeKeys([c('relevance', 0.4), c('graph', null), c('citations', 0), c('venue', null)])).toEqual(['relevance', 'citations'])
+  })
+  it('status tip names the real top X% and minimum', () => {
+    expect(statusTip(ps[0], { topPercent: 25, threshold: 0.5 })).toMatch(/top 25%.*0\.50/)
+    expect(statusTip(ps[0], { topPercent: 25, threshold: 0.5 })).not.toMatch(/top X%/)
+  })
+  it('Recent chip uses the Recent filter cut-off (3 years), not the 5-year label', () => {
+    const y = new Date().getFullYear()
+    const rec = (year: number) => ({ ...mk(1, 0.5, 0.5, year, 't'), labels: { kind: 'journal-article', recency: 'recent', openAccess: 'closed' } }) as unknown as LibPaper
+    expect(tileChips(rec(y - 1)).map(c => c.text)).toContain('Recent')
+    expect(tileChips(rec(y - 4)).map(c => c.text)).not.toContain('Recent')
   })
   it('shows at most 3 chips', () => { expect(tileChips(ps[0]).map(c => c.text)).toEqual(['journal-article', 'Fresh', 'OA']) })
   it('view preference falls back to tiles without storage', () => {

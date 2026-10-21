@@ -7,8 +7,15 @@ import { health } from './routes/health'
 import { runs } from './routes/runs'
 import { demo } from './routes/demo'
 import { library } from './routes/library'
+import { apiGuard } from './security/guard'
 
 const app = new Hono()
+app.use('/api/*', apiGuard({
+  port: env.port,
+  dataDir: env.dataDir,
+  allowedOrigins: process.env.ALLOWED_ORIGINS,
+  devClient: import.meta.url.endsWith('.ts'), // true under tsx (pnpm dev), false in the built bundle; admits the Vite proxy origin
+}))
 app.route('/api', health)
 app.route('/api', runs)
 app.route('/api', demo)
@@ -20,6 +27,8 @@ if (existsSync('./dist/client')) {
   app.get('*', serveStatic({ path: './dist/client/index.html' }))
 }
 
-serve({ fetch: app.fetch, port: env.port, hostname: '0.0.0.0' }, info => {
-  console.log(`PaperTrail server on http://localhost:${info.port}`)
+// Loopback only unless PAPERTRAIL_HOST says otherwise (the Docker image sets PAPERTRAIL_HOST=0.0.0.0). Not HOST: csh/tcsh export it.
+const host = process.env.PAPERTRAIL_HOST || '127.0.0.1'
+serve({ fetch: app.fetch, port: env.port, hostname: host }, info => {
+  console.log(`PaperTrail server on http://${host}:${info.port}`)
 })

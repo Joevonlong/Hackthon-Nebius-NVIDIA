@@ -16,6 +16,8 @@ import WhyRelevant from './WhyRelevant.vue'
 import CountUp from '../discover/CountUp.vue'
 import QuestionSwitcher from './questions/QuestionSwitcher.vue'
 import SeedPanel from './seeds/SeedPanel.vue'
+import { notesKnownCount } from './knownNotes'
+import KnownPapers from './KnownPapers.vue'
 import HistoryList from './history/HistoryList.vue'
 
 const lib = useLibrary()
@@ -27,6 +29,7 @@ const seedsOpen = ref(true)
 const historyOpen = ref(true)
 const delay = (i: number) => ({ '--i': i })
 const cur = computed(() => vault.currentQuestion)
+const notesKnown = computed(() => cur.value ? notesKnownCount(vault.notesIn(cur.value.id)) : 0)
 const seedCount = computed(() => cur.value ? vault.seedsIn(cur.value.id).length : 0)
 const modeLabel = computed(() => lib.mode === 'mock' ? 'dev mock' : lib.mode === 'demo' ? 'Replay of a recorded real run' : lib.mode === 'live' ? 'live' : '')
 const QUESTION_PLACEHOLDER = 'Type your research question'
@@ -95,7 +98,8 @@ const toggleSource = (s: SourceName) => {
   const i = lib.sources.indexOf(s)
   if (i >= 0) { if (lib.sources.length > 1) lib.sources.splice(i, 1) } else lib.sources.push(s)
 }
-const llmLowest = computed(() => COMPONENT_KEYS.filter(k => k !== 'llm').every(k => lib.weights[k] >= lib.weights.llm))
+// only signals that carry weight count: a zero-weight signal is switched off, not "lower than the LLM read"
+const llmLowest = computed(() => COMPONENT_KEYS.filter(k => k !== 'llm' && lib.weights[k] > 0).every(k => lib.weights[k] >= lib.weights.llm))
 const share = (k: ComponentKey) => { const s = weightSum(lib.weights); return s > 0 ? lib.weights[k] / s : 0 }
 const topKModel = computed({ get: () => lib.topK, set: (v: number) => { lib.topK = Math.max(5, Math.min(200, Math.round(Number(v) || 30))) } })
 
@@ -127,6 +131,11 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
         </button>
         <button v-if="lib.status === 'done' || lib.papers.length" class="pill" type="button" @click="ui.openLibrary()">Open results</button>
       </div>
+      <label v-if="notesKnown" class="small hint notesknown">
+        <input v-model="lib.notesAsKnown" type="checkbox" :disabled="running" />
+        {{ notesKnown }} paper{{ notesKnown === 1 ? '' : 's' }} from your notes will be treated as known in the next build (kept out of the results).
+        <span class="faint">Untick to use only your seeds.</span>
+      </label>
       <p v-if="!seedCount" class="small hint">No seed papers for this question yet. Add some below so results link to papers you trust.</p>
       <p v-if="lib.notice" class="notice small">{{ lib.notice }}</p>
       <div v-if="lib.status === 'error'" class="errbox" role="alert"><b>Library build failed.</b> {{ lib.error }} <button class="pill" type="button" @click="build">Retry</button></div>
@@ -224,9 +233,7 @@ const stageCls = (st: string) => st === 'done' ? 'done' : st === 'start' ? 'live
     </section>
 
     <section v-if="lib.goals" class="block rv" :style="delay(10)">
-      <div class="eyebrow">Known papers in the vault<span class="sub">{{ lib.goals.knownPapers.length }}</span></div>
-      <p v-if="!lib.goals.knownPapers.length" class="faint small">None: add seed papers above so the graph component can link to them.</p>
-      <div v-else class="chips mono"><span v-for="k in lib.goals.knownPapers" :key="k" class="chip static">{{ k }}</span></div>
+      <KnownPapers :known-papers="lib.goals.knownPapers" :notes-known="notesKnown" :notes-as-known="lib.notesAsKnown" />
     </section>
 
     <section v-if="lib.calls.length" class="block rv" :style="delay(11)">
