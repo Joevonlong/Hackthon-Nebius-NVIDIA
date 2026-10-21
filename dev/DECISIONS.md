@@ -1,0 +1,11 @@
+# Decisions
+- D-01 · 2026-10-21 · Intention approved: free, open-source research agent for biomedical PhDs and postdocs that understands intent, finds available papers, filters by their criteria and builds a trusted knowledge base · by user
+- D-02 · 2026-10-21 · Dev system approved: large preset; GitHub milestones M1–M3, parents #5–#10, sub-issues #11–#30; at most 3 parallel builders, ≤ 3 GB RAM each; builders Sonnet, architect and coordinator Opus; verifier on milestones and `critical` issues · why: independent sub-issues let agents work in parallel without collisions · by user
+- D-03 · 2026-10-21 · First users: biomedical and life-science PhD students and postdocs; all fields next cycle · why: the sources (PubMed, Europe PMC) and the eval already fit this group · by user
+- D-04 · 2026-10-21 · Security scan with OpenAI Codex Security via `npx @openai/codex-security` (no global install); the user signs in; code is sent to OpenAI for scanning; `/security-review` as a second opinion · by user
+- D-05 · 2026-10-21 · Knowledge base = Markdown notes + SQLite index (embeddings already cached there). Switch to sqlite-vec when a measured index exceeds 100k vectors or a search takes over 200 ms · why: no extra server to run or back up until size demands it · by user ("it depends on how big")
+- D-06 · 2026-10-21 · Delivery this cycle: web app (`pnpm build && pnpm start`), made safe and path-independent so Electron is easy next cycle · by user
+- D-07 · 2026-10-21 · CLAUDE.md and AGENTS.md: hackathon lane and captain rules replaced by product and agentic rules (old rules in git history) · by user
+- D-08 · 2026-10-21 · The hackathon demo becomes a playground (`DEMO=1` or `/playground`), off in the product by default; not deleted · why: it is the best way to try the app without keys · by Assumed (from the #4 review)
+- D-09 · 2026-10-21 · Full text from open-access sources only (Unpaywall, Europe PMC, arXiv); never paywalled PDFs · by Assumed (intention card "must not")
+- D-10 · 2026-10-21 · Product name stays "PaperTrail" for now; trademark question (SolarWinds Papertrail) is open · by Assumed (user's call, pending)
