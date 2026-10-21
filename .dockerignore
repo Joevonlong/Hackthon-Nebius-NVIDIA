@@ -1,6 +1,10 @@
 node_modules
 dist
 data
+/logs
+/workspace
+local
+dev
 .env
 .env.*
 .git

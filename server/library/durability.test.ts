@@ -66,7 +66,8 @@ describe('durable storage (#16)', () => {
     const hang = new Promise<never[]>(res => { release = () => res([]) })
     const s = createLibraryState('lib_killed', request())
     // the Europe PMC reference step runs after the checkpoint; hanging there stands in for the process being killed
-    const run = runLibrary(s, { gather: fixtureGather, references: { fetch: () => hang, totalTimeoutMs: 600000 } })
+    const gather: typeof fixtureGather = async (g, r, onCall) => (await fixtureGather(g, r, onCall)).map((rec, i) => ({ ...rec, paper: { ...rec.paper, pmid: String(1000 + i), referencedWorks: [] } }))
+    const run = runLibrary(s, { gather, references: { fetch: () => hang, totalTimeoutMs: 600000 } })
     const dir = store.legacyLibraryDir('lib_killed')!
     const manifest = () => JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))
     expect(manifest().status).toBe('running') // written at start
@@ -99,7 +100,7 @@ describe('durable storage (#16)', () => {
     const { createLibraryState, runLibrary } = await import('./pipeline')
     const { legacyLibraryDir } = await import('./store')
     const s = createLibraryState('lib_fail', request())
-    await expect(runLibrary(s, { gather: async () => [], citations: { fetchEpmc: () => { throw new Error('x') } } as never })).rejects.toThrow()
+    await expect(runLibrary(s, { gather: async () => { throw new Error('x') }, now: () => { throw new Error('clock') } })).rejects.toThrow('clock')
     const m = JSON.parse(readFileSync(join(legacyLibraryDir('lib_fail')!, 'manifest.json'), 'utf8'))
     expect(m.status).toBe('failed')
   }, 20000)
