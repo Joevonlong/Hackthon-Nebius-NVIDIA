@@ -8,6 +8,7 @@ import { trace } from '../trace'
 export const urlScheme = (u: string) => u.match(/^\s*([a-z][a-z0-9+.-]{0,20}):/i)?.[1]?.toLowerCase() ?? 'none'
 setUrlDropHandler(u => trace('events', { type: 'url_dropped', scheme: urlScheme(u) }))
 
+// Per process, not per prompt: all untrusted text is written before this process starts, so it cannot know the nonce; and the notice stays a constant.
 // The tag name carries a random nonce, so text written before this process started cannot name (and so cannot close) the block.
 export const UNTRUSTED_TAG = `untrusted-data-${randomBytes(8).toString('hex')}`
 
