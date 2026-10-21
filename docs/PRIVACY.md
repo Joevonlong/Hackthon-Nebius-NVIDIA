@@ -12,7 +12,7 @@ PaperTrail runs on your computer. The server you start is your own; there is no 
 | OpenAlex | Finding papers, citations, entity lookups | Search queries, DOIs and OpenAlex ids. If you set `OPENALEX_MAILTO` or `OPENALEX_API_KEY`, those are sent too. | Optional | `server/sources/openalex.ts`, `server/ai/scout.ts` (direct `api.openalex.org` calls), `server/library/sources/openalex-lib.ts` |
 | PubMed (NCBI E-utilities) | Finding papers, abstracts, similar articles | Search queries and PubMed ids | No | `server/sources/pubmed.ts`, `server/library/sources/pubmed-lib.ts`, `server/discovery/seed-fallback.ts` |
 | Europe PMC | Finding papers, citation fallback | Search queries and DOIs | No | `server/sources/europepmc.ts`, `server/library/sources/europepmc-lib.ts`, `server/library/sources/citations-fallback.ts`, `server/discovery/seed-fallback.ts` |
-| Tavily (web search) | Library mode web search for context | Search queries (generated from your question); your Tavily key as `Authorization` header | Yes (`TAVILY_API_KEY`); skipped without it | `server/sources/tavily.ts`, `server/library/sources/tavily-lib.ts` |
+| Tavily (web search) | Library mode web search for context | Search queries (generated from your question); for page extraction, the page URLs (`extract` call, `server/sources/tavily.ts`); your Tavily key as `Authorization` header | Yes (`TAVILY_API_KEY`); skipped without it | `server/sources/tavily.ts`, `server/library/sources/tavily-lib.ts` |
 | Crossref | Fallback for DOI lookups and citations | DOIs; `CROSSREF_MAILTO` or `OPENALEX_MAILTO` if set | No | `server/discovery/seed-fallback.ts`, `server/library/sources/citations-fallback.ts` |
 | arXiv | Library mode source | Search queries | No | `server/library/sources/arxiv.ts` |
 | SerpAPI (Google Scholar) | Only if you set `SERPAPI_KEY` | Search queries and the key | Yes, optional | `server/library/sources/scholar.ts` |
@@ -32,7 +32,7 @@ Notes:
 | SQLite database | `DATA_DIR/papertrail.sqlite` | `server/data/db.ts` |
 | Cache of source responses (API keys and emails stripped from cache keys) | `DATA_DIR/raw/<api>/` | `server/data/http.ts`, `server/library/sources/openalex-entities.ts`, `server/library/sources/tavily-lib.ts` |
 | Notes vault in the browser | IndexedDB of your browser (`idb-keyval`) | `client/src/stores/vault.ts` |
-| Theme, last-opened library, chat history per library | Browser `localStorage` | `client/src/App.vue`, `client/src/stores/chat.ts`, `client/src/stores/vault.ts` |
+| Theme, last-opened library, chat history per library, per-library settings (weights, thresholds, filters), results view (tiles or table) | Browser `localStorage` | `client/src/App.vue`, `client/src/stores/chat.ts`, `client/src/stores/vault.ts`, `client/src/library/LibraryPanel.vue`, `client/src/library/results/facts.ts` |
 | Run logs | `LOG_DIR/runs/<runId>/*.jsonl` (default `./logs`) | `server/trace.ts` |
 | Your API keys | `.env.local` in the repo (for now there is no settings screen for keys). Never written to logs; never committed (`.env.local` is ignored by git). | `server/env.ts` |
 
@@ -52,9 +52,11 @@ Set `LOG_PROMPTS=metadata` (in `.env.local` or the environment) to keep text out
 | `events.jsonl` | The run events: goals, the request, paper titles | `server/library/pipeline.ts`, `server/discovery/registry.ts` |
 | `api.jsonl` | Source request URLs, which include search queries and DOIs | `server/data/http.ts` |
 | `tavily.jsonl` | Web search queries, result titles and clipped page text | `server/sources/tavily.ts`, `server/library/sources/tavily-lib.ts` |
-| `papers.jsonl`, `relations.jsonl`, `references.jsonl` | Paper records and citation links found for your question | `server/library/report.ts`, `server/discovery/trace-report.ts` |
+| `papers.jsonl`, `relations.jsonl`, `references.jsonl` | Paper records and citation links found for your question | `server/library/report.ts`, `server/discovery/trace-report.ts`; `references.jsonl` also by `server/library/references.ts` and `server/library/sources/citations-fallback.ts` |
 
-**Before sharing `logs/runs/<id>/` in a bug report, check these files.**
+Calls made outside a run (for example a seed preview) are logged to `logs/server/*.jsonl` instead (`server/trace.ts`) and can contain the same text.
+
+**Before sharing `logs/runs/<id>/` or `logs/server/` in a bug report, check these files.**
 
 Also not covered: the per-library chat history saved next to a library (`<library folder>/chat.jsonl`), written by `server/library/chat.ts`.
 
