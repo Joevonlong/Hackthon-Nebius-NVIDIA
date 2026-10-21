@@ -20,7 +20,7 @@ import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
 import { PdfBusyError, PdfTimeoutError } from '../security/pdf-worker'
 import { logServerError } from '../security/errors'
-import { createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { assertReadable, createQuestion, insideWorkspace, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
@@ -69,7 +69,7 @@ library.post('/questions', async c => {
 })
 
 library.patch('/questions/:id', async c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   const body = await c.req.json().catch(() => null) as { name?: unknown } | null
   if (!body || typeof body.name !== 'string') return c.json({ error: 'Body must be { name }' }, 400)
   const r = renameQuestion(id, body.name)
@@ -78,12 +78,12 @@ library.patch('/questions/:id', async c => {
 })
 
 library.delete('/questions/:id', c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   return trashQuestion(id) ? c.json({ ok: true }) : c.json({ error: 'question not found' }, 404)
 })
 
 library.get('/questions/:id/notes', c => {
-  const notes = listNotes(decodeURIComponent(c.req.param('id')))
+  const notes = listNotes(c.req.param('id'))
   return notes ? c.json({ notes }) : c.json({ error: 'question not found' }, 404)
 })
 
@@ -106,9 +106,11 @@ export function noteHash(s: string): string {
  * it still has that content, and `If-None-Match: *` only creates a file that does not exist; otherwise 412 with the current content.
  * No header = an older client: the write goes through.
  */
-function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string): { current: string | null; failed: boolean } {
+function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string, forDelete = false): { current: string | null; failed: boolean } {
   const file = notePathIn(id, rel)
-  const current = file && existsSync(file) ? readFileSync(file, 'utf8') : null
+  // a link out of the workspace is never read: refused (409), except for DELETE, which removes the link itself and treats the note as unread
+  const readable = !!file && existsSync(file) && (forDelete ? insideWorkspace(file) : (assertReadable(file), true))
+  const current = readable ? readFileSync(file!, 'utf8') : null
   const match = c.req.header('if-match'); const none = c.req.header('if-none-match')
   const failed = (match !== undefined && (current === null || noteHash(current) !== match.trim().replace(/^"|"$/g, ''))) || (none?.trim() === '*' && current !== null)
   return { current, failed }
@@ -128,7 +130,7 @@ library.put('/questions/:id/notes/*', async c => {
 // Q2-4 (D-37): the References tab's BibTeX / CSL JSON / Markdown .zip of one question → <question>/exports/<name>
 const EXPORT_NAME = /^[^\\/:*?"<>|\x00-\x1f]{1,120}\.(bib|json|zip)$/
 library.put('/questions/:id/exports/:name', async c => {
-  const id = decodeURIComponent(c.req.param('id')), name = decodeURIComponent(c.req.param('name'))
+  const id = c.req.param('id'), name = c.req.param('name')
   if (!EXPORT_NAME.test(name) || name.startsWith('.')) return c.json({ error: 'bad export file name (.bib, .json or .zip)' }, 400)
   const body = await c.req.json().catch(() => null) as { content?: unknown; encoding?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 20_000_000) return c.json({ error: 'Body must be { content: string, encoding?: "base64" }' }, 400)
@@ -141,7 +143,7 @@ library.delete('/questions/:id/notes/*', c => {
   const route = noteRoute(c.req.url)
   if (!route) return c.json({ error: 'bad note path' }, 400)
   const { id, rel } = route
-  const pre = precondition(c, id, rel)
+  const pre = precondition(c, id, rel, true)
   if (pre.failed && pre.current !== null) return c.json(changedElsewhere(pre.current), 412)
   return deleteNote(id, rel) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
 })
@@ -235,10 +237,7 @@ library.get('/library/:id', c => {
 
 // Q2-7: paperId may be the file id ("pmid_38082384") or the paper id ("pmid:38082384", a DOI with "/"); {.+} keeps slashes.
 library.get('/library/:id/papers/:paperId{.+}', c => {
-  const raw = c.req.param('paperId')
-  let pid = raw
-  try { pid = decodeURIComponent(raw) } catch { /* already decoded */ }
-  const r = readPaperFile(c.req.param('id'), pid)
+  const r = readPaperFile(c.req.param('id'), c.req.param('paperId')) // Hono has decoded the param once already (#41)
   if (r === 'bad') return c.json({ error: 'bad id' }, 400)
   if (!r) return c.json({ error: 'paper not found' }, 404)
   return c.json(r)

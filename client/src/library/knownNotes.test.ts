@@ -30,3 +30,15 @@ describe('notes treated as known', () => {
     expect(server.length).toBeGreaterThan(2)
   })
 })
+
+describe('known-id extraction stays linear (#41)', () => {
+  const timed = (f: () => unknown) => { const t = performance.now(); f(); return performance.now() - t }
+  const shapes = [(n: number) => 'PMID' + ' '.repeat(n) + 'x', (n: number) => 'arXiv' + ' '.repeat(n) + 'x', (n: number) => '10.1234/a' + '.'.repeat(n) + 'x', (n: number) => '\n'.repeat(n) + 'x', (n: number) => '\n \t'.repeat(n / 3) + 'x', (n: number) => '# a' + ' '.repeat(n) + 'x']
+  it('long runs of 4 KB and 1 MB finish under 200 ms in both copies', () => {
+    for (const make of shapes) for (const n of [4_000, 1_000_000]) {
+      const notes = [{ path: 'Notes/a.md', title: 'a', content: make(n) }]
+      expect(timed(() => notesKnownGroups(notes))).toBeLessThan(200)
+      expect(timed(() => knownBySource(notes))).toBeLessThan(200)
+    }
+  })
+})

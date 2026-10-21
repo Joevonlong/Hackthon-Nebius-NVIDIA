@@ -86,6 +86,12 @@ runs.get('/papers/:id{.+}', async c => {
   if (local) return c.json(local)
   const ref = parseSeedInput(id)
   if (!ref) return c.json({ error: 'unknown id' }, 400)
+  // The upstream call and the cache write below are side effects, so a page on another site must not be able to trigger them with a plain GET (#41).
+  // Current browsers send Sec-Fetch-Site; the app itself never calls this route from a foreign origin.
+  // Older Safari (before 16.4) omits the header, so a request without it needs the SameSite=Strict session cookie (never sent cross-site).
+  const site = c.req.header('sec-fetch-site')
+  const hasSession = /(?:^|;\s*)pt_session_\d+=[^;]+/.test(c.req.header('cookie') ?? '')
+  if (site ? site !== 'same-origin' && site !== 'none' : !hasSession) return c.json({ error: 'Forbidden: cross-site request' }, 403)
   try {
     const r = await getWork(ref)
     if (!r) return c.json({ error: 'not found' }, 404)

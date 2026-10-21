@@ -10,8 +10,14 @@ import { UNTRUSTED_NOTICE, untrustedBlock } from '../ai/untrusted'
 // ---------- known paper ids ----------
 // Output format (shared with L1): DOI "10.xxxx/…" (lowercase), "pmid:<n>", "arxiv:<id>", OpenAlex "W<n>".
 const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'`<>\]\[(){}|,;]+)/gi
-const PMID_RE = /(?:\bPMID\s*:?\s*|pubmed\.ncbi\.nlm\.nih\.gov\/)(\d{5,9})\b/gi
-const ARXIV_RE = /(?:\barXiv\s*:?\s*|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(?:v\d+)?/gi
+const PMID_RE = /(?:\bPMID\s{0,5}:?\s{0,5}|pubmed\.ncbi\.nlm\.nih\.gov\/)(\d{5,9})\b/gi
+const ARXIV_RE = /(?:\barXiv\s{0,5}:?\s{0,5}|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(?:v\d+)?/gi
+/** Strips trailing punctuation with a scan from the end (a `[...]+$` regex rescans a long run from every start; #41). */
+function trimTrailing(d: string): string {
+  let end = d.length
+  while (end > 0 && '.)]}>*_`\'"'.includes(d[end - 1])) end--
+  return d.slice(0, end)
+}
 const ARXIV_DOI_RE = /^10\.48550\/arxiv\.(\d{4}\.\d{4,5})/i
 const OPENALEX_RE = /(?:openalex\.org\/(?:works\/)?|\b)(W\d{6,12})\b/g
 
@@ -20,7 +26,7 @@ export const isSeedNote = (n: VaultNote) => /(^|\/)seeds\//i.test(n.path)
 
 function idsIn(text: string, out: Set<string>) {
   for (const m of text.matchAll(DOI_RE)) {
-    const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
+    const doi = trimTrailing(m[1]).toLowerCase()
     const ax = doi.match(ARXIV_DOI_RE)
     out.add(ax ? `arxiv:${ax[1]}` : doi)
   }
@@ -49,7 +55,7 @@ export function knownBySource(notes: VaultNote[]): { seeds: string[][]; fromNote
   const seedGroups: string[][] = [], noteGroups: string[][] = []
   for (const n of notes) {
     if (isSeedNote(n)) { const o = new Set<string>(); idsIn(n.content, o); if (o.size) seedGroups.push([...o]) }
-    else for (const block of n.content.split(/\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+    else for (const block of n.content.split(/\n/)) { if (!block.trim()) continue; const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
   }
   const seeds = mergeGroups(seedGroups)
   const seedIds = new Set(seeds.flat())
@@ -84,7 +90,14 @@ export function tfidfKeywords(notes: VaultNote[], k = 12): string[] {
 }
 
 const isQuestionNote = (n: VaultNote) => /question/i.test(n.path) || /question/i.test(n.title)
-const headingsOf = (s: string) => [...s.matchAll(/^#{1,3}\s+(.+?)\s*#*\s*$/gm)].map(m => m[1].trim())
+// per line, with the closing #s cut by a scan: a lazy `(.+?)\s*#*\s*$` rescans a long whitespace run from every start (#41)
+const headingsOf = (s: string) => s.split('\n').flatMap(line => {
+  const m = /^#{1,3}[ \t]+(.*)$/.exec(line.replace(/\r$/, '')); if (!m) return []
+  let t = m[1].trim()
+  while (t.endsWith('#')) t = t.slice(0, -1)
+  t = t.trim()
+  return t ? [t] : []
+})
 const firstQuestionLine = (s: string) => s.split('\n').map(l => l.replace(/^[#>*\-\s]+/, '').trim()).find(l => l.endsWith('?') && l.length > 10)
 
 export function fallbackGoals(notes: VaultNote[], knownPapers: string[]): Goals {

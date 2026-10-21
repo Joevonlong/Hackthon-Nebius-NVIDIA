@@ -133,6 +133,13 @@ export function classifyUrl(url: string): UrlKind {
 
 const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'<>\]\[{}|\\^`]+)/i
 
+/** Trailing characters from `chars` removed by a scan from the end (a `[...]+$` regex rescans a long run from every start). */
+function trimEnd(s: string, chars: string): string {
+  let end = s.length
+  while (end > 0 && chars.includes(s[end - 1])) end--
+  return s.slice(0, end)
+}
+
 /** Lowercase, strip resolver prefixes, trailing punctuation and page-type suffixes. */
 export function cleanDoi(raw: string): string | null {
   let d = decodeURIComponentSafe(raw).trim().replace(/^(https?:\/\/(dx\.)?doi\.org\/|doi:\s*)/i, '')
@@ -140,11 +147,11 @@ export function cleanDoi(raw: string): string | null {
   if (!m) return null
   d = m[1]
   d = d.split(/[?#]/)[0]
-  d = d.replace(/[.,;:)\]}>'"]+$/, '')
+  d = trimEnd(d, ".,;:)]}>'\"")
   d = d.replace(/\/(full|abstract|pdf|epdf|fulltext|summary|meta|figures|references|supplementary-material|html)(\/.*)?$/i, '')
   d = d.replace(/\.(full|abstract|pdf|full\.pdf|full-text|article-info|article-metrics|supplementary-material)$/i, '')
   if (/^10\.1101\//.test(d)) d = d.replace(/v\d+$/i, '') // bioRxiv / medRxiv version suffix
-  d = d.replace(/[.,;:]+$/, '')
+  d = trimEnd(d, '.,;:')
   return /^10\.\d{4,9}\/\S+$/.test(d) ? d.toLowerCase() : null
 }
 
@@ -160,7 +167,7 @@ export function extractDoi(url: string, content = ''): string | null {
   // 2. Publisher-specific URL patterns
   if (h === 'nature.com') { const m = path.match(/^\/articles\/(s\d{5}-\d{3}-[\w-]+|[a-z]+\d{4,})/i); if (m && !/^d41586/.test(m[1])) return `10.1038/${m[1].toLowerCase()}` }
   // 3. citation_doi meta tag / "DOI:" text in the page content
-  const meta = content.match(/citation_doi["']?\s*(?:content=)?["']?\s*[:=]?\s*["']?(10\.\d{4,9}\/[^\s"'<>]+)/i)
+  const meta = content.match(/citation_doi["']?\s{0,5}(?:content=)?["']?\s{0,5}[:=]?\s{0,5}["']?(10\.\d{4,9}\/[^\s"'<>]+)/i)
   if (meta) { const d = cleanDoi(meta[1]); if (d) return d }
   const txt = content.match(/\bdoi(?:\.org\/|:\s*|\s+)(10\.\d{4,9}\/[^\s"'<>]+)/i)
   if (txt) { const d = cleanDoi(txt[1]); if (d) return d }
