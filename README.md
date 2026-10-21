@@ -36,10 +36,14 @@ Type a research question, add the papers you already trust, and PaperTrail build
 ## Quick start
 
 ```bash
-pnpm install && pnpm build
+git clone https://github.com/Joevonlong/PaperTrail.git && cd PaperTrail
+corepack enable pnpm
+pnpm install --config.strict-dep-builds=false && pnpm build
 PORT=3030 pnpm start
 # open http://localhost:3030/?demo=1  (recorded real run; no keys, no network)
 ```
+
+Full setup, API keys and dev mode: see [Setup](#setup).
 
 ## Features
 
@@ -153,17 +157,36 @@ Without keys, AI steps are skipped or fall back (for example, keyword overlap in
 
 ## Setup
 
-Requires Node 22 and pnpm.
+Requires Node 22+, pnpm (`corepack enable pnpm`) and git.
 
 ```bash
-pnpm install
-cp .env.example .env.local   # TOKEN_FACTORY_API_KEY, TAVILY_API_KEY, OPENALEX_API_KEY, OPENALEX_MAILTO
-pnpm dev                     # dev: server :3001, client http://localhost:5173
-pnpm build && PORT=3030 pnpm start   # local run: http://localhost:3030
-scripts/docker-local.sh              # Docker: http://localhost:3040
+git clone https://github.com/Joevonlong/PaperTrail.git && cd PaperTrail
+pnpm install --config.strict-dep-builds=false   # flag: pnpm otherwise stops on esbuild's ignored build script
+cp .env.example .env.local                      # optional keys, see below
+
+pnpm dev                             # dev: http://localhost:5173 (API on :3001)
+pnpm build && PORT=3030 pnpm start   # production: http://localhost:3030
+scripts/docker-local.sh              # Docker (needs .env.local): http://localhost:3040
 ```
 
-Checks: `pnpm gate` (typecheck + tests + build). Nebius Serverless deploy: `scripts/deploy.sh` (ready, not run).
+Add `?demo=1` to any URL to replay a recorded run (no keys, no network).
+
+**Keys** (`.env.local`, git-ignored; restart after editing). Without them, AI steps are skipped or fall back.
+
+| Variable | Enables |
+|---|---|
+| `TOKEN_FACTORY_API_KEY` | embeddings, planner, LLM read, chat |
+| `TAVILY_API_KEY` | web search |
+| `OPENALEX_API_KEY`, `OPENALEX_MAILTO` | own OpenAlex budget (without it, a shared per-IP daily budget; once spent, Authors, Venue and Citations go unscored until midnight UTC) |
+| `SERPAPI_KEY` | Google Scholar |
+
+Check: `curl localhost:3001/api/health` shows which keys are loaded; `pnpm exec tsx scripts/smoke-models.ts` tests them.
+
+**First library:** type a question, add papers you trust in the **Library** tab (DOI, PMID, arXiv/OpenAlex id, or .bib/.ris/CSV/PDF; the Graph score needs them), then **Build library**.
+
+**Files** (git-ignored): `workspace/` holds questions, notes and libraries; `data/` holds the API cache and SQLite; `logs/runs/<id>/` holds per-run traces (check them first when a score is missing).
+
+`pnpm gate` = typecheck + tests + build. Nebius Serverless deploy: `scripts/deploy.sh` (ready, not run).
 
 ## Awards
 
