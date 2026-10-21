@@ -1,4 +1,4 @@
-// Owner: lane D (infra). Demo mode: replays server/demo/recordings/melanoma.json (client uses it with ?demo=1).
+// Owner: lane D (infra). Playground (D-08, was demo mode): replays server/demo/recordings/melanoma.json (client uses it with ?demo=1).
 //   GET /api/demo/stream    text/event-stream, one unnamed `data: <RunEvent JSON>` message per event, ~5 s in total
 //   GET /api/demo/snapshot  RunSnapshot
 // Library demo (CR-3): replays server/demo/recordings/library-melanoma.json, a REAL Library run recorded by scripts/record-library.ts.
@@ -6,7 +6,8 @@
 //   GET /api/demo/library                    { libraryId: 'demo-melanoma', goals, papers (all recorded), request, notes, total, passed, done: true }
 //   GET /api/demo/library/papers/:paperId    one LibPaper (by paper.id, or the file basename)
 // Aliases, same payloads, so a client that already knows /api/library/:id can use the id `demo-melanoma`
-// (registered before routes/library.ts in server/index.ts, so these win over its `:id` routes):
+// (only with DEMO=1, D-08: the product's own /api/library/:id routes are untouched by default; registered before
+// routes/library.ts in server/index.ts, so these win over its `:id` routes):
 //   GET /api/library/demo-melanoma · /stream · /papers/:paperId
 import { Hono, type Context } from 'hono'
 import { streamSSE } from 'hono/streaming'
@@ -157,6 +158,8 @@ const libraryPaper = (c: Context) => {
 demo.get('/demo/library/stream', libraryStream)
 demo.get('/demo/library/papers/:paperId', libraryPaper)
 demo.get('/demo/library', libraryGet)
-demo.get(`/library/${DEMO_LIBRARY_ID}/stream`, libraryStream)
-demo.get(`/library/${DEMO_LIBRARY_ID}/papers/:paperId`, libraryPaper)
-demo.get(`/library/${DEMO_LIBRARY_ID}`, libraryGet)
+if (process.env.DEMO === '1') {
+  demo.get(`/library/${DEMO_LIBRARY_ID}/stream`, libraryStream)
+  demo.get(`/library/${DEMO_LIBRARY_ID}/papers/:paperId`, libraryPaper)
+  demo.get(`/library/${DEMO_LIBRARY_ID}`, libraryGet)
+}
