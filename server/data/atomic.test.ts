@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { atomicHooks, atomicWriteFileSync, atomicWriteJsonSync } from './atomic'
+import { SymlinkOutsideError, atomicHooks, atomicWriteFileSync, atomicWriteJsonSync } from './atomic'
 
 afterEach(() => { atomicHooks.beforeRename = null })
 
@@ -37,8 +37,9 @@ describe('atomic writes', () => {
     expect(statSync(f).mode & 0o777).toBe(0o600)
   })
 
-  it('writes through a symlink to the real file instead of replacing the link', () => {
+  it('writes through a symlink that stays inside the workspace instead of replacing the link', () => {
     const dir = mkdtempSync(join(tmpdir(), 'atomic-'))
+    process.env.WORKSPACE_DIR = dir
     const real = join(dir, 'real.md'); const link = join(dir, 'link.md')
     writeFileSync(real, 'old'); symlinkSync(real, link)
     atomicWriteFileSync(link, 'new')
@@ -54,5 +55,21 @@ describe('atomic writes', () => {
     utimesSync(stale, old, old); utimesSync(foreign, old, old)
     atomicWriteFileSync(join(dir, 'note.md'), 'y')
     expect(readdirSync(dir).sort()).toEqual(['.keep.tmp', '.other.md.123.cafebabe.tmp', 'note.md'])
+  })
+
+  it('refuses a symlink to a file outside the folders and leaves the outside folder untouched', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'atomic-ws-')); const outside = mkdtempSync(join(tmpdir(), 'atomic-out-'))
+    process.env.WORKSPACE_DIR = ws
+    const secret = join(outside, 'bashrc'); writeFileSync(secret, 'keep me'); chmodSync(secret, 0o640)
+    const stale = join(outside, '.x.md.1.deadbeef.tmp'); writeFileSync(stale, 'x'); utimesSync(stale, new Date(0), new Date(0))
+    const link = join(ws, 'x.md'); symlinkSync(secret, link)
+    let err: unknown
+    try { atomicWriteFileSync(link, 'pwned') } catch (e) { err = e }
+    expect(err).toBeInstanceOf(SymlinkOutsideError)
+    expect((err as SymlinkOutsideError).getResponse().status).toBe(409)
+    expect(readFileSync(secret, 'utf8')).toBe('keep me')
+    expect(statSync(secret).mode & 0o777).toBe(0o640)
+    expect(readdirSync(outside).sort()).toEqual(['.x.md.1.deadbeef.tmp', 'bashrc']) // no temp file, no sweep
+    expect(lstatSync(link).isSymbolicLink()).toBe(true)
   })
 })

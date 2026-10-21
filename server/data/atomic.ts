@@ -1,13 +1,26 @@
 // Atomic file writes for user data: temp file in the same folder -> fsync -> rename -> fsync the folder.
 // A crash or a throw before the rename leaves the previous file untouched (never a truncated one).
-import { closeSync, existsSync, fchmodSync, fsyncSync, mkdirSync, openSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
+import { HTTPException } from 'hono/http-exception'
+import { closeSync, existsSync, lstatSync, fchmodSync, fsyncSync, mkdirSync, openSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, resolve, sep } from 'node:path'
 
 /** Test seam: runs after the temp file is complete and before it replaces the target. */
 export const atomicHooks: { beforeRename: ((tmp: string, target: string) => void) | null } = { beforeRename: null }
 
 export interface AtomicOptions { /** fsync the file and folder (default true). Off for re-creatable cache files. */ fsync?: boolean }
+
+/** A write target is a symlink that leads outside the workspace, data and log folders: refused, never replaced or followed. */
+export class SymlinkOutsideError extends HTTPException {
+  constructor(public file: string) {
+    const message = `Not saved: ${basename(file)} is a symbolic link that points outside the PaperTrail folders. Replace the link with a regular file or move the target inside the workspace.`
+    super(409, { message, res: Response.json({ error: message, code: 'symlink_outside_workspace' }, { status: 409 }) })
+  }
+}
+
+const realRoots = () => [process.env.WORKSPACE_DIR || './workspace', process.env.DATA_DIR || './data', process.env.LOG_DIR || './logs']
+  .map(r => { try { return realpathSync(resolve(r)) } catch { return resolve(r) } }) // a root that is itself a link (macOS /tmp) compares by real path
+const insideRoots = (real: string) => realRoots().some(r => real === r || real.startsWith(r + sep))
 
 const TMP_RE = /^\..+\.\d+\.[0-9a-f]{8}\.tmp$/ // exactly the names this module creates
 const STALE_MS = 3600_000
@@ -28,7 +41,13 @@ export function atomicWriteFileSync(target: string, data: string | Uint8Array, o
   // a symlinked target is written through to the real file, never replaced by a regular one
   let file = target
   let mode: number | null = null
-  if (existsSync(target)) { file = realpathSync(target); mode = statSync(file).mode & 0o7777 }
+  if (existsSync(target)) {
+    if (lstatSync(target).isSymbolicLink()) {
+      file = realpathSync(target)
+      if (!insideRoots(file)) throw new SymlinkOutsideError(target) // before any temp file, sweep or chmod near the outside folder
+    }
+    mode = statSync(file).mode & 0o7777
+  }
   const dir = dirname(file)
   mkdirSync(dir, { recursive: true })
   sweepStaleTemps(dir)

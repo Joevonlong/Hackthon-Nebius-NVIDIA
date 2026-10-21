@@ -104,7 +104,7 @@ export class LibraryCorruptError extends HTTPException {
 /** The build left a manifest but no results (killed before the first checkpoint): 409 with the status instead of a 404. */
 export class LibraryUnfinishedError extends HTTPException {
   constructor(public libraryId: string, public buildStatus: string) { // not "status": HTTPException owns that name
-    const message = `Library ${libraryId} has no results: the build was ${buildStatus} before anything was saved. Start the build again.`
+    const message = `Library ${libraryId} has no results: ${buildStatus === 'failed' ? 'the build failed' : buildStatus === 'running' ? 'the build is still running' : 'the build was interrupted'} before anything was saved. Start the build again.`
     super(409, { message, res: Response.json({ error: message, code: 'library_unfinished', status: buildStatus, libraryId }, { status: 409 }) })
   }
 }
