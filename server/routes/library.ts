@@ -20,7 +20,7 @@ import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
 import { PdfBusyError, PdfTimeoutError } from '../security/pdf-worker'
 import { logServerError } from '../security/errors'
-import { createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { assertReadable, createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
@@ -69,7 +69,7 @@ library.post('/questions', async c => {
 })
 
 library.patch('/questions/:id', async c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   const body = await c.req.json().catch(() => null) as { name?: unknown } | null
   if (!body || typeof body.name !== 'string') return c.json({ error: 'Body must be { name }' }, 400)
   const r = renameQuestion(id, body.name)
@@ -78,12 +78,12 @@ library.patch('/questions/:id', async c => {
 })
 
 library.delete('/questions/:id', c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   return trashQuestion(id) ? c.json({ ok: true }) : c.json({ error: 'question not found' }, 404)
 })
 
 library.get('/questions/:id/notes', c => {
-  const notes = listNotes(decodeURIComponent(c.req.param('id')))
+  const notes = listNotes(c.req.param('id'))
   return notes ? c.json({ notes }) : c.json({ error: 'question not found' }, 404)
 })
 
@@ -108,6 +108,7 @@ export function noteHash(s: string): string {
  */
 function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string): { current: string | null; failed: boolean } {
   const file = notePathIn(id, rel)
+  if (file && existsSync(file)) assertReadable(file) // a link out of the workspace is refused (409), never read
   const current = file && existsSync(file) ? readFileSync(file, 'utf8') : null
   const match = c.req.header('if-match'); const none = c.req.header('if-none-match')
   const failed = (match !== undefined && (current === null || noteHash(current) !== match.trim().replace(/^"|"$/g, ''))) || (none?.trim() === '*' && current !== null)
@@ -128,7 +129,7 @@ library.put('/questions/:id/notes/*', async c => {
 // Q2-4 (D-37): the References tab's BibTeX / CSL JSON / Markdown .zip of one question → <question>/exports/<name>
 const EXPORT_NAME = /^[^\\/:*?"<>|\x00-\x1f]{1,120}\.(bib|json|zip)$/
 library.put('/questions/:id/exports/:name', async c => {
-  const id = decodeURIComponent(c.req.param('id')), name = decodeURIComponent(c.req.param('name'))
+  const id = c.req.param('id'), name = c.req.param('name')
   if (!EXPORT_NAME.test(name) || name.startsWith('.')) return c.json({ error: 'bad export file name (.bib, .json or .zip)' }, 400)
   const body = await c.req.json().catch(() => null) as { content?: unknown; encoding?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 20_000_000) return c.json({ error: 'Body must be { content: string, encoding?: "base64" }' }, 400)
