@@ -23,7 +23,9 @@ export function idsInText(text: string, opts: { barePmids?: boolean } = {}): str
 
 function bibtex(text: string): string[] {
   const out: string[] = []
-  for (const m of text.matchAll(/\b(doi|pmid|eprint|arxiv|url)\s*=\s*[{"]\s*([^}"]+?)\s*[}"]/gi)) {
+  // Linear time (#35): a value is at most 1000 chars of non-brace text or one-level {groups}, whitespace runs before the value are at most 200 (the value's own whitespace is trimmed afterwards), and the
+  // alternatives start with different characters, so no start position rescans more than a bounded window.
+  for (const m of text.matchAll(/\b(doi|pmid|eprint|arxiv|url)[ \t\r\n]{0,200}=[ \t\r\n]{0,200}[{"]((?:[^{}"]|\{[^{}]{0,200}\}){1,1000})[}"]/gi)) {
     const k = m[1].toLowerCase(); const v = m[2].trim()
     if (k === 'doi') out.push(cleanDoi(v.replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')))
     else if (k === 'pmid' && /^\d{5,9}$/.test(v)) out.push(`PMID:${v}`)

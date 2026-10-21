@@ -3,6 +3,8 @@
 # Usage: scripts/deploy.sh <version> [--dry-run]     e.g. scripts/deploy.sh v1
 # Env:   NEBIUS_REGION (default eu-north1) · REGISTRY_NAME (default papertrail) · SUBNET_ID (default: first subnet found)
 # Reads TOKEN_FACTORY_API_KEY, TAVILY_API_KEY, OPENALEX_API_KEY, OPENALEX_MAILTO from .env.local at the repo root; never prints them.
+# Keys and the access token reach the CLI only through a mode-0600 temp file (--env-file), never as arguments. See docs/DEPLOY.md.
+# Also: PUBLIC_ORIGIN (required for a real deploy, e.g. https://papertrail.example) · PAPERTRAIL_ACCESS_TOKEN (default: created and shown once)
 # Each deploy uses a new tag and endpoint name (papertrail-<version>); there is no update command and creation takes ~5 min.
 set -euo pipefail
 
@@ -52,15 +54,37 @@ while [[ "$d" != "/" ]]; do
   if [[ -f "$d/.env.local" ]]; then ENV_FILE="$d/.env.local"; break; fi
   d="$(dirname "$d")"
 done
-ENV_ARGS=()
+# Keys and the access token go into a private file (mode 0600, removed on exit) that the CLI reads with --env-file,
+# never into command-line arguments, where `ps` and shell history could show them (#35).
+SECRETS="$(umask 077; mktemp "${TMPDIR:-/tmp}/papertrail-endpoint-env.XXXXXX")"
+trap 'rm -f "$SECRETS"' EXIT
+envval() { grep -E "^[[:space:]]*${1}=" "$ENV_FILE" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//" || true; }
 if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
   for key in TOKEN_FACTORY_API_KEY TAVILY_API_KEY OPENALEX_API_KEY OPENALEX_MAILTO; do
-    val="$(grep -E "^[[:space:]]*${key}=" "$ENV_FILE" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//")" || true
-    if [[ -n "$val" ]]; then ENV_ARGS+=(--env "${key}=${val}"); say "env ${key}: set"; else say "env ${key}: missing (feature runs without it)"; fi
+    val="$(envval "$key")"
+    if [[ -n "$val" ]]; then printf '%s=%s\n' "$key" "$val" >> "$SECRETS"; say "env ${key}: set"; else say "env ${key}: missing (feature runs without it)"; fi
   done
 else
   say "no .env.local found; deploying without API keys (demo mode still works)"
 fi
+# Access token: the server refuses to start on a public address without one. It comes from PAPERTRAIL_DEPLOY_TOKEN (environment) or
+# .env.deploy.local at the repo root (git-ignored), else one is created and shown once at the end of a real deploy. It is not read from
+# .env.local: a token there would also lock down your local `pnpm dev` / `pnpm start`.
+TOKEN="${PAPERTRAIL_DEPLOY_TOKEN:-}"; NEW_TOKEN=0
+if [[ -z "$TOKEN" && -f "$ROOT/.env.deploy.local" ]]; then
+  TOKEN="$(grep -E '^[[:space:]]*PAPERTRAIL_DEPLOY_TOKEN=' "$ROOT/.env.deploy.local" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//" || true)"
+fi
+if [[ -z "$TOKEN" ]]; then
+  if [[ $DRY_RUN == 1 ]]; then TOKEN="<generated-token>"; else command -v openssl >/dev/null || die "openssl not found (needed to create the access token)"; TOKEN="$(openssl rand -hex 32)"; NEW_TOKEN=1; fi
+fi
+[[ ${#TOKEN} -ge 16 ]] || die "the deploy token must be at least 16 characters"
+[[ "$TOKEN" =~ ^[A-Za-z0-9._~-]+$ ]] || die "the deploy token may only contain A-Z a-z 0-9 . _ ~ - (other characters break the .env file and the Authorization header); create one with: openssl rand -hex 32"
+printf 'PAPERTRAIL_ACCESS_TOKEN=%s\n' "$TOKEN" >> "$SECRETS"
+say "env PAPERTRAIL_ACCESS_TOKEN: $([[ $NEW_TOKEN == 1 ]] && echo 'created' || echo 'set')"
+# Optional: a front-end origin that may call the API besides the endpoint itself (the server accepts its own origin when a token is set).
+PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-}"
+if [[ -n "$PUBLIC_ORIGIN" ]]; then printf 'ALLOWED_ORIGINS=%s\n' "$PUBLIC_ORIGIN" >> "$SECRETS"; say "env ALLOWED_ORIGINS: $PUBLIC_ORIGIN"; fi
+ENV_ARGS=(--env-file "$SECRETS")
 
 # 3. Registry (create or reuse)
 REGISTRY_PATH=""
@@ -94,6 +118,10 @@ SUBNET_ARGS=(); [[ -n "$SUBNET" ]] && SUBNET_ARGS=(--subnet-id "$SUBNET")
 
 # 6. Create the endpoint
 say "create endpoint ${NAME}"
+# Never fall back to --env KEY=value: if this CLI has no --env-file, stop.
+if [[ $DRY_RUN == 0 ]]; then
+  nebius ai endpoint create --help 2>&1 | grep -q -- '--env-file' || die "this nebius CLI has no --env-file for 'ai endpoint create'; secrets are never passed as arguments. Update the CLI or deploy another way (docs/DEPLOY.md)"
+fi
 run nebius ai endpoint create --name "$NAME" --image "$IMAGE" \
   --platform cpu-d3 --preset 2vcpu-8gb --container-port 3000 --disk-size 20Gi \
   "${SUBNET_ARGS[@]}" "${ENV_ARGS[@]+"${ENV_ARGS[@]}"}"
@@ -115,4 +143,15 @@ for _ in $(seq 1 90); do
 done
 [[ -n "$URL" ]] || die "timeout waiting for endpoint ${ID}"
 say "public URL: ${URL}"
-curl -fsS --max-time 20 "${URL%/}/api/health" >/dev/null && say "health OK" || say "health check not yet answering; retry in a minute"
+if [[ $NEW_TOKEN == 1 ]]; then
+  say "access token (shown once; store it in a password manager): ${TOKEN}"
+  say "sign in once with: ${URL%/}/?token=<token>  (keep it in ${ROOT}/.env.deploy.local as PAPERTRAIL_DEPLOY_TOKEN=... to reuse it)"
+fi
+# /api/health is open, so it proves nothing about access. Make an authenticated call; the token goes to curl on stdin, not on its command line.
+# A POST without a body must reach the route and be answered 400; 401 or 403 means the token or the origin/session guard rejects writes.
+auth_post_status() { printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" | curl -sS --max-time 20 -K - -X POST -o /dev/null -w '%{http_code}' "${URL%/}$1" 2>/dev/null || true; }
+OK=0
+for _ in 1 2 3 4 5 6; do [[ "$(auth_post_status /api/questions)" == 400 ]] && { OK=1; break; }; sleep 10; done
+if [[ $OK == 1 ]]; then say "authenticated write check OK (POST /api/questions answered 400 as expected)"; else
+  die "the endpoint is running but the authenticated write check (POST /api/questions, expected 400) failed. Tear down: nebius ai endpoint delete ${ID} (check --help), remove the image tag ${IMAGE} from the registry, then deploy again with a new version (docs/DEPLOY.md)"
+fi

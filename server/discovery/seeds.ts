@@ -3,6 +3,7 @@ import type { Paper, Seed } from '@shared/contracts'
 import { getWork, normDoi } from '../sources/openalex'
 import { fetchAbstracts } from '../sources/pubmed'
 import { abstractsByDoi } from '../sources/europepmc'
+import { logServerError } from '../security/errors'
 import { openAlexProblem, resolveWithoutOpenAlex, type FallbackSource } from './seed-fallback'
 
 export type SeedRef = { kind: 'openalex' | 'doi' | 'pmid' | 'pmcid'; value: string }
@@ -14,6 +15,7 @@ export function parseSeedInput(raw: string): SeedRef | null {
   try { s = decodeURIComponent(s) } catch { /* keep as is */ }
   // DOI: bare, doi: prefix, doi.org URL, or anywhere in a publisher URL
   const doi = s.match(/(?:^|doi\.org\/|doi:\s*|\/)(10\.\d{4,9}\/[^\s?#"<>]+)/i)
+  if (doi && /(^|\/)\.\.?(\/|$)/.test(doi[1])) return null // dot segments are never part of a DOI (#35)
   if (doi && !/openalex\.org/i.test(s)) return { kind: 'doi', value: normDoi(doi[1].replace(/[.,;)]+$/, ''))! }
   const oa = s.match(/(?:^|openalex\.org\/(?:works\/)?)(W\d+)$/i)
   if (oa) return { kind: 'openalex', value: oa[1].toUpperCase() }
@@ -70,7 +72,7 @@ const OPENALEX_SEED_TIMEOUT_MS = Number(process.env.SEED_OPENALEX_TIMEOUT_MS || 
 export interface ResolvedVia { input: string; paperId: string; source: FallbackSource; reason: string }
 export interface ResolveResult {
   seeds: Seed[]
-  errors: { input: string; message: string }[]
+  errors: { input: string; message: string; code?: string }[]
   requests: { url: string; hash: string; paperId: string }[]
   /** Q2-6: seeds resolved without OpenAlex, and one plain notice for the UI ("OpenAlex rate-limited — resolved via Crossref"). */
   resolvedVia: ResolvedVia[]
@@ -80,12 +82,12 @@ export interface ResolveResult {
 export async function resolveSeeds(inputs: string[], deps: { getWork?: typeof getWork; fallback?: typeof resolveWithoutOpenAlex } = {}): Promise<ResolveResult> {
   const work = deps.getWork ?? getWork
   const fallback = deps.fallback ?? resolveWithoutOpenAlex
-  const errors: { input: string; message: string }[] = []
+  const errors: { input: string; message: string; code?: string }[] = []
   const requests: { url: string; hash: string; paperId: string }[] = []
   const via: ResolvedVia[] = []
   const found = await Promise.all(inputs.map(async input => {
     const ref = parseSeedInput(input)
-    if (!ref) { errors.push({ input, message: 'Not a DOI, PMID, PMCID or OpenAlex id' }); return null }
+    if (!ref) { errors.push({ input, message: 'Not a DOI, PMID, PMCID or OpenAlex id', code: 'bad_id' }); return null }
     let problem: unknown = null
     try {
       let timer: ReturnType<typeof setTimeout> | undefined
@@ -97,14 +99,15 @@ export async function resolveSeeds(inputs: string[], deps: { getWork?: typeof ge
     const hit = await fallback(ref)
     const reason = openAlexProblem(problem)
     if (hit) { via.push({ input, paperId: hit.paper.id, source: hit.source, reason }); return { input, paper: hit.paper } }
-    errors.push({ input, message: problem ? `${reason}; not found via Crossref / PubMed / Europe PMC either (${(problem as Error).message?.slice(0, 120) ?? ''})` : `Not found in OpenAlex, Crossref, PubMed or Europe PMC (${ref.kind}:${ref.value})` })
+    if (problem) logServerError('seeds/resolve', problem)
+    errors.push({ input, message: problem ? `${reason}; not found via Crossref / PubMed / Europe PMC either` : `Not found in OpenAlex, Crossref, PubMed or Europe PMC (${ref.kind}:${ref.value})`, code: problem ? 'not_found_upstream_error' : 'not_found' })
     return null
   }))
   const seen = new Map<string, string>()
   const papers: { input: string; paper: Paper }[] = []
   for (const x of found) {
     if (!x) continue
-    if (seen.has(x.paper.id)) { errors.push({ input: x.input, message: `Same paper as ${seen.get(x.paper.id)} (${x.paper.id})` }); continue }
+    if (seen.has(x.paper.id)) { errors.push({ input: x.input, message: `Same paper as ${seen.get(x.paper.id)} (${x.paper.id})`, code: 'duplicate' }); continue }
     seen.set(x.paper.id, x.input); papers.push(x)
   }
   try { await fillAbstractsFromPubmed(papers.map(p => p.paper)) } catch { /* abstracts are optional */ }

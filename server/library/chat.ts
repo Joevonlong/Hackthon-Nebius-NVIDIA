@@ -8,6 +8,7 @@ import { chatJson, hasKey, lastError } from '../ai/http'
 import { UNTRUSTED_NOTICE, untrustedBlock } from '../ai/untrusted'
 import { env } from '../env'
 import { clip, trace } from '../trace'
+import { logServerError } from '../security/errors'
 import { rescorePapers } from './score'
 import { existsSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -367,7 +368,7 @@ export async function runChat(libraryId: string, lib: { goals: Goals | null; pap
     for (attempts = 1; attempts <= 2 && !res; attempts++) {
       const user = attempts === 1 ? transcript(req.messages) : `${transcript(req.messages)}\n\n(Your previous answer was not a valid JSON object of the required shape. Reply with exactly one JSON object: {"reply": string, "cited": number[], "proposal": object|null}.)`
       const out = await call({ model, system, user, temperature: 0.2, maxTokens: 1500, timeoutMs: attempts === 1 ? timeoutMs : Math.min(timeoutMs, 40000) })
-      if (!out) { error = lastError ? `model call failed (${lastError.status || ''} ${lastError.body.slice(0, 120)})`.trim() : 'model call failed'; if (lastError?.body === 'timeout') error = 'the model timed out'; continue }
+      if (!out) { if (lastError) logServerError('chat', new Error(`model call failed ${lastError.status || ''} ${lastError.body.slice(0, 200)}`)); error = lastError ? `model call failed${lastError.status ? ` (HTTP ${lastError.status})` : ''}` : 'model call failed'; if (lastError?.body === 'timeout') error = 'the model timed out'; continue }
       const parsed = ModelOut.safeParse(out.data)
       if (!parsed.success) { error = `invalid model JSON: ${parsed.error.issues.slice(0, 2).map(i => `${i.path.join('.')} ${i.message}`).join('; ')}`; continue }
       const proposal = sanitizeProposal(parsed.data.proposal, req.current, lastUser)

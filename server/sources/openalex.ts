@@ -65,8 +65,13 @@ function url(path: string, params: Record<string, string | number>): string {
 export interface Fetched<T> { value: T; url: string; hash: string }
 
 /** id: W-id, DOI, or PMID (prefix-typed: 'doi:…', 'pmid:…', or bare W-id). Returns null on 404. */
+/** Request path of one work. The id is encoded so "/", "?", "#" and ".." in it cannot change the path or add a query (#35). */
+export function workPath(ref: { kind: 'openalex' | 'doi' | 'pmid' | 'pmcid'; value: string }): string {
+  return ref.kind === 'openalex' ? `/works/${encodeURIComponent(ref.value)}` : `/works/${ref.kind}:${encodeURIComponent(ref.value)}`
+}
+
 export async function getWork(ref: { kind: 'openalex' | 'doi' | 'pmid' | 'pmcid'; value: string }): Promise<Fetched<Paper> | null> {
-  const path = ref.kind === 'openalex' ? `/works/${ref.value}` : `/works/${ref.kind}:${ref.value}`
+  const path = workPath(ref)
   try {
     const r = await cachedJson('openalex', url(path, { select: SELECT }))
     return { value: mapWork(r.data), url: r.url, hash: r.hash }
