@@ -5,9 +5,10 @@ import { z } from 'zod'
 // URLs from sources, web search and library files are untrusted. Bad ones are dropped on read ('' / null) instead of
 // rejecting the whole file, so old libraries still load; the UI shows an empty URL as plain text.
 let onUrlDrop: ((url: string) => void) | null = null
-export const setUrlDropHandler = (fn: ((url: string) => void) | null) => { onUrlDrop = fn }
+/** Installs the handler and returns the previous one (tests restore it). */
+export const setUrlDropHandler = (fn: ((url: string) => void) | null) => { const prev = onUrlDrop; onUrlDrop = fn; return prev }
 export function httpUrlOrNull(u: string): string | null {
-  try { const p = new URL(u.trim()); if (p.protocol === 'http:' || p.protocol === 'https:') return p.href } catch { /* not a URL */ }
+  try { const t = u.trim(); const p = new URL(t); if (p.protocol === 'http:' || p.protocol === 'https:') return t } catch { /* not a URL */ }
   if (u.trim()) try { onUrlDrop?.(u) } catch { /* tracing must not break parsing */ }
   return null
 }

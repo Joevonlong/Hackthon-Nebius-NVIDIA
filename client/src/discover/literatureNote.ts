@@ -3,6 +3,7 @@
 import { ROUTE_LABEL, type Candidate, type Paper, type Seed, type Signal } from '@shared/contracts'
 
 import { lastName } from '../library/names'
+import { mdLink, safeUrl } from '../util/safeUrl'
 // Q2-8: "Yan M" / "Smith JA" / "van der Berg, A." aware (was: last whitespace token, so "Yan M" → "M").
 export { lastName }
 export const firstAuthor = (p: Paper) => p.authors[0] || 'Unknown'
@@ -25,7 +26,9 @@ export const doiUrl = (doi: string) => `https://doi.org/${doi}`
 export const pubmedUrl = (pmid: string) => `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
 
 export function sourceLinks(p: Paper): string {
-  const links = [`[OpenAlex](${p.url})`]
+  const links: string[] = []
+  const oa = safeUrl(p.url)
+  if (oa) links.push(`[OpenAlex](${oa})`)
   if (p.doi) links.push(`[DOI](${doiUrl(p.doi)})`)
   if (p.pmid) links.push(`[PubMed](${pubmedUrl(p.pmid)})`)
   return links.join(' · ')
@@ -85,7 +88,7 @@ export function buildLiteratureNote(c: Candidate, ctx: { seeds: Seed[]; runId: s
   ].join('\n')
   const link = (n: number) => seedRef(n, ctx.seeds)
   const trail = c.signals.length
-    ? c.signals.map(s => `- ${signalLine(s, link)} · [${s.source.name}](${s.source.url})`)
+    ? c.signals.map(s => `- ${signalLine(s, link)} · ${mdLink(s.source.name, s.source.url)}`)
     : ['- No recorded signals.']
   const body = [
     `# ${p.title}`, '',
