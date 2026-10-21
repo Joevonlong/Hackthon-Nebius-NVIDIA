@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { Hono } from 'hono'
 import { apiGuard, bodyLimitFor, sessionCookie, loadSessionToken } from './guard'
-import { extractPdfPages } from './pdf-worker'
+import { extractPdfPages, PdfBusyError } from './pdf-worker'
 import { parseSeedPdf } from '../library/seed-import'
 
 const PORT = 3000
@@ -116,6 +116,11 @@ describe('PDF worker', () => {
       const r = await parseSeedPdf(tinyPdf('Smith 2020. doi:10.1234/abc.5678'))
       expect(r.ids).toEqual(['10.1234/abc.5678'])
     } finally { try { process.chdir(cwd) } catch { /* same */ } }
+  })
+  it('rejects with PdfBusyError once the waiting queue is full', async () => {
+    const run = () => extractPdfPages(new Uint8Array(1), { deadlineMs: 300, source: 'while (true) {}' }).then(() => 'ok', e => e as Error)
+    const all = await Promise.all(Array.from({ length: 8 }, run)) // 2 running + 4 waiting + 2 refused
+    expect(all.filter(e => e instanceof PdfBusyError)).toHaveLength(2)
   })
   it('queues workers: three hung parses never run more than two at once', async () => {
     const t0 = Date.now()

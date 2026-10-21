@@ -17,6 +17,7 @@ import { fixtureGather } from '../library/fixtures'
 import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, renameLibrary, trashLibrary } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
+import { PdfBusyError } from '../security/pdf-worker'
 import { createQuestion, deleteNote, listNotes, listQuestions, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
@@ -125,6 +126,7 @@ library.post('/seeds/import', async c => {
     const r = parseSeedText(name, await file.text())
     return c.json({ file: name, format: r.format, ids: r.ids })
   } catch (e) {
+    if (e instanceof PdfBusyError) return c.json({ error: e.message }, 503)
     return c.json({ error: `Could not read ${name}: ${(e as Error).message?.slice(0, 200)}` }, 422)
   }
 })

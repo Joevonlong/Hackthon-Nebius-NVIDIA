@@ -14,7 +14,7 @@ app.use('/api/*', apiGuard({
   port: env.port,
   dataDir: env.dataDir,
   allowedOrigins: process.env.ALLOWED_ORIGINS,
-  devClient: process.env.NODE_ENV !== 'production' && !existsSync('./dist/client'), // Vite dev proxy origin
+  devClient: import.meta.url.endsWith('.ts'), // true under tsx (pnpm dev), false in the built bundle; admits the Vite proxy origin
 }))
 app.route('/api', health)
 app.route('/api', runs)

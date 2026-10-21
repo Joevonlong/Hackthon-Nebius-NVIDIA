@@ -15,12 +15,16 @@ const { parentPort, workerData } = require('node:worker_threads')
 
 export const PDF_DEADLINE_MS = 20_000
 const MAX_WORKERS = 2
+const MAX_WAITING = 4 // each waiting upload holds up to 25 MB, so the queue is short
+export class PdfBusyError extends Error { constructor() { super('Too many PDFs are being read right now; try again in a moment.') } }
 let running = 0
 const waiting: Array<() => void> = []
 async function slot<T>(fn: () => Promise<T>): Promise<T> {
-  if (running >= MAX_WORKERS) await new Promise<void>(r => waiting.push(r))
-  running++
-  try { return await fn() } finally { running--; waiting.shift()?.() }
+  if (running >= MAX_WORKERS) {
+    if (waiting.length >= MAX_WAITING) throw new PdfBusyError()
+    await new Promise<void>(r => waiting.push(r)) // the slot is handed over with `running` already counted
+  } else running++
+  try { return await fn() } finally { const next = waiting.shift(); if (next) next(); else running-- }
 }
 function unpdfUrl(): string {
   try { return import.meta.resolve('unpdf') } catch { return 'unpdf' }
