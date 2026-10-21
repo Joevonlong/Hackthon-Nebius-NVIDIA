@@ -30,7 +30,7 @@ const hc = useHoverCard()
     </td>
     <td class="num yr">{{ paper.paper.year ?? 'n.d.' }}</td>
     <td class="kd" :title="paper.labels.kind">{{ paper.labels.kind }}</td>
-    <td v-for="k in COMPONENT_KEYS" :key="k" class="sbc"><SparkBar :c="comp(paper, k)" :tip="compTip(comp(paper, k), lib.deK, lib.papers.length)" /></td>
+    <td v-for="k in COMPONENT_KEYS" :key="k" class="sbc"><SparkBar :c="comp(paper, k)" :tip="compTip(comp(paper, k), lib.deK)" /></td>
     <td class="num tot" :title="`total ${fmtScore(paper.total, threshold)} · minimum ${f2(threshold)}`"><b class="gi" :class="{ hi: g === 'A' || g === 'B' }">{{ g ?? '–' }}</b>{{ fmtScore(paper.total, threshold) }}</td>
     <td class="gc"><b class="g" :class="'g-' + g" :title="g ? `grade ${g}` : 'no grade: nothing could be assessed'">{{ g ?? '–' }}</b></td>
     <td><span class="st" :title="statusTip(paper, lib)">{{ st }}</span></td>

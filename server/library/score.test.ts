@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_WEIGHTS, LibPaper } from '@shared/library'
 import { labelRecord } from './labels'
 import {
-  authorsComponent, buildContext, citationsComponent, combine, findDuplicates, graphComponent, llmValue, ordinal, passFlags, pct,
+  authorsComponent, buildContext, citationsComponent, combine, findDuplicates, graphComponent, llmValue, ordinal, passFlags, pct, TOPIC_FLOOR_TAG,
   relevanceComponent, scoreLibrary, venueComponent, type ScoreItem,
 } from './score'
 import { mkRecord, testGoals } from './test-records'
@@ -135,15 +135,48 @@ describe('known papers (Seed links)', () => {
     expect(ctx.knownCount).toBe(1)
     expect(graphComponent(items[1], ctx).value).toBe(0.5) // one linked paper, not two
   })
+  it('a seed that is NOT in the records still counts once, via its id group', () => {
+    const items = [item(mkRecord('W1'))]
+    const g = { ...testGoals(), knownPapers: ['10.1234/absent', 'pmid:222222', 'W77', '10.1234/other'] }
+    expect(buildContext(items, g, NOW, false, [['10.1234/absent', 'pmid:222222', 'W77'], ['10.1234/other']]).knownCount).toBe(2)
+    expect(buildContext(items, g, NOW).knownCount).toBe(4) // without groups every id is its own paper
+  })
 })
 
 describe('topic-fit floor', () => {
-  it('a paper below the relevance floor never passes, read by the LLM or not; the LLM read overrides', () => {
+  const opts = { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW }
+  const passedOf = (out: ReturnType<typeof scoreLibrary>, id: string) => out.find(p => p.paper.id === id)!
+
+  it('keeps 5 on-topic papers with cosines 0.80–0.85 (the floor is on the raw signal, not min–max)', () => {
+    const items = [0.8, 0.81, 0.82, 0.83, 0.85].map((c, i) => item(mkRecord(`W${i + 1}`), c))
+    const out = scoreLibrary(items, testGoals(), opts)
+    expect(out.every(p => p.passed)).toBe(true)
+    expect(out.some(p => p.labels.tags.includes(TOPIC_FLOOR_TAG))).toBe(false)
+  })
+  it('drops a paper whose raw cosine is under the floor (embedding) or whose keyword overlap is 0', () => {
+    const kw = item(mkRecord('W3'), 0); kw.rel = { cos: 0, best: '', bestKind: 'keywords', method: 'keywords' }
+    const out = scoreLibrary([item(mkRecord('W1'), 0.7), item(mkRecord('W2'), 0.2), kw], testGoals(), opts)
+    expect(passedOf(out, 'W1').passed).toBe(true)
+    expect(passedOf(out, 'W2').passed).toBe(false)
+    expect(passedOf(out, 'W2').labels.tags).toContain(TOPIC_FLOOR_TAG)
+    expect(passedOf(out, 'W3').passed).toBe(false)
+  })
+  it('the tag is derived per pass: an LLM read in between rescues the paper and the shared labels are never mutated', () => {
+    const low = item(mkRecord('W2'), 0.2)
+    const items = [item(mkRecord('W1'), 0.7), low]
+    const before = [...low.labels.tags]
+    expect(passedOf(scoreLibrary(items, testGoals(), opts), 'W2').labels.tags).toContain(TOPIC_FLOOR_TAG)
+    expect(low.labels.tags).toEqual(before)
+    low.llm = { model: 'm', read: 'abstract', relevance: 3, quality: 3, why: 'on topic', quote: null, verified: false, concerns: [] } as unknown as ScoreItem['llm']
+    const second = passedOf(scoreLibrary(items, testGoals(), opts), 'W2')
+    expect(second.labels.tags).not.toContain(TOPIC_FLOOR_TAG)
+    expect(second.passed).toBe(true)
+  })
+  it('passFlags: the LLM read decides when present, else the stored tag', () => {
     const base = { total: 0.9, excluded: null }
-    const comps = (v: number | null) => [{ key: 'relevance', value: v }]
     const rule = { topPercent: 100, threshold: 0.5 }
-    expect(passFlags([{ ...base, components: comps(0.05) }, { ...base, components: comps(0.6) }, { ...base, components: comps(null) },
-      { ...base, components: comps(0.05), llmRead: { relevance: 3 } }, { ...base, components: comps(0.9), llmRead: { relevance: 1 } }], rule)).toEqual([false, true, true, true, false])
+    expect(passFlags([{ ...base, labels: { tags: [TOPIC_FLOOR_TAG] } }, { ...base, labels: { tags: [] } },
+      { ...base, labels: { tags: [TOPIC_FLOOR_TAG] }, llmRead: { relevance: 3 } }, { ...base, labels: { tags: [] }, llmRead: { relevance: 1 } }], rule)).toEqual([false, true, true, false])
   })
 })
 

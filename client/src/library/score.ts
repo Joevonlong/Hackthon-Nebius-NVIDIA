@@ -36,12 +36,10 @@ export function combine(components: ScoreComponent[], weights: Weights): { compo
 export const passCut = (n: number, topPercent: number) => n <= 0 ? 0 : Math.max(1, Math.ceil(n * Math.min(100, Math.max(1, topPercent)) / 100))
 
 export interface PassRule { topPercent: number; threshold: number }
-export const TOPIC_FLOOR = 0.2
-export const belowTopicFloor = (p: Pick<LibPaper, 'components' | 'llmRead'>): boolean => {
-  if (p.llmRead) return p.llmRead.relevance <= 1
-  const rel = p.components.find(c => c.key === 'relevance')?.value
-  return rel != null && rel < TOPIC_FLOOR
-}
+/** Same tag as server/library/score.ts: derived there from the raw relevance signal, stored with the paper (old libraries have none). */
+export const TOPIC_FLOOR_TAG = 'below topic-fit floor'
+export const belowTopicFloor = (p: Pick<LibPaper, 'labels' | 'llmRead'>): boolean =>
+  p.llmRead ? p.llmRead.relevance <= 1 : p.labels.tags.includes(TOPIC_FLOOR_TAG)
 
 /**
  * Re-scores (only when `weights` is given), re-ranks and re-gates a scored pile: excluded papers last, then by total;
@@ -58,7 +56,7 @@ export function rescore(papers: LibPaper[], rule: PassRule & { weights?: Weights
   next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
   const cut = passCut(next.filter(p => !p.excluded).length, rule.topPercent)
   // D-38: an LLM read with relevance 0–1 of 3 can never pass (same rule as server/library/score.ts offTopicByLlm).
-  // Topic-fit floor (same as server/library/score.ts belowTopicFloor): the LLM read decides when there is one, else the relevance value.
+  // Topic-fit floor (same as server/library/score.ts belowTopicFloor): the LLM read decides when there is one, else the stored tag.
   next.forEach((p, i) => { p.passed = !p.excluded && i < cut && p.total >= rule.threshold - 1e-12 && !belowTopicFloor(p) })
   next.sort((a, b) => Number(!!a.excluded) - Number(!!b.excluded) || Number(b.passed) - Number(a.passed) || b.total - a.total || a.paper.title.localeCompare(b.paper.title))
   next.forEach((p, i) => { p.rank = i + 1 })
@@ -118,9 +116,18 @@ export function reason(c: ScoreComponent): string {
   return c.value >= 0.7 ? hi : c.value >= 0.4 ? mid : lo
 }
 
-/** Components whose value is relative to the papers of this build (not absolute): say so, with N. */
-export const isRelative = (c: ScoreComponent) => c.value != null && /within this build/.test(c.how)
-export const relativeNote = (c: ScoreComponent, n: number) => isRelative(c) ? `relative: within this build (${n} paper${n === 1 ? '' : 's'})` : ''
+/**
+ * Components whose value is relative to the other papers of this build (not absolute). ONE definition of N everywhere: the count
+ * the server computed that value over (per signal, e.g. 165 papers with a venue h-index), read from the component's evidence.
+ */
+export const relativeBasis = (c: ScoreComponent): { n: number; what: string } | null => {
+  if (c.value == null) return null
+  for (const e of c.evidence) { const m = e.text.match(/within this build \((\d+) ([a-z ]+?)[,)]/); if (m) return { n: Number(m[1]), what: m[2] } }
+  return null
+}
+export const relativeNote = (c: ScoreComponent): string => { const b = relativeBasis(c); return b ? `relative: within this build (${b.n} ${b.what} with this signal)` : '' }
+/** The notice above the results; it names no N of its own, each tooltip carries the per-signal one. */
+export const RELATIVE_NOTICE = 'Relevance, venue and author standing, and fallback citation percentiles are relative: they compare this paper with the other papers of this build, and the tooltips say over how many. Another build gives other values.'
 
 /** The concrete number behind a component, taken from its evidence lines (shortened). */
 export function keyNumber(c: ScoreComponent): string {

@@ -1,5 +1,6 @@
-// "N papers from your notes are treated as known": ids (DOI / PMID / arXiv / OpenAlex) named in notes that are not seeds.
-// Same id patterns and seed rule as server/library/goals.ts (knownBySource), so the panel count matches the build's.
+// "N papers from your notes are treated as known": papers named by ids (DOI / PMID / arXiv / OpenAlex) in notes that are not seeds.
+// Same id patterns, seed rule and grouping as server/library/goals.ts (knownBySource), so the panel count matches the build's;
+// knownNotes.test.ts runs both on the same strings so the copies cannot drift.
 import type { VaultNote } from '@shared/library'
 
 const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'`<>\]\[(){}|,;]+)/gi
@@ -9,7 +10,7 @@ const ARXIV_DOI_RE = /^10\.48550\/arxiv\.(\d{4}\.\d{4,5})/i
 const OPENALEX_RE = /(?:openalex\.org\/(?:works\/)?|\b)(W\d{6,12})\b/g
 const isSeed = (n: Pick<VaultNote, 'path'>) => /(^|\/)seeds\//i.test(n.path)
 
-function idsIn(text: string, out: Set<string>) {
+export function idsIn(text: string, out: Set<string>) {
   for (const m of text.matchAll(DOI_RE)) {
     const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
     const ax = doi.match(ARXIV_DOI_RE)
@@ -20,9 +21,24 @@ function idsIn(text: string, out: Set<string>) {
   for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
 }
 
-/** Ids named only in non-seed notes. */
-export function notesKnownCount(notes: Pick<VaultNote, 'path' | 'content'>[]): number {
-  const seeds = new Set<string>(), other = new Set<string>()
-  for (const n of notes) idsIn(n.content, isSeed(n) ? seeds : other)
-  return [...other].filter(id => !seeds.has(id)).length
+function mergeGroups(groups: string[][]): string[][] {
+  const out: Set<string>[] = []
+  for (const g of groups) {
+    const hit = out.filter(o => g.some(id => o.has(id)))
+    const merged = new Set<string>(g)
+    for (const o of hit) { for (const id of o) merged.add(id); out.splice(out.indexOf(o), 1) }
+    out.push(merged)
+  }
+  return out.map(o => [...o])
 }
+
+/** Groups of ids (one group = one paper) named only in non-seed notes: ids in one paragraph are one paper. */
+export function notesKnownGroups(notes: Pick<VaultNote, 'path' | 'content'>[]): string[][] {
+  const seedIds = new Set<string>(), noteGroups: string[][] = []
+  for (const n of notes) {
+    if (isSeed(n)) idsIn(n.content, seedIds)
+    else for (const block of n.content.split(/\n\s*\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+  }
+  return mergeGroups(noteGroups.map(g => g.filter(id => !seedIds.has(id))).filter(g => g.length))
+}
+export const notesKnownCount = (notes: Pick<VaultNote, 'path' | 'content'>[]): number => notesKnownGroups(notes).length

@@ -8,7 +8,7 @@ import { useLibrary, SOURCE_LABEL, RECENT_FROM } from '../stores/library'
 import { useUi } from '../stores/ui'
 import { useVault } from '../stores/vault'
 import { shortTitle } from '../discover/literatureNote'
-import { activeFilterCount, f2 } from './score'
+import { activeFilterCount, f2, RELATIVE_NOTICE } from './score'
 import { DEFAULT_WEIGHTS } from '@shared/library'
 import PassRule from './PassRule.vue'
 import ResultTiles from './results/ResultTiles.vue'
@@ -99,7 +99,7 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
     <p v-if="lib.notice" class="notice">{{ lib.notice }}</p>
     <p v-if="lib.lastApplied" class="notice applied">Applied from chat: {{ lib.lastApplied.rationale }} · ▲/▼ show rank moves for a few seconds.</p>
     <p v-if="lib.reweighted" class="notice">Re-scored in the browser with your weights. Build again to search with them.</p>
-    <p v-if="lib.status === 'done' && lib.eligibleCount" class="notice">Relevance, author and venue standing, and fallback citation percentiles are relative: within this build ({{ lib.eligibleCount }} papers). Another build with other papers gives other values.</p>
+    <p v-if="lib.status === 'done' && lib.eligibleCount" class="notice">{{ RELATIVE_NOTICE }}</p>
     <p v-if="lib.short" class="notice">Only {{ lib.view.length }} papers are loaded; build again to return {{ lib.topK }}.</p>
 
     <template v-if="lib.papers.length">

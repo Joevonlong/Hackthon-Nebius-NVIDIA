@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.hoisted(() => { process.env.TOKEN_FACTORY_API_KEY = ''; process.env.TRACE_CONSOLE = '0' })
 
 import { Goals } from '@shared/library'
-import { deriveGoals, extractKnownPapers, knownBySource, fallbackGoals, tfidfKeywords, verifyEvidence } from './goals'
+import { deriveGoals, extractKnownPapers, knownBySource, knownGroups, fallbackGoals, tfidfKeywords, verifyEvidence } from './goals'
 
 const notes = [
   { path: 'Question.md', title: 'Melanoma immune atlas', content: '# Melanoma immune atlas\n\nWhich single-cell methods help study melanoma immune cells?\n\n## T cell exhaustion\n\n## Brain metastasis\n' },
@@ -19,13 +19,20 @@ describe('known paper ids', () => {
 
 describe('notes as known papers', () => {
   const vault = [
-    { path: 'Questions/q/seeds/S1.md', title: 'S1', content: 'doi 10.1234/seed' },
-    { path: 'Questions/q/Idea.md', title: 'Idea', content: 'see 10.2345/mentioned and 10.1234/seed, PMID 123456' },
+    { path: 'Questions/q/seeds/S1.md', title: 'S1', content: '---\ndoi: 10.1234/seed\npmid: 1234567\n---\nOpenAlex W1234567' },
+    { path: 'Questions/q/Idea.md', title: 'Idea', content: 'see 10.2345/mentioned, PMID 7654321\n\nalso 10.1234/seed and arXiv:2101.01234' },
   ]
-  it('splits seeds from ids only named in other notes, and the toggle drops the latter', () => {
-    expect(knownBySource(vault)).toEqual({ seeds: ['10.1234/seed'], fromNotes: ['10.2345/mentioned', 'pmid:123456'] })
-    expect(extractKnownPapers(vault)).toHaveLength(3)
-    expect(extractKnownPapers(vault, false)).toEqual(['10.1234/seed'])
+  it('a seed note is ONE paper; ids in one paragraph of a note are one paper; the toggle drops note papers', () => {
+    expect(knownBySource(vault)).toEqual({
+      seeds: [['10.1234/seed', 'pmid:1234567', 'W1234567']],
+      fromNotes: [['10.2345/mentioned', 'pmid:7654321'], ['arxiv:2101.01234']],
+    })
+    expect(knownGroups(vault)).toHaveLength(3)
+    expect(knownGroups(vault, false)).toHaveLength(1)
+    expect(extractKnownPapers(vault, false)).toEqual(['10.1234/seed', 'pmid:1234567', 'W1234567'])
+  })
+  it('one note paragraph with a DOI and a PMID is 1 paper', () => {
+    expect(knownBySource([{ path: 'Notes/a.md', title: 'a', content: 'doi 10.1234/x PMID 1234567' }]).fromNotes).toHaveLength(1)
   })
 })
 

@@ -28,18 +28,40 @@ function idsIn(text: string, out: Set<string>) {
   for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
 }
 
-/** Ids named in seed notes, and ids named only in other notes (those are "treated as known" unless the user opts out). */
-export function knownBySource(notes: VaultNote[]): { seeds: string[]; fromNotes: string[] } {
-  const seeds = new Set<string>(), other = new Set<string>()
-  for (const n of notes) idsIn(n.content, isSeedNote(n) ? seeds : other)
-  return { seeds: [...seeds], fromNotes: [...other].filter(id => !seeds.has(id)) }
+/** Merges id groups that share an id (one paper can be named by DOI, PMID and OpenAlex id in different places). */
+function mergeGroups(groups: string[][]): string[][] {
+  const out: Set<string>[] = []
+  for (const g of groups) {
+    const hit = out.filter(o => g.some(id => o.has(id)))
+    const merged = new Set<string>(g)
+    for (const o of hit) { for (const id of o) merged.add(id); out.splice(out.indexOf(o), 1) }
+    out.push(merged)
+  }
+  return out.map(o => [...o])
+}
+
+/**
+ * Known papers as groups of ids, one group = one paper. A seed note names ONE paper (all its ids are one group); in other
+ * notes, ids in the same paragraph are one paper. `fromNotes` are the groups named only in non-seed notes.
+ */
+export function knownBySource(notes: VaultNote[]): { seeds: string[][]; fromNotes: string[][] } {
+  const seedGroups: string[][] = [], noteGroups: string[][] = []
+  for (const n of notes) {
+    if (isSeedNote(n)) { const o = new Set<string>(); idsIn(n.content, o); if (o.size) seedGroups.push([...o]) }
+    else for (const block of n.content.split(/\n\s*\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+  }
+  const seeds = mergeGroups(seedGroups)
+  const seedIds = new Set(seeds.flat())
+  const fromNotes = mergeGroups(noteGroups.map(g => g.filter(id => !seedIds.has(id))).filter(g => g.length))
+  return { seeds, fromNotes }
 }
 
 /** `notesAsKnown` (default true): also count ids that appear only in non-seed notes. */
-export function extractKnownPapers(notes: VaultNote[], notesAsKnown = true): string[] {
+export function knownGroups(notes: VaultNote[], notesAsKnown = true): string[][] {
   const { seeds, fromNotes } = knownBySource(notes)
   return notesAsKnown ? [...seeds, ...fromNotes] : seeds
 }
+export const extractKnownPapers = (notes: VaultNote[], notesAsKnown = true): string[] => [...new Set(knownGroups(notes, notesAsKnown).flat())]
 
 // ---------- deterministic fallback ----------
 const STOP = new Set(('a an and are as at be been but by can could do does for from had has have how i if in into is it its may might more most no not of on or our over such than that the their them then there these they this those to under up use used using was we were what when where which while who why will with within without would you your also each other only very between both after before about across per via vs'

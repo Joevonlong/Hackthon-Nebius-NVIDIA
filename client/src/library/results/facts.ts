@@ -56,11 +56,11 @@ export function tileChips(p: LibPaper): { text: string; cls: string; title: stri
 export const radarShapeKeys = (cs: ScoreComponent[]): ComponentKey[] => COMPONENT_KEYS.filter(k => cs.find(c => c.key === k)?.value != null)
 
 export const comp = (p: LibPaper, k: ComponentKey) => p.components.find(c => c.key === k)
-export function compTip(c: ScoreComponent | undefined, deK: (t: string) => string = t => t, n = 0): string {
+export function compTip(c: ScoreComponent | undefined, deK: (t: string) => string = t => t): string {
   if (!c) return 'no component'
   const head = `${COMPONENT_META[c.key].label}: `
   if (c.value == null) return head + 'not assessed (weight redistributed)'
-  const rel = n ? relativeNote(c, n) : ''
+  const rel = relativeNote(c)
   return `${head}${f2(c.value)} · grade ${grade(c.value)} · ${reason(c)}\n${deK(keyNumber(c))}${rel ? '\n' + rel : ''}`
 }
 

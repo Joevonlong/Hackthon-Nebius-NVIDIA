@@ -68,25 +68,31 @@ export interface LibraryContext {
 
 const recIds = (r: EnrichedRecord) => [r.key, r.paper.id, r.paper.doi?.toLowerCase(), r.paper.pmid ? `pmid:${r.paper.pmid}` : null, r.extra.arxiv ? `arxiv:${r.extra.arxiv.id}` : null].filter(Boolean) as string[]
 
-/** Several ids (DOI + PMID + OpenAlex) of one library record are ONE known paper; an id with no record counts as one each. */
-export function buildKnown(records: EnrichedRecord[], knownPapers: string[]): { known: Map<string, KnownRef>; knownKeys: Set<string>; count: number } {
+const knownUrl = (kid: string) => /^W\d+$/.test(kid) ? openalexUrl(kid) : kid.startsWith('pmid:') ? pubmedUrl(kid.slice(5)) : kid.startsWith('arxiv:') ? arxivUrl(kid.slice(6)) : `https://doi.org/${kid}`
+
+/**
+ * One known paper per group of ids (a seed's DOI + PMID + OpenAlex id are ONE paper, in the library or not). `groups` come from
+ * goals.ts knownGroups; ids of `knownPapers` that are in no group count one each. Ids that resolve to the same library record are merged too.
+ */
+export function buildKnown(records: EnrichedRecord[], knownPapers: string[], groups: string[][] = []): { known: Map<string, KnownRef>; knownKeys: Set<string>; count: number } {
   const byId = new Map<string, EnrichedRecord>()
   for (const r of records) for (const id of recIds(r)) if (!byId.has(id)) byId.set(id, r)
   const known = new Map<string, KnownRef>()
   const knownKeys = new Set<string>()
+  const byKey = new Map<string, KnownRef>()
   let count = 0
-  knownPapers.forEach(kid => {
-    const r = byId.get(kid) ?? byId.get(kid.toLowerCase())
-    if (r) {
-      if (knownKeys.has(r.key)) return
-      const ref: KnownRef = { label: `K${++count}`, id: kid, title: r.paper.title, url: paperSource(r)?.url ?? r.paper.url }
-      for (const id of recIds(r)) known.set(id, ref)
-      knownKeys.add(r.key)
-    } else {
-      const label = `K${++count}`
-      known.set(kid, { label, id: kid, title: kid, url: /^W\d+$/.test(kid) ? openalexUrl(kid) : kid.startsWith('pmid:') ? pubmedUrl(kid.slice(5)) : kid.startsWith('arxiv:') ? arxivUrl(kid.slice(6)) : `https://doi.org/${kid}` })
-    }
-  })
+  const grouped = new Set(groups.flat())
+  const all = [...groups, ...knownPapers.filter(k => !grouped.has(k)).map(k => [k])]
+  for (const g of all) {
+    const r = g.map(id => byId.get(id) ?? byId.get(id.toLowerCase())).find(Boolean)
+    const prior = (r && byKey.get(r.key)) || g.map(id => known.get(id)).find(Boolean)
+    if (prior) { for (const id of g) known.set(id, prior); if (r) for (const id of recIds(r)) known.set(id, prior); continue }
+    const ref: KnownRef = r
+      ? { label: `K${++count}`, id: g[0], title: r.paper.title, url: paperSource(r)?.url ?? r.paper.url }
+      : { label: `K${++count}`, id: g[0], title: g[0], url: knownUrl(g[0]) }
+    for (const id of g) known.set(id, ref)
+    if (r) { for (const id of recIds(r)) known.set(id, ref); knownKeys.add(r.key); byKey.set(r.key, ref) }
+  }
   return { known, knownKeys, count }
 }
 
@@ -116,10 +122,10 @@ export const anyCitedBy = (rec: EnrichedRecord): number | null => knownCitedBy(r
 const leadAuthors = (rec: EnrichedRecord) => rec.authors.filter(a => a.position === 'first' || a.position === 'last')
 const bestAuthorH = (rec: EnrichedRecord) => { const hs = leadAuthors(rec).map(a => a.hIndex).filter((h): h is number => h != null); return hs.length ? Math.max(...hs) : null }
 
-export function buildContext(items: ScoreItem[], goals: Goals, now = new Date(), openalexDown = false): LibraryContext {
+export function buildContext(items: ScoreItem[], goals: Goals, now = new Date(), openalexDown = false, knownGroups: string[][] = []): LibraryContext {
   const recs = items.map(i => i.rec)
   const rel = asc(items.map(i => i.rel?.cos).filter((x): x is number => x != null))
-  const { known, knownKeys, count } = buildKnown(recs, goals.knownPapers)
+  const { known, knownKeys, count } = buildKnown(recs, goals.knownPapers, knownGroups)
   return {
     n: items.length,
     rel, relMin: rel[0] ?? 0, relMax: rel[rel.length - 1] ?? 0,
@@ -229,7 +235,7 @@ function fallbackCitations(rec: EnrichedRecord, fb: NonNullable<EnrichedRecord['
   return {
     key: 'citations', value: v,
     how: `Library-relative fallback because ${ctx.openalexDown ? OPENALEX_DOWN : 'OpenAlex had no record for this paper'}: percentile of the ${fb.source} cited-by count among this library's papers with a count published within ±1 year (all years when fewer than 5 such papers; 0 citations = 0). Not field-normalized.`,
-    evidence: [{ text: `${fb.source} cited-by ${fmt(fb.count)} · ${ordinal(v)} percentile in this library for ${span} (of ${peers.length})`, source: { name: fb.source, url: fb.url } }],
+    evidence: [{ text: `${fb.source} cited-by ${fmt(fb.count)} · ${ordinal(v)} percentile within this build (${peers.length} papers, ${span})`, source: { name: fb.source, url: fb.url } }],
   }
 }
 
@@ -362,15 +368,20 @@ export const DEFAULT_TOP_PERCENT = 25
 export const offTopicByLlm = (p: { llmRead?: { relevance: number } | null }) => !!p.llmRead && p.llmRead.relevance <= 1
 export const OFF_TOPIC_TAG = 'off-topic (LLM read)'
 
-/** Topic-fit floor for papers the LLM did not read: relevance (min–max within the build) under this can never pass. */
-export const TOPIC_FLOOR = 0.2
+/**
+ * Topic-fit floor for papers the LLM did not read, on the RAW relevance signal (not the min–max value, which is 0 for the
+ * lowest paper of any build). HEURISTIC thresholds: embedding cosine < 0.45 sits below every one of the 300 papers in the
+ * recorded real melanoma run (server/demo/recordings/library-melanoma.json: min 0.46, 10th percentile 0.57, median 0.65);
+ * keyword overlap 0 means no goal keyword or subtopic term appears in title + abstract.
+ */
+export const EMBED_FLOOR = 0.45
 export const TOPIC_FLOOR_TAG = 'below topic-fit floor'
-type FitItem = { llmRead?: { relevance: number } | null; components?: { key: string; value: number | null }[] }
-/** Every shortlisted paper clears a topic-fit floor: the LLM read when there is one, else the relevance component. */
+export const underFloor = (rel: RelevanceSignal | null): boolean => !!rel && (rel.method === 'embedding' ? rel.cos < EMBED_FLOOR : rel.cos <= 0)
+type FitItem = { llmRead?: { relevance: number } | null; labels?: { tags: string[] } }
+/** Every shortlisted paper clears a topic-fit floor: the LLM read when there is one, else the tag scoreLibrary derived from the raw signal. */
 export function belowTopicFloor(p: FitItem): boolean {
   if (p.llmRead) return offTopicByLlm(p)
-  const rel = p.components?.find(c => c.key === 'relevance')?.value
-  return rel != null && rel < TOPIC_FLOOR
+  return !!p.labels?.tags.includes(TOPIC_FLOOR_TAG)
 }
 
 export function passFlags(items: ({ total: number; excluded: string | null } & FitItem)[], rule: PassRule): boolean[] {
@@ -407,10 +418,11 @@ export function rescorePapers(papers: LibPaper[], weights: Weights, rule: PassRu
   return next
 }
 
-export interface ScoreOptions { weights: Weights; threshold: number; topPercent?: number; now?: Date; openalexDown?: boolean }
+/** `knownGroups`: ids of one known paper grouped together (goals.ts knownGroups), so a seed with 3 ids counts once. */
+export interface ScoreOptions { weights: Weights; threshold: number; topPercent?: number; now?: Date; openalexDown?: boolean; knownGroups?: string[][] }
 
 export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOptions): LibPaper[] {
-  const ctx = buildContext(items, goals, opts.now, opts.openalexDown ?? false)
+  const ctx = buildContext(items, goals, opts.now, opts.openalexDown ?? false, opts.knownGroups)
   const dups = findDuplicates(items.map(i => i.rec))
   const used = new Set<string>()
   const fileFor = (rec: EnrichedRecord) => {
@@ -424,9 +436,12 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
     const { components, total } = combine(rawComponents(item, ctx), opts.weights)
     // Track brief: "new" means absent from the starting collection — papers already in the vault are never recommended.
     const excluded = gateOf(item.rec, dups.get(item.rec.key)) ?? (ctx.knownKeys.has(item.rec.key) ? 'already in your vault' : null)
-    const labels = ctx.knownKeys.has(item.rec.key) && !item.labels.tags.includes('in-vault') ? { ...item.labels, tags: [...item.labels.tags, 'in-vault'] } : item.labels
-    if (offTopicByLlm({ llmRead: item.llm }) && !labels.tags.includes(OFF_TOPIC_TAG)) labels.tags = [...labels.tags, OFF_TOPIC_TAG]
-    else if (belowTopicFloor({ llmRead: item.llm, components }) && !labels.tags.includes(TOPIC_FLOOR_TAG)) labels.tags = [...labels.tags, TOPIC_FLOOR_TAG]
+    // tags are derived per pass on a copy (scoreLibrary runs 3 times per build; an LLM read can rescue a paper in between)
+    const tags = item.labels.tags.filter(t => t !== OFF_TOPIC_TAG && t !== TOPIC_FLOOR_TAG)
+    if (ctx.knownKeys.has(item.rec.key) && !tags.includes('in-vault')) tags.push('in-vault')
+    if (offTopicByLlm({ llmRead: item.llm })) tags.push(OFF_TOPIC_TAG)
+    else if (!item.llm && underFloor(item.rel)) tags.push(TOPIC_FLOOR_TAG)
+    const labels = { ...item.labels, tags }
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,
       components, total, passed: false, excluded, rank: 0, llmRead: item.llm, file: fileFor(item.rec),

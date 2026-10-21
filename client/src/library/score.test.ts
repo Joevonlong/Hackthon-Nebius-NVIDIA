@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_WEIGHTS, LibPaper, LibraryRequest } from '@shared/library'
-import { belowTopicFloor, combine, gradeOf, grade, matchesFilters, passCut, rescore, verdict, keyNumber, notAssessedWhy } from './score'
+import { belowTopicFloor, relativeBasis, relativeNote, RELATIVE_NOTICE, TOPIC_FLOOR_TAG, combine, gradeOf, grade, matchesFilters, passCut, rescore, verdict, keyNumber, notAssessedWhy } from './score'
 import { buildMockLibrary } from './mock'
+import { compTip } from './results/facts'
 
 const comp = (key: LibPaper['components'][number]['key'], value: number | null, weight = 0.1) => ({ key, label: key, weight, value, contribution: 0, how: '', evidence: [] })
 
@@ -21,11 +22,20 @@ describe('library score', () => {
     expect(gradeOf({ total: 0.2, components: [comp('relevance', 0.2)] } as unknown as LibPaper)).toBe('E')
   })
   it('client rescore applies the topic-fit floor to unread papers too', () => {
-    const base = (rel: number, title: string) => ({ paper: { title }, labels: { tags: [] }, excluded: null, passed: false, rank: 0, total: 0, llmRead: null,
-      components: [comp('relevance', rel, 0.3), comp('graph', 1, 0.15)] }) as unknown as LibPaper
-    const r = rescore([base(0.05, 'off'), base(0.6, 'on')], { topPercent: 100, threshold: 0, weights: DEFAULT_WEIGHTS })
+    const base = (tags: string[], title: string) => ({ paper: { title }, labels: { tags }, excluded: null, passed: false, rank: 0, total: 0, llmRead: null,
+      components: [comp('relevance', 0.5, 0.3), comp('graph', 1, 0.15)] }) as unknown as LibPaper
+    const r = rescore([base([TOPIC_FLOOR_TAG], 'off'), base([], 'on')], { topPercent: 100, threshold: 0, weights: DEFAULT_WEIGHTS })
     expect(r.find(p => p.paper.title === 'off')!.passed).toBe(false)
     expect(r.find(p => p.paper.title === 'on')!.passed).toBe(true)
+  })
+  it('relative values name ONE N (read from the server evidence); the tooltip and the notice agree', () => {
+    const rel = { ...comp('venue', 0.7), evidence: [{ text: 'Nature · h-index 1,000 (100th pct within this build (165 papers))' }] }
+    expect(relativeBasis(rel)).toEqual({ n: 165, what: 'papers' })
+    expect(relativeNote(rel)).toBe('relative: within this build (165 papers with this signal)')
+    expect(compTip(rel)).toContain('within this build (165 papers with this signal)')
+    expect(relativeNote({ ...comp('venue', null), evidence: rel.evidence })).toBe('')
+    expect(relativeNote(comp('citations', 0.5))).toBe('') // absolute (OpenAlex percentile): no relative note
+    expect(RELATIVE_NOTICE).not.toMatch(/\d/) // the notice states no N of its own
   })
   it('grades on the D-25 scale', () => {
     expect([0.9, 0.85, 0.7, 0.69, 0.55, 0.4, 0.39].map(grade).join('')).toBe('AABCCDE')

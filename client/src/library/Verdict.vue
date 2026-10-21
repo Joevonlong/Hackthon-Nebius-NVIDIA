@@ -12,7 +12,7 @@ const lib = useLibrary()
 const v = computed(() => verdict(props.paper))
 const status = computed(() => props.paper.excluded ? 'excluded' : props.paper.passed ? 'passed' : 'below')
 const statusTip = computed(() => statusTipOf(props.paper, lib))
-const chipTip = (c: LibPaper['components'][number]) => c.value == null ? `${COMPONENT_META[c.key].label}: not assessed` : `${COMPONENT_META[c.key].label}: ${f2(c.value)} (grade ${grade(c.value)}) · ${keyNumber(c)}${relativeNote(c, lib.papers.length) ? ' · ' + relativeNote(c, lib.papers.length) : ''}`
+const chipTip = (c: LibPaper['components'][number]) => c.value == null ? `${COMPONENT_META[c.key].label}: not assessed` : `${COMPONENT_META[c.key].label}: ${f2(c.value)} (grade ${grade(c.value)}) · ${keyNumber(c)}${relativeNote(c) ? ' · ' + relativeNote(c) : ''}`
 </script>
 
 <template>
