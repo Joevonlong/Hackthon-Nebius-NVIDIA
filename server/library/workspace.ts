@@ -1,8 +1,9 @@
 // Owner: lane W2 (D-37). One parent folder per research question on disk — the server is the source of truth:
 //   ${WORKSPACE_DIR}/<question>/{Question.md, seeds/*.md, notes/*.md, libraries/<libraryId>/…, exports/}
 // The question id IS the folder name (a safe file name). Deleting moves the folder to ${WORKSPACE_DIR}/.trash/.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { dirname, join, relative, resolve, sep } from 'node:path'
+import { atomicWriteFileSync, atomicWriteJsonSync } from '../data/atomic'
 
 export const workspaceRoot = () => resolve(process.env.WORKSPACE_DIR || './workspace')
 
@@ -74,7 +75,7 @@ export function createQuestion(id: string, content: string): QuestionInfo | 'exi
   if (!dir) return null
   if (existsSync(dir)) return 'exists'
   for (const sub of ['seeds', 'notes', 'libraries', 'exports']) mkdirSync(join(dir, sub), { recursive: true })
-  writeFileSync(join(dir, 'Question.md'), content)
+  atomicWriteFileSync(join(dir, 'Question.md'), content)
   return listQuestions().find(q => q.id === id) ?? null
 }
 
@@ -87,7 +88,7 @@ export function renameQuestion(id: string, next: string): 'ok' | 'exists' | null
   const libs = join(to, 'libraries')
   if (existsSync(libs)) for (const l of readdirSync(libs)) {
     const f = join(libs, l, 'library.json')
-    try { const j = JSON.parse(readFileSync(f, 'utf8')); j.questionId = next; j.questionName = next; writeFileSync(f, JSON.stringify(j, null, 2)) } catch { /* skip */ }
+    try { const j = JSON.parse(readFileSync(f, 'utf8')); j.questionId = next; j.questionName = next; atomicWriteJsonSync(f, j) } catch { /* skip */ }
   }
   return 'ok'
 }
@@ -114,8 +115,7 @@ export function listNotes(id: string): WsNote[] | null {
 export function writeNote(id: string, rel: string, content: string): boolean {
   const file = notePathIn(id, rel)
   if (!file || !existsSync(questionDir(id)!)) return false
-  mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, content)
+  atomicWriteFileSync(file, content)
   return true
 }
 
@@ -142,7 +142,7 @@ export function findQuestionLibrary(libraryId: string): { dir: string; questionI
     const dir = questionDir(q)
     if (!dir) continue
     const lib = join(dir, 'libraries', libraryId)
-    if (existsSync(join(lib, 'library.json'))) return { dir: lib, questionId: q }
+    if (existsSync(join(lib, 'library.json')) || existsSync(join(lib, 'manifest.json'))) return { dir: lib, questionId: q }
   }
   return null
 }
@@ -160,9 +160,8 @@ export function writeExport(questionId: string | null | undefined, name: string,
   const dir = questionDir(questionId)
   if (!dir || !existsSync(dir)) return null
   try {
-    mkdirSync(join(dir, 'exports'), { recursive: true })
     const f = join(dir, 'exports', name.replace(/[\\/:*?"<>|]/g, '-'))
-    writeFileSync(f, content)
+    atomicWriteFileSync(f, content)
     return relative(workspaceRoot(), f)
   } catch { return null }
 }

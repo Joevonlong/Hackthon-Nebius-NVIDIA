@@ -13,7 +13,7 @@ import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type Sc
 import { addEuropePmcReferences, type RefsOptions } from './references'
 import { addCitationFallback, fallbackSummary, type FallbackOptions } from './sources/citations-fallback'
 import { isBlocked } from '../data/http'
-import { writeLibraryFiles } from './store'
+import { writeLibraryFiles, writeManifest } from './store'
 import { writeLibraryReport } from './report'
 import type { EnrichedRecord, SourceCall, SourcesApi } from './types'
 
@@ -52,6 +52,7 @@ export function emitLib(s: LibraryState, e: LibraryEvent) {
   trace('events', copy.type === 'papers'
     ? { type: 'papers', total: copy.total, passed: copy.passed, sent: copy.papers.length, top: copy.papers.slice(0, 5).map(p => `#${p.rank} ${p.total.toFixed(3)} ${p.paper.title.slice(0, 80)}`) }
     : (copy as Record<string, unknown>), s.id)
+  if (copy.type === 'stage' && copy.status === 'start') writeManifest(s, { stage: copy.stage }) // the manifest shows where a killed build stopped
   if (copy.type === 'done') s.done = true
   for (const l of s.listeners) { try { l(copy) } catch { /* listener gone */ } }
 }
@@ -143,7 +144,19 @@ function stageStart(s: LibraryState, stage: Stage, message?: string) {
   emitLib(s, { type: 'stage', stage, status: 'start', ...(message ? { message } : {}) })
 }
 
+/** Writes manifest.json (status running) when the build starts and done/failed when it ends; a build killed in between stays "running" and reads as interrupted after a restart. */
 export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<void> {
+  writeManifest(s, { status: 'running', stage: null })
+  try {
+    await runLibraryStages(s, deps)
+    writeManifest(s, { status: 'done', stage: null })
+  } catch (e) {
+    writeManifest(s, { status: 'failed', error: (e as Error).message?.slice(0, 300) })
+    throw e
+  }
+}
+
+async function runLibraryStages(s: LibraryState, deps: PipelineDeps): Promise<void> {
   const req = s.request
   const now = deps.now?.() ?? new Date()
   emitLib(s, { type: 'library', libraryId: s.id, request: { topK: req.topK, threshold: req.threshold, sources: req.sources, weights: req.weights } })
@@ -194,6 +207,9 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   const rule = { topPercent: req.topPercent, threshold: req.threshold }
   const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
   const pre = sc.out
+  // checkpoint: the scored (pre-LLM) papers reach disk now, so a build killed during the LLM reads keeps partial results
+  s.papers = pre
+  writeLibraryFiles(s)
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
   // 5. LLM read (D-32 / J-2): cover every paper returned to the UI — read the top max(llmReadTopK, topK) (cap 60),

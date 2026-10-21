@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { dataDir } from '../../data/db'
+import { runMigrations, type Migration } from '../../data/migrations'
 
 export type EntityKind = 'work' | 'author' | 'source'
 export type LookupKey = 'openalex_id' | 'doi' | 'pmid'
@@ -21,6 +22,9 @@ CREATE TABLE IF NOT EXISTS aliases (kind TEXT NOT NULL, alias TEXT NOT NULL, id 
 CREATE TABLE IF NOT EXISTS negatives (kind TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, at TEXT NOT NULL, PRIMARY KEY (kind, key, value));
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 `
+
+/** Versioned like papertrail.sqlite (PRAGMA user_version); the existing tables are version 1. */
+const ENTITY_MIGRATIONS: Migration[] = [{ version: 1, name: 'baseline', up: db => { db.exec(SCHEMA) } }]
 
 export const shortOaId = (x: unknown) => (x ? String(x).split('/').pop()!.toUpperCase() : '')
 export const normDoiKey = (d: unknown) => (d ? String(d).trim().toLowerCase().replace(/^https?:\/\/(dx\.)?doi\.org\//, '').replace(/^doi:/, '') : '')
@@ -56,7 +60,7 @@ export class EntityStore {
     if (file !== ':memory:') mkdirSync(resolve(file, '..'), { recursive: true })
     this.db = new Database(file)
     if (file !== ':memory:') { this.db.pragma('journal_mode = WAL'); this.db.pragma('synchronous = NORMAL') }
-    this.db.exec(SCHEMA)
+    runMigrations(this.db, ENTITY_MIGRATIONS)
   }
   close() { this.db.close() }
 
