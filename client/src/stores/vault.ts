@@ -59,8 +59,11 @@ const noteUrl = (q: string, rel: string) => `${qUrl(q)}/notes/${rel.split('/').m
 const isDemo = () => { try { return new URLSearchParams(location.search).get('demo') === '1' } catch { return false } }
 async function call(url: string, init?: RequestInit): Promise<Response | null> {
   if (init?.method && init.method !== 'GET' && isDemo()) return null
-  try { return await fetch(url, init) } catch { return null }
+  // a hung request must not hold the sync loop forever: time out (null = unreachable, retried with backoff)
+  const timeout = AbortSignal.timeout(CALL_TIMEOUT_MS)
+  try { return await fetch(url, { ...init, signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout }) } catch { return null }
 }
+const CALL_TIMEOUT_MS = 15_000
 const json = (method: string, body: unknown, headers: Record<string, string> = {}): RequestInit => ({ method, headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify(body) })
 /** Conditional write: only overwrite the server copy we last saw (server/routes/library.ts answers 412 otherwise); a never-synced note must not replace an existing file. */
 const ifBase = (base: string | undefined): Record<string, string> => base ? { 'if-match': `"${base}"` } : { 'if-none-match': '*' }
@@ -304,6 +307,7 @@ export const useVault = defineStore('vault', {
     async pull() {
       const s = S(this)
       const res = await call('/api/questions')
+      if (!res) this.syncError = 'Server not responding: changes stay in this browser and are retried.'
       if (!res?.ok) { this.error = this.error || (res ? '' : 'Server unreachable: question folders are only in this browser for now.'); return }
       const { questions = [] } = await res.json().catch(() => ({})) as { questions?: { id: string }[] }
       const onServer = new Set(questions.map(q => q.id))
@@ -390,7 +394,10 @@ export const useVault = defineStore('vault', {
           if (r.status === 412) {
             // the server copy changed since we last saw it (edited elsewhere): never overwrite, flag it
             const j = await r.json().catch(() => ({})) as { content?: unknown; hash?: unknown }
-            if (typeof j.content === 'string') this.conflicts[path] = { server: j.content, origin: 'server', hash: typeof j.hash === 'string' ? j.hash : hashText(j.content) }
+            if (typeof j.content === 'string' && hashText(j.content) === h) { // already there (a keepalive PUT landed): nothing to resolve
+              if (this.notes.some(x => x.path === path)) s.synced[path] = h
+              changed = true
+            } else if (typeof j.content === 'string') this.conflicts[path] = { server: j.content, origin: 'server', hash: typeof j.hash === 'string' ? j.hash : hashText(j.content) }
             else delete s.synced[path] // deleted on the server meanwhile: upload it again as new
             continue
           }
