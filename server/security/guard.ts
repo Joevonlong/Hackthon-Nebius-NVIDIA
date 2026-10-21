@@ -4,21 +4,45 @@ import type { Context, MiddlewareHandler } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { getCookie, setCookie } from 'hono/cookie'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-export const SESSION_COOKIE = 'pt_session'
+/** Cookies are not scoped by port, so each server port gets its own cookie name. */
+export const sessionCookie = (port: number) => `pt_session_${port}`
 const DEV_CLIENT_PORT = 5173
 
 export interface GuardOptions {
   port: number
+  /** Where the session token lives so it survives restarts (DATA_DIR). Omitted → in-memory token only (tests). */
+  dataDir?: string
+  /** Accept the Vite dev client on :5173; leave off in production so another project's dev server can't pass. */
+  devClient?: boolean
   /** Extra origins, e.g. "http://localhost:8080,https://papertrail.example" (env ALLOWED_ORIGINS). */
   allowedOrigins?: string
+}
+
+/** Session token persisted in dataDir (atomic write, mode 0600), so a restart or tsx-watch reload keeps the browser's cookie valid. */
+export function loadSessionToken(dataDir: string | undefined, port: number): string {
+  const file = dataDir ? join(dataDir, `session-token-${port}`) : ''
+  if (file) {
+    try { const t = readFileSync(file, 'utf8').trim(); if (/^[0-9a-f]{64}$/.test(t)) return t } catch { /* create below */ }
+  }
+  const token = randomBytes(32).toString('hex')
+  if (file) {
+    try {
+      if (!existsSync(dataDir!)) mkdirSync(dataDir!, { recursive: true })
+      const tmp = `${file}.${process.pid}.tmp`
+      writeFileSync(tmp, token, { mode: 0o600 }); renameSync(tmp, file)
+    } catch { /* unwritable dataDir: the token lasts for this process only */ }
+  }
+  return token
 }
 
 /** Origins and hosts the local API accepts: this server and the Vite dev client on loopback, plus ALLOWED_ORIGINS. */
 export function allowlist(opts: GuardOptions) {
   const origins = new Set<string>()
-  for (const port of [opts.port, DEV_CLIENT_PORT])
+  for (const port of opts.devClient ? [opts.port, DEV_CLIENT_PORT] : [opts.port])
     for (const h of ['localhost', '127.0.0.1', '[::1]']) origins.add(`http://${h}:${port}`)
   for (const o of (opts.allowedOrigins ?? '').split(',').map(s => s.trim().replace(/\/+$/, '')).filter(Boolean)) origins.add(o)
   const hosts = new Set<string>()
@@ -26,19 +50,25 @@ export function allowlist(opts: GuardOptions) {
   return { origins, hosts }
 }
 
-/** Body size limits in bytes; the first matching rule wins. Notes/exports/uploads get more room than JSON requests. */
+/**
+ * Body size limits in bytes; the first matching rule wins. Notes/exports/uploads get more room than JSON requests.
+ * A library build sends every note of the question in full (each up to 2M chars), so /api/library and its chat/applied
+ * calls get 30 MB, the same ceiling as exports; one note is at most 2M chars x 4 bytes (CJK UTF-8) = 8 MB.
+ */
 const MB = 1024 * 1024
 const LIMITS: Array<[RegExp, number]> = [
   [/^\/api\/seeds\/import$/, 26 * MB],
   [/^\/api\/questions\/[^/]+\/exports\//, 30 * MB],
-  [/^\/api\/questions\/[^/]+\/notes\//, 3 * MB],
+  [/^\/api\/questions\/[^/]+\/notes\//, 8 * MB],
+  [/^\/api\/library(\/|$)/, 30 * MB],
   [/^\/api\//, 1 * MB],
 ]
 export const bodyLimitFor = (path: string) => LIMITS.find(([re]) => re.test(path))?.[1] ?? 1 * MB
 
 export function apiGuard(opts: GuardOptions): MiddlewareHandler {
   const { origins, hosts } = allowlist(opts)
-  const token = randomBytes(32).toString('hex')
+  const token = loadSessionToken(opts.dataDir, opts.port)
+  const SESSION_COOKIE = sessionCookie(opts.port)
   const tokenBuf = Buffer.from(token)
   const giveCookie = (c: Context) => setCookie(c, SESSION_COOKIE, token, { httpOnly: true, sameSite: 'Strict', path: '/' })
   const deny = (c: Context, why: string) => {
