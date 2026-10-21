@@ -26,7 +26,7 @@ describe('vault sync review fixes (#13)', () => {
     srv.put('Melanoma', 'notes/Untitled.md', 'other browser text')
     const b = tab(); await b.load()
     expect(b.byPath(`${Q}/notes/Untitled.md`)?.content).toBe('my offline paragraph')
-    expect(b.conflicts[`${Q}/notes/Untitled.md`]).toEqual({ server: 'other browser text' })
+    expect(b.conflicts[`${Q}/notes/Untitled.md`]).toMatchObject({ server: 'other browser text' })
     expect(srv.folders.get('Melanoma')!.get('notes/Untitled.md')?.content).toBe('other browser text')
   })
 
@@ -140,7 +140,7 @@ describe('vault sync review fixes (#13)', () => {
     await b.upsert(note('Notes/n.md', 'from tab b'))
     await b.mergeFromDisk()
     expect(b.byPath('Notes/n.md')?.content).toBe('from tab b')
-    expect(b.conflicts['Notes/n.md']).toEqual({ server: 'from tab a' })
+    expect(b.conflicts['Notes/n.md']).toMatchObject({ server: 'from tab a' })
   })
 
   it('9. demo mode writes nothing to localStorage', async () => {

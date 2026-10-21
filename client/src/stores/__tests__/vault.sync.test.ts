@@ -88,9 +88,9 @@ describe('vault sync (#13)', () => {
     srv.put('Melanoma', 'notes/x.md', 'edited elsewhere')
     const b = tab(); await b.load()
     expect(b.byPath(`${Q}/notes/x.md`)?.content).toBe('local edit')
-    expect(b.conflicts[`${Q}/notes/x.md`]).toEqual({ server: 'edited elsewhere' })
+    expect(b.conflicts[`${Q}/notes/x.md`]).toMatchObject({ server: 'edited elsewhere' })
     expect(srv.folders.get('Melanoma')!.get('notes/x.md')?.content).toBe('edited elsewhere') // not overwritten
-    b.resolveConflict(`${Q}/notes/x.md`, 'local'); await b.flush()
+    await b.resolveConflict(`${Q}/notes/x.md`, 'local'); await b.flush()
     expect(srv.folders.get('Melanoma')!.get('notes/x.md')?.content).toBe('local edit')
     expect(Object.keys(b.conflicts)).toEqual([])
   })

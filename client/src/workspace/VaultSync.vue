@@ -6,6 +6,7 @@ import { useVault } from '../stores/vault'
 const vault = useVault()
 const conflicts = computed(() => Object.keys(vault.conflicts))
 const show = computed(() => vault.unsynced > 0 || !!vault.syncError || conflicts.value.length > 0)
+const name = (p: string) => p.split('/').pop()!
 </script>
 
 <template>
@@ -13,12 +14,14 @@ const show = computed(() => vault.unsynced > 0 || !!vault.syncError || conflicts
     <p v-if="vault.unsynced > 0 || vault.syncError" class="line" :class="{ bad: !!vault.syncError }">
       <template v-if="vault.unsynced > 0">{{ vault.unsynced }} unsynced</template><template v-if="vault.unsynced > 0 && vault.syncError"> · </template>{{ vault.syncError }}
     </p>
+    <p v-if="vault.refused.length" class="line bad">Refused by the server: {{ vault.refused.slice(0, 5).map(name).join(', ') }}<template v-if="vault.refused.length > 5"> +{{ vault.refused.length - 5 }} more</template></p>
     <div v-for="p in conflicts" :key="p" class="conf">
-      <span class="path" :title="p">Changed in two places: {{ p.split('/').pop() }}</span>
+      <span class="path" :title="p">Changed {{ vault.conflicts[p].origin === 'tab' ? 'in another tab' : 'on the server' }} too: {{ name(p) }}</span>
       <span class="row">
         <button class="btn" type="button" @click="vault.resolveConflict(p, 'local')">Keep mine</button>
-        <button class="btn" type="button" @click="vault.resolveConflict(p, 'server')">Keep server</button>
+        <button class="btn" type="button" @click="vault.resolveConflict(p, 'server')">{{ vault.conflicts[p].origin === 'tab' ? 'Keep other tab' : 'Keep server' }}</button>
       </span>
+      <span class="hint">The other choice is saved next to it as a "(conflict …)" note.</span>
     </div>
   </section>
 </template>
@@ -28,6 +31,7 @@ const show = computed(() => vault.unsynced > 0 || !!vault.syncError || conflicts
 .line{margin:0;color:var(--muted)}
 .line.bad{color:var(--warn)}
 .conf{display:flex;flex-direction:column;gap:4px}
+.hint{color:var(--muted);font-size:11px}
 .path{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row{display:flex;gap:6px;flex-wrap:wrap}
 </style>

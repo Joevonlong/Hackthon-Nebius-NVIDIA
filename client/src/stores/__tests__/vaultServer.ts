@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { hashText } from '../vault'
 
 /** In-memory stand-in for the server's question folders (server/routes/library.ts). Shared by the vault tests. */
 export function fakeServer() {
@@ -12,6 +13,7 @@ export function fakeServer() {
     const url = String(input); const method = init?.method ?? 'GET'
     calls.push({ method, url, keepalive: init?.keepalive })
     if (!state.online) throw new TypeError('offline')
+    const hdr = new Headers(init?.headers)
     const body = init?.body ? JSON.parse(String(init.body)) : {}
     if (method === 'PUT' && state.gate) { const g = state.gate; state.gate = null; await g }
     if (method !== 'GET' && state.status) return res(state.status)
@@ -26,13 +28,20 @@ export function fakeServer() {
     if (!rel && url.endsWith('/notes')) return folders.has(q) ? res(200, { notes: [...folders.get(q)!].map(([path, v]) => ({ path, ...v })) }) : res(404)
     if (!rel) {
       if (method === 'DELETE') return folders.delete(q) ? res(200) : res(404)
-      if (method === 'PATCH') { const f = folders.get(q); if (!f) return res(404); if (folders.has(body.name)) return res(409); folders.delete(q); folders.set(body.name, f); return res(200) }
+      if (method === 'PATCH') { const f = folders.get(q); if (!f) return res(404); if (body.name.length > 60) return res(400); if (folders.has(body.name)) return res(409); folders.delete(q); folders.set(body.name, f); return res(200) }
     }
     if (method === 'PUT') {
       if (state.putStatus) return res(state.putStatus)
       if (state.failPut > 0) { state.failPut--; return res(500) }
       const f = folders.get(q); if (!f) return res(400)
+      const cur = f.get(rel!)?.content
+      const match = hdr.get('if-match')?.replace(/^"|"$/g, '')
+      if ((match !== undefined && (cur === undefined || hashText(cur) !== match)) || (hdr.get('if-none-match') === '*' && cur !== undefined)) return res(412, { content: cur, hash: cur === undefined ? undefined : hashText(cur) })
       f.set(rel!, { content: body.content, updatedAt: Date.now() }); return res(200)
+    }
+    if (method === 'DELETE') {
+      const cur = folders.get(q)?.get(rel!)?.content; const match = hdr.get('if-match')?.replace(/^"|"$/g, '')
+      if (cur !== undefined && match !== undefined && hashText(cur) !== match) return res(412, { content: cur })
     }
     if (method === 'DELETE') return folders.get(q)?.delete(rel!) ? res(200) : res(404)
     return res(404)
