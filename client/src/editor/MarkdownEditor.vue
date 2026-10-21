@@ -26,6 +26,13 @@ function save(doc: string) {
   emit('saving', false)
 }
 
+/** pagehide / tab hidden: push the last <400 ms of typing into the store, then let the store write IndexedDB and the server. */
+function flushPending() {
+  if (timer && view) { clearTimeout(timer); timer = undefined; const d = view.state.doc.toString(); if (d !== lastSaved) save(d) }
+  vault.flushOnExit()
+}
+const onHidden = () => { if (document.visibilityState === 'hidden') flushPending() }
+
 async function openLink(target: string) {
   if (!target) return
   const hit = resolveLink(target, vault.notes)
@@ -52,6 +59,8 @@ onMounted(() => {
       }),
     }),
   })
+  window.addEventListener('pagehide', flushPending)
+  document.addEventListener('visibilitychange', onHidden)
 })
 
 // External updates (e.g. lane C rewrites a literature note) replace the doc when we have no pending edits.
@@ -62,6 +71,8 @@ watch(() => vault.byPath(props.path)?.content, c => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', flushPending)
+  document.removeEventListener('visibilitychange', onHidden)
   if (timer && view) { clearTimeout(timer); const d = view.state.doc.toString(); if (d !== lastSaved) save(d) }
   view?.destroy()
 })
