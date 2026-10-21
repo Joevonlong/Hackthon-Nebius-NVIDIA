@@ -6,7 +6,7 @@ import { embed } from '../ai/embed'
 import { hasKey } from '../ai/http'
 import { env } from '../env'
 import { trace } from '../trace'
-import { deriveGoals } from './goals'
+import { deriveGoals, knownBySource, knownGroups } from './goals'
 import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
 import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
@@ -149,11 +149,11 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   emitLib(s, { type: 'library', libraryId: s.id, request: { topK: req.topK, threshold: req.threshold, sources: req.sources, weights: req.weights } })
 
   // 1. goals
-  const g = await timed(s, 'goals', () => deriveGoals(req.notes, { timeoutMs: Number(env.raw.LIBRARY_PLANNER_TIMEOUT_MS || 60000) }))
+  const g = await timed(s, 'goals', () => deriveGoals(req.notes, { timeoutMs: Number(env.raw.LIBRARY_PLANNER_TIMEOUT_MS || 60000), notesAsKnown: req.notesAsKnown }))
   const goals = g.out
   s.goals = goals
   emitLib(s, { type: 'goals', goals })
-  emitLib(s, { type: 'stage', stage: 'goals', status: 'done', count: goals.subtopics.length, ms: g.ms, message: `${goals.model ? `planner ${goals.model}` : 'deterministic fallback (no planner)'} · ${goals.goals.length} goals · ${goals.subtopics.length} subtopics · ${goals.keywords.length} keywords · ${goals.knownPapers.length} known papers · ${goals.evidence.length} verified note quotes` })
+  emitLib(s, { type: 'stage', stage: 'goals', status: 'done', count: goals.subtopics.length, ms: g.ms, message: `${goals.model ? `planner ${goals.model}` : 'deterministic fallback (no planner)'} · ${goals.goals.length} goals · ${goals.subtopics.length} subtopics · ${goals.keywords.length} keywords · ${goals.knownPapers.length} known papers (${knownBySource(req.notes).fromNotes.length} papers from your notes ${req.notesAsKnown === false ? 'excluded' : 'treated as known'}) · ${goals.evidence.length} verified note quotes` })
 
   // 2. search (L1)
   const sr = await timed(s, 'search', async () => {
@@ -190,8 +190,9 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   emitLib(s, { type: 'stage', stage: 'label', status: 'done', count: items.length, ms: lb.ms, message: `relevance by ${rel.method === 'embedding' ? `${env.models.embed} (${rel.docs} docs × ${rel.queries} queries)` : 'keyword overlap (no embeddings)'}` })
 
   // 4. pre-LLM score
+  const kg = knownGroups(req.notes, req.notesAsKnown)
   const rule = { topPercent: req.topPercent, threshold: req.threshold }
-  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
+  const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
   const pre = sc.out
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
@@ -214,7 +215,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
         const out = await llmReadAll(goals, batch.map(i => i.rec), { concurrency: 8, timeoutMs: Number(env.raw.LIBRARY_LLM_TIMEOUT_MS || 30000) })
         for (const [k, v] of out) reads.set(k, v)
         for (const it of items) it.llm = reads.get(it.rec.key) ?? null
-        batch = pick(scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
+        batch = pick(scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
       }
     })
     s.llmReads = reads.size
@@ -226,7 +227,7 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   }
 
   // 6. re-score + select
-  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown }))
+  const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
   s.papers = markFieldUncertain(se.out)
 
   // 6b. CR-10 E-2: reference lists from Europe PMC for passed papers OpenAlex gave none (429 / PubMed-only records)

@@ -6,7 +6,8 @@ import { useVault, type Note } from '../stores/vault'
 import { useLibrary } from '../stores/library'
 import { backlinks, extractLinks, noteName, resolveLink } from '../stores/vault-utils'
 import LibraryPanel from '../library/LibraryPanel.vue'
-import { bibliography, download, exportFile, questionScope, saveExport, type ExportFormat } from './export'
+import VaultSync from './VaultSync.vue'
+import { backupFile, bibliography, download, exportFile, questionScope, saveExport, type ExportFormat } from './export'
 
 const ui = useUi()
 const vault = useVault()
@@ -46,6 +47,7 @@ async function doExport(format: ExportFormat) {
   exporting.value = false
   exportMsg.value = r.path ? { ok: true, text: `Saved to ${r.path}` } : { ok: false, text: r.error || 'Not saved.' }
 }
+function backupVault() { const f = backupFile(vault.notes); download(f.name, f.data, f.type) }
 const dot = (n?: Note) => n?.kind === 'seed' ? 'var(--seed)' : n?.kind === 'lit' ? 'var(--cand)' : 'var(--line-2)'
 const open = (n: Note) => ui.openNote(n.path, noteName(n.path))
 async function create(target: string) { const p = await vault.create(target.replace(/[\\/:*?"<>|]/g, '-')); ui.openNote(p, noteName(p)) }
@@ -57,6 +59,7 @@ function openRef(path: string) { const n = vault.byPath(path); if (n) open(n) }
     <div class="sidetabs" role="tablist">
       <button v-for="t in tabs" :key="t.id" type="button" role="tab" :aria-selected="ui.sideTab === t.id || (t.id === 'library' && ui.sideTab === 'discover')" @click="ui.sideTab = t.id">{{ t.label }}</button>
     </div>
+    <VaultSync />
     <div class="side-body">
       <LibraryPanel v-if="ui.sideTab === 'library' || ui.sideTab === 'discover'" />
 
@@ -111,6 +114,10 @@ function openRef(path: string) { const n = vault.byPath(path); if (n) open(n) }
           </div>
           <p class="muted">Downloads the file and saves a copy in {{ vault.current ? vault.current + '/exports/' : 'the question folder' }}.</p>
           <p v-if="exportMsg" class="muted" :class="{ bad: !exportMsg.ok }" role="status">{{ exportMsg.text }}</p>
+          <div class="row">
+            <button class="btn" type="button" :disabled="!vault.notes.length" @click="backupVault">Back up whole vault</button>
+          </div>
+          <p class="muted">Downloads a .zip of all {{ vault.notes.length }} notes in this browser, including notes outside Questions/.</p>
         </section>
       </div>
     </div>

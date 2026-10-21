@@ -14,3 +14,6 @@ dist/
 .docker-deploy/
 /logs/
 /workspace/
+
+# security scan reports (may describe unfixed vulnerabilities; never commit)
+dev/security/

@@ -63,11 +63,11 @@ describe('CR-14 citation / venue fallback', () => {
     const ctx = buildContext(all.map(item), testGoals(), new Date('2026-10-18'), true)
     const c = citationsComponent(item(recs[4]), ctx)
     expect(c.value).toBeCloseTo(6 / 6) // 50 is the max of the 2016–2018 band (5 + zero = 6 peers; the 1990 paper is out)
-    expect(c.evidence[0].text).toBe('Europe PMC cited-by 50 · 100th percentile in this library for 2016–2018 (of 6)')
+    expect(c.evidence[0].text).toBe('Europe PMC cited-by 50 · 100th percentile within this build (6 papers, 2016–2018)')
     expect(c.how).toContain('Library-relative fallback because OpenAlex unavailable')
     expect(citationsComponent(item(recs[0]), ctx).value).toBeCloseTo(2 / 6)
     expect(citationsComponent(item(zero), ctx).value).toBe(0)
-    expect(citationsComponent(item(old), ctx).evidence[0].text).toContain('for all years') // <5 peers in 1989–1991
+    expect(citationsComponent(item(old), ctx).evidence[0].text).toContain('all years)') // <5 peers in 1989–1991
     expect(citationsComponent(item(oa), ctx).value).toBe(0.9) // OpenAlex wins
   })
 })

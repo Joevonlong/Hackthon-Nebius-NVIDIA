@@ -74,6 +74,7 @@ export const useLibrary = defineStore('library', {
     topPercent: DEFAULT_SETTINGS.topPercent as number, // D-27: pass = top X% of this library
     filters: {} as Filters,
     sources: [...UI_SOURCES] as SourceName[],
+    notesAsKnown: true, // false: only seed notes name known papers (ids in other notes are ignored)
     weights: { ...DEFAULT_WEIGHTS } as Weights,
     // run
     libraryId: null as string | null,
@@ -223,7 +224,7 @@ export const useLibrary = defineStore('library', {
       const vault = useVault()
       const q = vault.currentQuestion
       const notes = (q ? vault.notesIn(q.id) : []).map(n => ({ path: n.path, title: n.title, content: n.content }))
-      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent, sources: this.sources, weights: { ...this.weights }, questionId: q?.id, questionName: q?.name })
+      return LibraryRequest.parse({ notes, topK: this.topK, threshold: this.threshold, topPercent: this.topPercent, sources: this.sources, weights: { ...this.weights }, questionId: q?.id, questionName: q?.name, notesAsKnown: this.notesAsKnown })
     },
 
     async start() {
