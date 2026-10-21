@@ -177,7 +177,7 @@ export function buildMockLibrary(req: LibraryRequest, libraryId: string): { goal
       evidence: [
         { text: matchedK.length ? `title matches ${matchedK.length} of ${KEYWORDS.length} goal keywords: ${matchedK.join(', ')}` : `title matches none of the ${KEYWORDS.length} goal keywords`, source: { name: 'OpenAlex work', url: `https://openalex.org/${r.id}` } },
         { text: best ? `best match: subtopic '${best.name}' (${matchedS.length} subtopic${matchedS.length === 1 ? '' : 's'} matched)` : 'no subtopic matched' },
-        { text: `raw ${relRaw[i].toFixed(1)} ÷ library max ${relMax.toFixed(1)} = ${relV.toFixed(2)} (${ord(Math.round(pctOf([...relRaw].sort((a, b) => a - b), relRaw[i]) * 100))} pct of ${N})` },
+        { text: `raw ${relRaw[i].toFixed(1)} ÷ library max ${relMax.toFixed(1)} = ${relV.toFixed(2)} (${ord(Math.round(pctOf([...relRaw].sort((a, b) => a - b), relRaw[i]) * 100))} pct within this build (${N} papers))` },
       ],
     }
     // graph
@@ -199,11 +199,11 @@ export function buildMockLibrary(req: LibraryRequest, libraryId: string): { goal
     const young = (r.year ?? 0) >= 2025
     const cpct = pctOf(logCites, Math.log(r.cites + 1))
     const citations: ScoreComponent = {
-      key: 'citations', label: 'Citation impact', weight: 0, value: young ? 0.5 : cpct, contribution: 0,
-      how: young ? 'Paper younger than 2 years: neutral 0.5 (fwci not in the fixture).' : 'Mock: log(cited_by + 1) percentile within this library (citation_normalized_percentile not in the fixture).',
+      key: 'citations', label: 'Citation impact', weight: 0, value: young ? null : cpct, contribution: 0,
+      how: young ? 'Not assessed: paper younger than 2 years and no FWCI in the fixture (too new to judge by citations).' : 'Mock: log(cited_by + 1) percentile within this library (citation_normalized_percentile not in the fixture).',
       evidence: [
         { text: `cited_by ${fmt(r.cites)} (OpenAlex cited_by_count)`, source: oaApi(r.id) },
-        { text: young ? `published ${r.year}: too young for a citation percentile, neutral 0.5` : `${ord(Math.round(cpct * 100))} percentile of ${N} in this library (log scale)` },
+        { text: young ? `published ${r.year}: too new to judge by citations` : `${ord(Math.round(cpct * 100))} percentile within this build (${N} papers, log scale)` },
       ],
     }
     // venue
@@ -215,7 +215,7 @@ export function buildMockLibrary(req: LibraryRequest, libraryId: string): { goal
       how: 'Mock: 0.8 × percentile of the venue\'s mean citations within this library + 0.2 × journal (venue h-index not fetched in the fixture).',
       evidence: vs
         ? [{ text: `${r.venue} · ${vs.n} paper${vs.n === 1 ? '' : 's'} in this library · mean cited_by ${fmt(Math.round(vs.cites / vs.n))}`, source: oaApi(r.id) },
-           { text: `${ord(Math.round(vpct * 100))} percentile of ${venueStats.size} venues in this library · ${isJournal ? 'journal' : 'preprint server'}` }]
+           { text: `${ord(Math.round(vpct * 100))} percentile within this build (${venueStats.size} venues) · ${isJournal ? 'journal' : 'preprint server'}` }]
         : [{ text: 'not assessed: no venue on the OpenAlex record' }],
     }
     // authors
@@ -226,7 +226,7 @@ export function buildMockLibrary(req: LibraryRequest, libraryId: string): { goal
       how: 'Mock: percentile of the first author\'s summed citations within this library (author h-index and ROR not fetched in the fixture).',
       evidence: as
         ? [{ text: `first author ${r.author} · ${as.n} paper${as.n === 1 ? '' : 's'} in this library · ${fmt(as.cites)} citations among them`, source: oaApi(r.id) },
-           { text: `${ord(Math.round(apct * 100))} percentile of ${authorStats.size} first authors in this library` }]
+           { text: `${ord(Math.round(apct * 100))} percentile within this build (${authorStats.size} first authors)` }]
         : [{ text: 'not assessed: no author on the record' }],
     }
     const llm: ScoreComponent = { key: 'llm', label: 'LLM read', weight: 0, value: null, contribution: 0, how: '', evidence: [] }

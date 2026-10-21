@@ -12,7 +12,9 @@ Done since last save:
 - Batch 1 builders dispatched in worktrees: #12 `feat/12-lock-down-api`, #13 `feat/13-vault-sync`, #14 `feat/14-trustworthy-scores`
 - Codex Security CLI 0.5.1 runs (Node v24.21.0, Python 3.15.0)
 - **#12 merged** (PR #32 → 336e109), issue commented + closed — review approved after 3 rounds, verifier PASS ×2 (Chrome, restart case)
+- **#14 merged** (PR #33 → 6030b41), issue commented + closed, branch deleted — review approved after 3 rounds; 255 tests
+- #11 baseline via /security-review: 20 real (0 crit, 3 high, 7 med, 10 low) → mapped to #12/#15/#16/#17/#21 + new **#35** (M1 batch 3, critical); #11 stays open for Codex
 
-Open loops: #13 (PR #34) and #14 (PR #33) builders fixing review findings; baseline /security-review agent running → dev/security/2026-10-21/. Batch 2 (#15, #16, #17) starts after batch 1 is merged.
+Open loops: #13 (PR #34) builder fixing review round 1 (3 data-loss bugs + sync UI). Batch 2 (#15, #16, #17) starts after batch 1 is merged.
 **⏰ Reminder for the user — Codex Security:** the scan was rejected on 2026-10-21 ("model not supported when using Codex with a ChatGPT account" for gpt-5.6-sol and gpt-6.1-sol; 0 files sent). Before the M1 gate: user checks which model their plan allows (Codex app → /model) or approves `--auth api-key` with a `--max-cost`; then re-run the security-scan skill. Logs: dev/security/scan-2026-10-21.log.
-Needs you: the Codex Security model question above (at the M1 gate at the latest).
+Needs you: (1) is a hackathon Nebius deploy (`papertrail-<version>`) still running? If yes, delete it (finding N1, #35). (2) the Codex Security model question above (at the M1 gate at the latest).
