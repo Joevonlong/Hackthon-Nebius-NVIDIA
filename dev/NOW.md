@@ -1,7 +1,7 @@
 # Now
-Updated: 2026-10-21 · phase 4 Build (M1) · batch 1 merged ✅ · batch 2 merged ✅ · batch 3 merged ✅ (#35, PR #40) · M1 gate running
+Updated: 2026-10-22 · phase 4 Build (M1) · batches 1–4 merged ✅ · M1 gate: verifier PASS, Claude re-scan no high/crit · waiting on the user (Docker, Codex, Nebius)
 
-**Next step:** M1 gate: verifier on the integrated milestone + Claude security re-scan (report → dev/security/2026-10-21/m1-gate-rescan.md) are running. Then: #16 Docker check (needs Docker; also covers #35's docker-local.sh), Codex Security (user's model choice) → close #11, close epics #5/#6 when their sub-issues close, then PR milestone → main for Joe.
+**Next step:** user answers 3 questions → (a) Docker: verifier builds/runs the image (covers #16 + #35 docker-local.sh) → close #16 and epic #6; (b) Codex Security per the user's choice → triage → close #11 and epic #5; then PR `milestone/m1-safe-to-share` → `main` for Joe (don't merge), mark phase 4 M1 done, ask "Anything worth a lesson?" (candidate: worktree base is main).
 **How to check:** `gh pr list -R Joevonlong/PaperTrail --base milestone/m1-safe-to-share`; `gh issue list -R Joevonlong/PaperTrail --milestone "M1 Safe to share"`.
 
 Flow (user's request, 2026-10-21): one sub-issue = one PR into `milestone/m1-safe-to-share`; merge after review/verify; **after merge: comment on the issue (what landed + evidence + PR) and `gh issue close` it** ("Closes #n" doesn't auto-close into a non-default branch); delete the merged remote branch; when M1 is done, open one PR `milestone/m1-safe-to-share` → `main` for Joe to review (don't merge).
@@ -17,6 +17,8 @@ Done since last save:
 
 - **Batch 3 merged:** #35 (PR #40, 4ca4274, 2 review rounds + reviewer's should-fixes, verifier PASS ×2, D-15), closed. Milestone gate: 61 files, 401 tests.
 
-Open loops: M1 gate verifier + security re-scan agents. Session reminder set for 2026-10-22 09:07 (Nebius deploy).
+- **M1 gate:** verifier PASS on 4ca4274 (all issues together, Chrome, keyless). Claude security re-scan (dev/security/2026-10-21/m1-gate-rescan.md): 17/20 baseline fixed, no open high/critical, audit clean; new R1–R5 (1 med, 4 low) → **#41** (batch 4, PR #42, 5d232da, 2 rounds, closed; D-16). Milestone: 63 files, 424 tests.
+
+Open loops: none running. Scratch: /private/tmp/claude-501/-Users-x-Documents-Projects-PaperTrail/1571df56-6e5c-48d6-a508-172ae87acee3/scratchpad. Session reminder set for 2026-10-22 09:07 (Nebius deploy).
 **⏰ Reminder for the user — Codex Security:** rejected 2026-10-21 ("model not supported when using Codex with a ChatGPT account", gpt-5.6-sol and gpt-6.1-sol; 0 files sent). Before the M1 gate: user picks a model their plan allows (Codex app → /model) or approves `--auth api-key` with `--max-cost`. Logs: dev/security/scan-2026-10-21.log.
-Needs you: (0) may Claude start Docker Desktop to observe #16's Docker check? (1) on 2026-10-22: is a hackathon Nebius deploy (`papertrail-<version>`) still running? If yes, delete it (N1, #35). (2) Codex Security model question (at the M1 gate at the latest).
+Needs you: (1) **Nebius, due 2026-10-22:** is a hackathon deploy (`papertrail-<version>`) still running? If yes, delete it (N1). (2) May Claude start Docker Desktop for the #16/#35 image check? (3) Codex Security: a model the plan allows, `--auth api-key` + `--max-cost` (paid), or skip for M1?

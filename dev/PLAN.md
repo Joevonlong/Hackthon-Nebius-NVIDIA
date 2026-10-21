@@ -42,7 +42,7 @@ Out of scope (this cycle): Electron app, paid cloud, other fields than biomed,
 | 1 | Spike | Kill the riskiest unknown | #18 RESULTS.md: include precision ≥ 0.80 or a re-scope decision | builder | — | todo (M2 batch 1) |
 | 2 | Define | Work cut into independent sub-issues | 👤 issue list approved | coordinator | kickoff | done (D-02, issues #5–#30) |
 | 3 | Design | Contracts before parallel agent work | #19 merged: contracts + ADR, ownership disjoint per batch | architect | — | todo (M2 batch 1) |
-| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batches 1–3 merged; M1 gate running; #16 Docker check open) |
+| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batches 1–4 merged; gate verifier PASS; open: #16 Docker, #11 Codex) |
 | 5 | Harden | It works for real | Per milestone: verifier gate + security-scan, no open high/critical; end of M3: #30 | verifier | security-scan | todo |
 | 6 | Release | v0.4.0 out | 👤 tag v0.4.0, README updated (#30) | coordinator | — | todo |
 | 7 | Learn | The suite gets better | `retro` done, lessons saved | coordinator | retro, lesson | todo |
@@ -58,7 +58,7 @@ Run a batch only after the previous batch is merged. Sub-issues in one batch own
 | | 1 ✅ | #12 A1 lock down API (PR #32) · #13 B1 vault sync (PR #34) · #14 C1 trustworthy scores (PR #33) — all merged 2026-10-21 | #12, #13 |
 | | 2 ✅ | #15 A2 untrusted data (PR #36) · #16 B2 durable storage (PR #38; open for the Docker check) · #17 D1 foundations + CI (PR #37) — merged 2026-10-21 | #15, #16 |
 | | 3 ✅ | #35 A3 API follow-ups + safe remote deploy (PR #40, merged 2026-10-21) | #35 |
-| | 4 | #41 A4 linear-time id parsing, read-side symlink containment, single decode (from the M1 gate re-scan, R1–R5; medium/low) | at gate |
+| | 4 ✅ | #41 A4 linear-time id parsing, read-side symlink containment, single decode (from the M1 gate re-scan, R1–R5; medium/low; PR #42, merged 2026-10-22) | at gate |
 | | gate | verifier on M1 + security-scan re-run (⏰ remind user: Codex Security blocked on ChatGPT-account model, see NOW.md) | always |
 | M2 Research agent loop (due 2026-11-18) | 1 | #18 S1 spike · #19 X1 contracts (architect) · #20 E1 run from anywhere | — |
 | | 2 | #21 X2 agent runtime · #22 X3 intent stage · #23 X6 knowledge base | #21 |
