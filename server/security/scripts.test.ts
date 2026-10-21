@@ -32,7 +32,9 @@ describe('deploy scripts', () => {
   it('deploy.sh does not require PUBLIC_ORIGIN and checks an authenticated /api call, with the token on stdin', () => {
     const code = read('deploy.sh')
     expect(code).not.toMatch(/die "PUBLIC_ORIGIN is required/)
-    expect(code).toMatch(/auth_get\(\)/)
+    expect(code).toMatch(/auth_post_status\(\)/)
+    expect(code).toMatch(/== 400/)
+    expect(code).toMatch(/\^\[A-Za-z0-9\._~-\]\+\$/)
     expect(code).toMatch(/curl[^\n]* -K -/)
     expect(code).not.toMatch(/curl[^\n]*Authorization/)
     expect(code).toMatch(/Tear down/)

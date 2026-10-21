@@ -52,6 +52,12 @@ describe('BibTeX parsing runs in linear time (#35)', () => {
     expect(r.format).toBe('bibtex')
     expect(r.ids).toEqual(['10.1126/science.aad0501', 'PMID:27124452', '10.1016/j.cell.2018.09.006', 'PMID:30388455', 'arXiv:1706.03762'])
   })
+  it('doi={ followed by 1000 spaces, repeated to 1 MB, finishes in under 200 ms', () => {
+    const input = ('doi={' + ' '.repeat(1000)).repeat(Math.ceil((1024 * 1024) / 1005))
+    const t = Date.now()
+    parseSeedText('x.bib', input)
+    expect(Date.now() - t).toBeLessThan(200)
+  })
   it('reads values up to 1000 chars and = aligned with up to 200 spaces', () => {
     const bib = `@article{a, doi={10.1/first}, url${' '.repeat(60)}= {https://x.org/${'a'.repeat(400)}/10.1234/zzz}}`
     expect(parseSeedText('a.bib', bib).ids).toEqual(['10.1/first', '10.1234/zzz'])

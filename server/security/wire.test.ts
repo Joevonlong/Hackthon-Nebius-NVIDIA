@@ -49,6 +49,10 @@ describe('token mode through the real wiring', () => {
     const cross = await app.request(`${host}/api/questions`, { method: 'POST', headers: { ...json, cookie, 'sec-fetch-site': 'cross-site' }, body: newQuestion() })
     expect(cross.status).toBe(403)
   })
+  it('behind a TLS proxy that sends no x-forwarded-proto, an https Origin of the own Host still works', async () => {
+    const r = await makeApp({ accessToken: TOKEN }).request(`http://papertrail.example/api/questions`, { method: 'POST', headers: { ...bearer, ...json, origin: 'https://papertrail.example' }, body: newQuestion() })
+    expect(r.status).toBe(200)
+  })
   it('ALLOWED_ORIGINS is still accepted', async () => {
     const app = makeApp({ accessToken: TOKEN, allowedOrigins: 'https://front.example' })
     const r = await app.request(`${host}/api/questions`, { method: 'POST', headers: { ...bearer, ...json, origin: 'https://front.example' }, body: newQuestion() })

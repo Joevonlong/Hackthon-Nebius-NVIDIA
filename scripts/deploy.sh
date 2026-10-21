@@ -78,6 +78,7 @@ if [[ -z "$TOKEN" ]]; then
   if [[ $DRY_RUN == 1 ]]; then TOKEN="<generated-token>"; else command -v openssl >/dev/null || die "openssl not found (needed to create the access token)"; TOKEN="$(openssl rand -hex 32)"; NEW_TOKEN=1; fi
 fi
 [[ ${#TOKEN} -ge 16 ]] || die "the deploy token must be at least 16 characters"
+[[ "$TOKEN" =~ ^[A-Za-z0-9._~-]+$ ]] || die "the deploy token may only contain A-Z a-z 0-9 . _ ~ - (other characters break the .env file and the Authorization header); create one with: openssl rand -hex 32"
 printf 'PAPERTRAIL_ACCESS_TOKEN=%s\n' "$TOKEN" >> "$SECRETS"
 say "env PAPERTRAIL_ACCESS_TOKEN: $([[ $NEW_TOKEN == 1 ]] && echo 'created' || echo 'set')"
 # Optional: a front-end origin that may call the API besides the endpoint itself (the server accepts its own origin when a token is set).
@@ -147,9 +148,10 @@ if [[ $NEW_TOKEN == 1 ]]; then
   say "sign in once with: ${URL%/}/?token=<token>  (keep it in ${ROOT}/.env.deploy.local as PAPERTRAIL_DEPLOY_TOKEN=... to reuse it)"
 fi
 # /api/health is open, so it proves nothing about access. Make an authenticated call; the token goes to curl on stdin, not on its command line.
-auth_get() { printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" | curl -fsS --max-time 20 -K - -o /dev/null "${URL%/}$1"; }
+# A POST without a body must reach the route and be answered 400; 401 or 403 means the token or the origin/session guard rejects writes.
+auth_post_status() { printf 'header = "Authorization: Bearer %s"\n' "$TOKEN" | curl -sS --max-time 20 -K - -X POST -o /dev/null -w '%{http_code}' "${URL%/}$1" 2>/dev/null || true; }
 OK=0
-for _ in 1 2 3 4 5 6; do auth_get /api/questions && { OK=1; break; }; sleep 10; done
-if [[ $OK == 1 ]]; then say "authenticated API call OK"; else
-  die "the endpoint is running but an authenticated /api call failed. Tear down: nebius ai endpoint delete ${ID} (check --help), remove the image tag ${IMAGE} from the registry, then deploy again with a new version (docs/DEPLOY.md)"
+for _ in 1 2 3 4 5 6; do [[ "$(auth_post_status /api/questions)" == 400 ]] && { OK=1; break; }; sleep 10; done
+if [[ $OK == 1 ]]; then say "authenticated write check OK (POST /api/questions answered 400 as expected)"; else
+  die "the endpoint is running but the authenticated write check (POST /api/questions, expected 400) failed. Tear down: nebius ai endpoint delete ${ID} (check --help), remove the image tag ${IMAGE} from the registry, then deploy again with a new version (docs/DEPLOY.md)"
 fi

@@ -96,8 +96,9 @@ export function apiGuard(opts: GuardOptions): MiddlewareHandler {
     if (MUTATING.has(c.req.method)) {
       const origin = c.req.header('origin')
       const site = c.req.header('sec-fetch-site')
-      const own = () => `${c.req.header('x-forwarded-proto')?.split(',')[0].trim() || new URL(c.req.url).protocol.replace(':', '')}://${host}`
-      if (origin !== undefined) { const o = origin.replace(/\/+$/, ''); if (!origins.has(o) && !(opts.tokenMode && o.toLowerCase() === own())) return deny(c, 'foreign Origin') }
+      // behind a TLS proxy that sends no x-forwarded-proto the scheme is unknown, so either scheme of the request's own Host counts
+      const own = (o: string) => o === `https://${host}` || o === `http://${host}`
+      if (origin !== undefined) { const o = origin.replace(/\/+$/, ''); if (!origins.has(o) && !(opts.tokenMode && own(o.toLowerCase()))) return deny(c, 'foreign Origin') }
       else if (site && site !== 'same-origin' && site !== 'none') return deny(c, 'cross-site request')
       const cb = Buffer.from(getCookie(c, SESSION_COOKIE) ?? '')
       if (!c.get(BEARER_OK) && (cb.length !== tokenBuf.length || !timingSafeEqual(cb, tokenBuf))) return deny(c, 'missing session cookie')
