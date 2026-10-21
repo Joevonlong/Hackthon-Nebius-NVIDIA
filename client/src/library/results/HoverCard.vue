@@ -6,13 +6,14 @@ import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { COMPONENT_META, f2, grade, keyNumber, verdict } from '../score'
 import { tavilyUrl } from './facts'
+import { safeUrl } from '../../util/safeUrl'
 import WhyRelevant from '../WhyRelevant.vue'
 import LibLabels from '../LibLabels.vue'
 import ScoreDonut from '../charts/ScoreDonut.vue' // CR-11 V-3
 
 const props = defineProps<{ paper: LibPaper; inVault?: boolean; up?: boolean; right?: boolean }>()
 const v = computed(() => verdict(props.paper))
-const tav = computed(() => tavilyUrl(props.paper))
+const tav = computed(() => safeUrl(tavilyUrl(props.paper)))
 const chipTip = (c: LibPaper['components'][number]) => `${COMPONENT_META[c.key].label}: ${f2(c.value)} (grade ${grade(c.value ?? 0)}) · ${keyNumber(c)}`
 const authors = computed(() => props.paper.paper.authors.slice(0, 3).join(', ') + (props.paper.paper.authors.length > 3 ? ' et al.' : ''))
 </script>

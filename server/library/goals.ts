@@ -5,6 +5,7 @@ import { Goals, type VaultNote } from '@shared/library'
 import { env } from '../env'
 import { chatJson, hasKey } from '../ai/http'
 import { verifyQuote } from '../ai/verify'
+import { UNTRUSTED_NOTICE, untrustedBlock } from '../ai/untrusted'
 
 // ---------- known paper ids ----------
 // Output format (shared with L1): DOI "10.xxxx/…" (lowercase), "pmid:<n>", "arxiv:<id>", OpenAlex "W<n>".
@@ -93,13 +94,13 @@ const PLANNER_SCHEMA = {
   },
 }
 
-const SYSTEM = 'You read a researcher\'s note vault (one research topic) and plan a literature search. Reply with JSON only.'
+const SYSTEM = 'You read a researcher\'s note vault (one research topic) and plan a literature search. Reply with JSON only. ' + UNTRUSTED_NOTICE
 const NOTE_BUDGET = 24000
 
 export function buildGoalsPrompt(notes: VaultNote[], knownPapers: string[]): string {
   const per = Math.max(800, Math.floor(NOTE_BUDGET / notes.length))
   const ordered = [...notes].sort((a, b) => Number(isQuestionNote(b)) - Number(isQuestionNote(a)))
-  const body = ordered.map(n => `=== NOTE path="${n.path}" title="${n.title}"\n${n.content.slice(0, per)}`).join('\n\n')
+  const body = ordered.map(n => untrustedBlock('note', `${n.title}\n${n.content.slice(0, per)}`, { path: n.path })).join('\n\n')
   return `${body}
 
 KNOWN PAPER IDS FOUND IN THE NOTES: ${knownPapers.join(', ') || '(none)'}
