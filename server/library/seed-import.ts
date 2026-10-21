@@ -1,5 +1,6 @@
 // Owner: lane W2 (D-36). Seed file import: .bib / .ris / CSL JSON / .csv / .txt → paper ids; PDF → DOI from the first 2 pages.
 // Ids use the resolver's input formats: DOI "10.x/…", "PMID:<n>", "arXiv:<id>", OpenAlex "W<n>".
+import { extractPdfPages } from '../security/pdf-worker'
 export type SeedFormat = 'bibtex' | 'ris' | 'csl-json' | 'csv' | 'text' | 'pdf'
 
 const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'<>\][(){}|,;]+)/gi
@@ -120,10 +121,7 @@ export function dedupe(ids: string[]): string[] {
 
 /** PDF: text of the first 2 pages (unpdf), then the first DOI / arXiv id found. */
 export async function parseSeedPdf(bytes: Uint8Array): Promise<{ format: 'pdf'; ids: string[]; text: number }> {
-  const { getDocumentProxy, extractText } = await import('unpdf')
-  const pdf = await getDocumentProxy(bytes)
-  const { text } = await extractText(pdf, { mergePages: false })
-  const pages = (Array.isArray(text) ? text : [text]).slice(0, 2).join('\n')
+  const pages = (await extractPdfPages(bytes, { maxPages: 2 })).join('\n') // worker thread with a deadline (#12)
   const ids = idsInText(pages.replace(/\s*\n\s*/g, ' ')).filter(x => x.startsWith('10.') || x.startsWith('arXiv:'))
   return { format: 'pdf', ids: dedupe(ids).slice(0, 1), text: pages.length }
 }
