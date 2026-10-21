@@ -42,7 +42,7 @@ Out of scope (this cycle): Electron app, paid cloud, other fields than biomed,
 | 1 | Spike | Kill the riskiest unknown | #18 RESULTS.md: include precision ≥ 0.80 or a re-scope decision | builder | — | todo (M2 batch 1) |
 | 2 | Define | Work cut into independent sub-issues | 👤 issue list approved | coordinator | kickoff | done (D-02, issues #5–#30) |
 | 3 | Design | Contracts before parallel agent work | #19 merged: contracts + ADR, ownership disjoint per batch | architect | — | todo (M2 batch 1) |
-| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | todo |
+| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batch 2) |
 | 5 | Harden | It works for real | Per milestone: verifier gate + security-scan, no open high/critical; end of M3: #30 | verifier | security-scan | todo |
 | 6 | Release | v0.4.0 out | 👤 tag v0.4.0, README updated (#30) | coordinator | — | todo |
 | 7 | Learn | The suite gets better | `retro` done, lessons saved | coordinator | retro, lesson | todo |
@@ -55,7 +55,7 @@ Run a batch only after the previous batch is merged. Sub-issues in one batch own
 | Milestone | Batch | Sub-issues | Verifier |
 |---|---|---|---|
 | M1 Safe to share (due 2026-11-04) | 0 | #11 security baseline: /security-review (Codex blocked 2026-10-21) | — |
-| | 1 | #12 A1 lock down API · #13 B1 vault sync · #14 C1 trustworthy scores | #12, #13 |
+| | 1 ✅ | #12 A1 lock down API (PR #32) · #13 B1 vault sync (PR #34) · #14 C1 trustworthy scores (PR #33) — all merged 2026-10-21 | #12, #13 |
 | | 2 | #15 A2 untrusted data · #16 B2 durable storage · #17 D1 foundations + CI | #15, #16 |
 | | 3 | #35 A3 API follow-ups + safe remote deploy (from #11 baseline) | #35 |
 | | gate | verifier on M1 + security-scan re-run (⏰ remind user: Codex Security blocked on ChatGPT-account model, see NOW.md) | always |
