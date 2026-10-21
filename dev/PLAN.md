@@ -58,6 +58,7 @@ Run a batch only after the previous batch is merged. Sub-issues in one batch own
 | | 1 ✅ | #12 A1 lock down API (PR #32) · #13 B1 vault sync (PR #34) · #14 C1 trustworthy scores (PR #33) — all merged 2026-10-21 | #12, #13 |
 | | 2 ✅ | #15 A2 untrusted data (PR #36) · #16 B2 durable storage (PR #38; open for the Docker check) · #17 D1 foundations + CI (PR #37) — merged 2026-10-21 | #15, #16 |
 | | 3 ✅ | #35 A3 API follow-ups + safe remote deploy (PR #40, merged 2026-10-21) | #35 |
+| | 4 | #41 A4 linear-time id parsing, read-side symlink containment, single decode (from the M1 gate re-scan, R1–R5; medium/low) | at gate |
 | | gate | verifier on M1 + security-scan re-run (⏰ remind user: Codex Security blocked on ChatGPT-account model, see NOW.md) | always |
 | M2 Research agent loop (due 2026-11-18) | 1 | #18 S1 spike · #19 X1 contracts (architect) · #20 E1 run from anywhere | — |
 | | 2 | #21 X2 agent runtime · #22 X3 intent stage · #23 X6 knowledge base | #21 |
