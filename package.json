@@ -9,8 +9,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "concurrently -k -n server,client \"PORT=3001 tsx watch server/index.ts\" \"vite\"",
-    "dev:server": "PORT=3001 tsx watch server/index.ts",
+    "dev": "concurrently -k -n server,client \"cross-env PORT=3001 tsx watch server/index.ts\" \"vite\"",
+    "dev:server": "cross-env PORT=3001 tsx watch server/index.ts",
     "dev:client": "vite",
     "build": "vite build && tsup server/index.ts --format esm --target node22 --out-dir dist/server --external better-sqlite3",
     "start": "node dist/server/index.js",
@@ -47,6 +47,7 @@
     "@types/node": "^26.6.5",
     "@vitejs/plugin-vue": "^6.0.10",
     "concurrently": "^10.0.6",
+    "cross-env": "^10.1.0",
     "fake-indexeddb": "^6.2.6",
     "tsup": "^9.0.0",
     "tsx": "^4.23.15",

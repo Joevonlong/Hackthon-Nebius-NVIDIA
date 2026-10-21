@@ -8,6 +8,10 @@ import { runs } from './routes/runs'
 import { demo } from './routes/demo'
 import { library } from './routes/library'
 import { apiGuard } from './security/guard'
+import { getDb } from './data/db'
+
+// Open the database and run migrations now: a refused or failed migration is a clear startup error, not a 500 on a later request.
+try { getDb() } catch (e) { console.error(`PaperTrail cannot start: ${(e as Error).message}`); process.exit(1) }
 
 const app = new Hono()
 app.use('/api/*', apiGuard({

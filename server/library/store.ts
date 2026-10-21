@@ -1,7 +1,10 @@
 // Owner: lane L2 / W2. Library files: {goals.json, library.json, graph.json, papers/<paperId>.json} in
 // ${WORKSPACE_DIR}/<question>/libraries/<id>/ (D-37) — or ${DATA_DIR}/library/<id>/ for builds without a question folder.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync } from 'node:fs'
 import { join, resolve, sep } from 'node:path'
+import { HTTPException } from 'hono/http-exception'
+import { randomUUID } from 'node:crypto'
+import { atomicWriteJsonSync } from '../data/atomic'
 import type { Goals, LibPaper, LibraryRequest, LibrarySummary } from '@shared/library'
 import { env } from '../env'
 import type { LibraryState } from './pipeline'
@@ -61,7 +64,7 @@ export function writeLibraryFiles(s: LibraryState): string | null {
     const dir = questionLibraryDir(s.request.questionId, s.id) ?? legacyLibraryDir(s.id)
     if (!dir) return null
     mkdirSync(join(dir, 'papers'), { recursive: true })
-    writeFileSync(join(dir, 'goals.json'), JSON.stringify(s.goals, null, 2))
+    atomicWriteJsonSync(join(dir, 'goals.json'), s.goals)
     const { notes, ...rest } = s.request
     const prev = readJson(join(dir, 'library.json')) as { name?: string | null } | null
     const library = {
@@ -80,9 +83,9 @@ export function writeLibraryFiles(s: LibraryState): string | null {
       },
       papers: s.papers.map(p => ({ paperId: p.paper.id, rank: p.rank, total: Math.round(p.total * 1000) / 1000, passed: p.passed, excluded: p.excluded, file: p.file, title: p.paper.title })),
     }
-    writeFileSync(join(dir, 'library.json'), JSON.stringify(library, null, 2))
-    for (const p of s.papers) writeFileSync(join(dir, p.file), JSON.stringify(p, null, 2))
-    writeFileSync(join(dir, 'graph.json'), JSON.stringify(graphOf(s.papers, s.goals?.knownPapers ?? []), null, 2))
+    for (const p of s.papers) atomicWriteJsonSync(join(dir, p.file), p) // fsynced before library.json, which lists them
+    atomicWriteJsonSync(join(dir, 'graph.json'), graphOf(s.papers, s.goals?.knownPapers ?? []))
+    atomicWriteJsonSync(join(dir, 'library.json'), library) // last: library.json is what makes the library listable
     return dir
   } catch (e) {
     console.warn(`[library ${s.id}] writing files failed`, (e as Error).message)
@@ -90,20 +93,73 @@ export function writeLibraryFiles(s: LibraryState): string | null {
   }
 }
 
+/** A library file exists but cannot be read: surfaced as a 422 with a clear message instead of the library vanishing. */
+export class LibraryCorruptError extends HTTPException {
+  constructor(public libraryId: string, public file: string) {
+    const message = `Library ${libraryId} is damaged: ${file} could not be read. Nothing was deleted; restore the file from a backup or remove the folder.`
+    super(422, { message, res: Response.json({ error: message, code: 'library_corrupt', libraryId, file }, { status: 422 }) })
+  }
+}
+
+/** The build left a manifest but no results (killed before the first checkpoint): 409 with the status instead of a 404. */
+export class LibraryUnfinishedError extends HTTPException {
+  constructor(public libraryId: string, public buildStatus: string) { // not "status": HTTPException owns that name
+    const message = `Library ${libraryId} has no results: ${buildStatus === 'failed' ? 'the build failed' : buildStatus === 'running' ? 'the build is still running' : 'the build was interrupted'} before anything was saved. Start the build again.`
+    super(409, { message, res: Response.json({ error: message, code: 'library_unfinished', status: buildStatus, libraryId }, { status: 409 }) })
+  }
+}
+
+// ---------- running manifest: manifest.json next to library.json ----------
+/** One id per server process: a manifest saying "running" from another boot belongs to a build that was killed. */
+const BOOT_ID = randomUUID()
+export type BuildStatus = 'running' | 'done' | 'failed' | 'interrupted'
+export interface Manifest { version: 1; libraryId: string; questionId: string | null; status: 'running' | 'done' | 'failed'; stage: string | null; startedAt: string; updatedAt: string; bootId: string; error?: string }
+
+const buildDir = (s: LibraryState) => questionLibraryDir(s.request.questionId, s.id) ?? legacyLibraryDir(s.id)
+
+/** Writes/updates manifest.json for a build (best effort: never breaks the run). */
+export function writeManifest(s: LibraryState, patch: Partial<Pick<Manifest, 'status' | 'stage' | 'error'>> = {}): void {
+  try {
+    const dir = buildDir(s)
+    if (!dir) return
+    const prev = readJson(join(dir, 'manifest.json')) as Manifest | null
+    const m: Manifest = {
+      version: 1, libraryId: s.id, questionId: s.request.questionId ?? null, status: 'running', stage: null,
+      startedAt: prev?.startedAt ?? new Date(s.startedAt).toISOString(), ...prev, ...patch, updatedAt: new Date().toISOString(), bootId: BOOT_ID,
+    }
+    if (patch.status && patch.status !== 'failed') delete m.error
+    atomicWriteJsonSync(join(dir, 'manifest.json'), m)
+  } catch (e) { console.warn(`[library ${s.id}] writing manifest failed`, (e as Error).message) }
+}
+
+/** 'running' only when this process wrote it; a "running" manifest from an earlier process is 'interrupted'. null = no manifest (old library). */
+export function libraryStatus(id: string): BuildStatus | null {
+  const dir = libraryDir(id)
+  const m = dir ? readJson(join(dir, 'manifest.json')) as Manifest | null : null
+  return m ? statusOf(m) : null
+}
+const statusOf = (m: Manifest): BuildStatus => (m.status === 'running' && m.bootId !== BOOT_ID ? 'interrupted' : m.status)
+
 export interface StoredLibrary { goals: Goals | null; papers: LibPaper[]; request: Omit<LibraryRequest, 'notes'> & { notes: { path: string; title: string; chars: number }[] } }
 
 export function readLibrary(id: string): StoredLibrary | null {
   const dir = libraryDir(id)
-  if (!dir || !existsSync(join(dir, 'library.json'))) return null
+  if (!dir) return null
+  if (!existsSync(join(dir, 'library.json'))) {
+    if (existsSync(join(dir, 'manifest.json'))) throw new LibraryUnfinishedError(id, libraryStatus(id) ?? 'interrupted')
+    return null
+  }
+  let file = 'library.json'
   try {
-    const lib = JSON.parse(readFileSync(join(dir, 'library.json'), 'utf8'))
-    const goals = existsSync(join(dir, 'goals.json')) ? JSON.parse(readFileSync(join(dir, 'goals.json'), 'utf8')) : null
+    const lib = JSON.parse(readFileSync(join(dir, file), 'utf8'))
+    file = 'goals.json'
+    const goals = existsSync(join(dir, file)) ? JSON.parse(readFileSync(join(dir, file), 'utf8')) : null
     const papersDir = join(dir, 'papers')
     const papers: LibPaper[] = existsSync(papersDir)
-      ? readdirSync(papersDir).filter(f => f.endsWith('.json')).map(f => JSON.parse(readFileSync(join(papersDir, f), 'utf8')) as LibPaper).sort((a, b) => a.rank - b.rank)
+      ? readdirSync(papersDir).filter(f => f.endsWith('.json')).map(f => { file = `papers/${f}`; return JSON.parse(readFileSync(join(papersDir, f), 'utf8')) as LibPaper }).sort((a, b) => a.rank - b.rank)
       : []
     return { goals, papers, request: lib.request }
-  } catch { return null }
+  } catch { throw new LibraryCorruptError(id, file) }
 }
 
 /**
@@ -138,7 +194,7 @@ interface LibraryJson {
   summary?: { total?: number; passed?: number }; papers?: { rank: number; title?: string }[]
 }
 
-export function summarize(id: string, lib: LibraryJson, goals: Goals | null): LibrarySummary {
+export function summarize(id: string, lib: LibraryJson, goals: Goals | null, status: BuildStatus | null = null): LibrarySummary {
   const top = [...(lib.papers ?? [])].sort((a, b) => a.rank - b.rank)[0]
   const qid = lib.questionId ?? lib.request?.questionId ?? null
   return {
@@ -146,7 +202,8 @@ export function summarize(id: string, lib: LibraryJson, goals: Goals | null): Li
     questionId: qid,
     questionName: lib.questionName ?? lib.request?.questionName ?? qid,
     question: lib.question ?? goals?.question ?? null,
-    name: lib.name ?? null,
+    // LibrarySummary has no status field (shared contract); an unfinished build is named instead
+    name: lib.name ?? (status === 'interrupted' ? 'Interrupted build (partial results)' : status === 'failed' ? 'Failed build (partial results)' : null),
     createdAt: lib.createdAt ?? '',
     total: lib.summary?.total ?? lib.papers?.length ?? 0,
     passed: lib.summary?.passed ?? 0,
@@ -159,9 +216,24 @@ export function summarize(id: string, lib: LibraryJson, goals: Goals | null): Li
 export function listLibraries(questionId?: string | null): LibrarySummary[] {
   const out: LibrarySummary[] = []
   const add = (dir: string, id: string, qid?: string) => {
-    const lib = readJson(join(dir, 'library.json')) as LibraryJson | null
-    if (!lib) return
-    const sum = summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null)
+    const file = join(dir, 'library.json')
+    const lib = readJson(file) as LibraryJson | null
+    if (!lib && !existsSync(file) && existsSync(join(dir, 'manifest.json'))) {
+      // killed before the first checkpoint: only the manifest exists
+      const man = readJson(join(dir, 'manifest.json')) as Manifest | null
+      const st = man ? statusOf(man) : 'interrupted'
+      out.push({ libraryId: id, questionId: qid ?? man?.questionId ?? null, questionName: qid ?? man?.questionId ?? null, question: null,
+        name: st === 'running' ? 'Build in progress (no results yet)' : `${st === 'failed' ? 'Failed' : 'Interrupted'} build (no results yet)`,
+        createdAt: man?.startedAt ?? '', total: 0, passed: 0, topK: 30, topTitle: null })
+      return
+    }
+    if (!lib) {
+      // a damaged library.json stays listed (opening it gives the corrupt error) instead of vanishing
+      if (existsSync(file)) out.push({ libraryId: id, questionId: qid ?? null, questionName: qid ?? null, question: null, name: 'Damaged library (library.json unreadable)', createdAt: '', total: 0, passed: 0, topK: 30, topTitle: null })
+      return
+    }
+    const man = readJson(join(dir, 'manifest.json')) as Manifest | null
+    const sum = summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null, man ? statusOf(man) : null)
     if (qid) { sum.questionId = qid; sum.questionName = qid }
     out.push(sum)
   }
@@ -187,7 +259,7 @@ export function renameLibrary(id: string, name: string): LibrarySummary | null {
   const lib = readJson(file) as LibraryJson | null
   if (!lib) return null
   lib.name = name.trim().slice(0, 120) || null
-  writeFileSync(file, JSON.stringify(lib, null, 2))
+  atomicWriteJsonSync(file, lib)
   return summarize(id, lib, readJson(join(dir, 'goals.json')) as Goals | null)
 }
 

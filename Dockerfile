@@ -14,11 +14,21 @@ RUN CI=true pnpm prune --prod
 
 FROM node:22-slim
 WORKDIR /app
-ENV NODE_ENV=production PORT=3000 DATA_DIR=/data
-RUN mkdir -p /data
+# PAPERTRAIL_HOST (not HOST) makes the server listen on all interfaces inside the container; publish the port to loopback
+# unless you put a reverse proxy in front. ALLOWED_ORIGINS is REQUIRED when the app is reached by a public name: set it to the
+# public origin(s), e.g. ALLOWED_ORIGINS=https://papertrail.example (comma separated); requests from other origins/hosts are refused.
+ENV NODE_ENV=production PORT=3000 PAPERTRAIL_HOST=0.0.0.0 DATA_DIR=/data WORKSPACE_DIR=/workspace LOG_DIR=/logs
+# user data (library DB, question folders with notes and libraries) and logs live in volumes, owned by the non-root user
+RUN mkdir -p /data /workspace /logs && chown -R node:node /data /workspace /logs
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/server/demo/recordings ./server/demo/recordings
+COPY --from=build /app/docs/data ./docs/data
+VOLUME ["/data", "/workspace", "/logs"]
+USER node
 EXPOSE 3000
+# loopback inside the container is an allowed Host for the API guard
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["node", "dist/server/index.js"]
