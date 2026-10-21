@@ -125,6 +125,11 @@ export function exportFile(format: ExportFormat, notes: Note[], question: string
   return { name: `${base} notes.zip`, data: zip(notes.map(n => ({ name: prefix && n.path.startsWith(prefix) ? n.path.slice(prefix.length) : n.path, content: n.content }))), type: 'application/zip' }
 }
 
+/** "Back up whole vault": every note in the browser vault by its path, including notes outside Questions/ that never reach the server. */
+export function backupFile(notes: Note[], now = new Date()): ExportFile {
+  return { name: `papertrail-vault-backup-${now.toISOString().slice(0, 10)}.zip`, data: zip(notes.map(n => ({ name: n.path, content: n.content }))), type: 'application/zip' }
+}
+
 /** D-37: PUT /api/questions/<q>/exports/<name>; returns the workspace-relative path written, or why it was not saved. */
 export async function saveExport(question: string, f: ExportFile): Promise<{ path?: string; error?: string }> {
   if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1') return { error: 'Demo mode (?demo=1) is read-only: the file was only downloaded.' }

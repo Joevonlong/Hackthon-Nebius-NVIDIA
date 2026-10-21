@@ -4,7 +4,8 @@
 // "Report card" expands WhyScore (with evidence) across the row.
 import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
-import { grade } from '../score'
+import { gradeOf } from '../score'
+import { useLibrary } from '../../stores/library'
 import { authorYear, status, statusTip, tileChips } from './facts'
 import { useHoverCard } from './useHoverCard'
 import MoveBadge from './MoveBadge.vue'
@@ -16,7 +17,8 @@ import StackBar from '../charts/StackBar.vue' // CR-11 V-4
 
 const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean; index?: number }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
-const g = computed(() => grade(props.paper.total))
+const lib = useLibrary()
+const g = computed(() => gradeOf(props.paper))
 const st = computed(() => status(props.paper))
 const hc = useHoverCard()
 </script>
@@ -29,10 +31,10 @@ const hc = useHoverCard()
         <span class="rk">#{{ paper.rank }}</span>
         <MoveBadge :move="move" :gen="gen" />
         <span v-if="inVault" class="iv" title="already in your vault">in vault</span>
-        <span class="st" :title="statusTip(paper)">{{ st }}</span>
+        <span class="st" :title="statusTip(paper, lib)">{{ st }}</span>
       </div>
       <div class="viz">
-        <b class="g" :class="'g-' + g" :title="`grade ${g} (A ≥ 0.85 · B ≥ 0.70 · C ≥ 0.55 · D ≥ 0.40 · E below)`">{{ g }}</b>
+        <b class="g" :class="'g-' + g" :title="g ? `grade ${g} (A ≥ 0.85 · B ≥ 0.70 · C ≥ 0.55 · D ≥ 0.40 · E below)` : 'no grade: nothing could be assessed'">{{ g ?? '–' }}</b>
         <ScoreRing :total="paper.total" :threshold="threshold" :passed="paper.passed" />
         <MiniRadar class="rad" :components="paper.components" :accent="paper.passed" />
       </div>

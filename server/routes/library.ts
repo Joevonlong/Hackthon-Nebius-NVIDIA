@@ -9,6 +9,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { randomUUID } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { ChatRequest, LibraryRequest, type Goals, type LibPaper, type LibraryEvent } from '@shared/library'
 import { withRun } from '../trace'
 import { createLibraryState, emitLib, getLibraryState, runLibrary, subscribeLib } from '../library/pipeline'
@@ -17,7 +18,8 @@ import { fixtureGather } from '../library/fixtures'
 import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, renameLibrary, trashLibrary } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
-import { createQuestion, deleteNote, listNotes, listQuestions, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { PdfBusyError } from '../security/pdf-worker'
+import { createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
@@ -87,10 +89,32 @@ library.get('/questions/:id/notes', c => {
 
 // note path = everything after /notes/ (e.g. seeds/S1%20Tirosh%202016.md)
 const notePath = (url: string) => decodeURIComponent(new URL(url).pathname.replace(/^.*?\/notes\//, ''))
+/** FNV-1a + length of the text: the change detector the client keeps per note (hashText in client/src/stores/vault.ts; keep both identical). */
+export function noteHash(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return `${(h >>> 0).toString(36)}:${s.length}`
+}
+/**
+ * Conditional writes (issue #13): a client that sends `If-Match: "<hash>"` (the hash of the copy it last saw) only changes the file while
+ * it still has that content, and `If-None-Match: *` only creates a file that does not exist; otherwise 412 with the current content.
+ * No header = an older client: the write goes through.
+ */
+function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string): { current: string | null; failed: boolean } {
+  const file = notePathIn(id, rel)
+  const current = file && existsSync(file) ? readFileSync(file, 'utf8') : null
+  const match = c.req.header('if-match'); const none = c.req.header('if-none-match')
+  const failed = (match !== undefined && (current === null || noteHash(current) !== match.trim().replace(/^"|"$/g, ''))) || (none?.trim() === '*' && current !== null)
+  return { current, failed }
+}
+const changedElsewhere = (current: string | null) => ({ error: 'changed on the server', content: current ?? undefined, hash: current === null ? undefined : noteHash(current) })
 library.put('/questions/:id/notes/*', async c => {
   const body = await c.req.json().catch(() => null) as { content?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 2_000_000) return c.json({ error: 'Body must be { content: string }' }, 400)
-  return writeNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url), body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
+  const id = decodeURIComponent(c.req.param('id')); const rel = notePath(c.req.url)
+  const pre = precondition(c, id, rel)
+  if (pre.failed) return c.json(changedElsewhere(pre.current), 412)
+  return writeNote(id, rel, body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
 })
 
 // Q2-4 (D-37): the References tab's BibTeX / CSL JSON / Markdown .zip of one question → <question>/exports/<name>
@@ -106,7 +130,10 @@ library.put('/questions/:id/exports/:name', async c => {
 })
 
 library.delete('/questions/:id/notes/*', c => {
-  return deleteNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url)) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
+  const id = decodeURIComponent(c.req.param('id')); const rel = notePath(c.req.url)
+  const pre = precondition(c, id, rel)
+  if (pre.failed && pre.current !== null) return c.json(changedElsewhere(pre.current), 412)
+  return deleteNote(id, rel) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
 })
 
 // ---- D-36: seed file import (lane W2). multipart field "file"; ids are resolved by the client via POST /api/seeds/resolve ----
@@ -125,6 +152,7 @@ library.post('/seeds/import', async c => {
     const r = parseSeedText(name, await file.text())
     return c.json({ file: name, format: r.format, ids: r.ids })
   } catch (e) {
+    if (e instanceof PdfBusyError) return c.json({ error: e.message }, 503)
     return c.json({ error: `Could not read ${name}: ${(e as Error).message?.slice(0, 200)}` }, 422)
   }
 })

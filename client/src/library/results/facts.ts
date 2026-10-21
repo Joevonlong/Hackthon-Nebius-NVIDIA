@@ -2,7 +2,8 @@
 // tooltips and table sorting. Pure functions (tested in facts.test.ts).
 import type { LibPaper, ScoreComponent } from '@shared/library'
 import { lastName, firstAuthor } from '../../discover/literatureNote'
-import { COMPONENT_META, f2, grade, keyNumber, reason, type ComponentKey } from '../score'
+import { COMPONENT_KEYS, COMPONENT_META, f2, grade, keyNumber, reason, relativeNote, type ComponentKey } from '../score'
+import { RECENT_FROM } from '../../stores/library'
 
 export type ResultsView = 'tiles' | 'table'
 export const VIEW_KEY = 'papertrail.library.view'
@@ -32,7 +33,11 @@ export function rankMoves(prev: LibPaper[], next: LibPaper[]): Record<string, nu
   return out
 }
 export const status = (p: LibPaper) => p.excluded ? 'excluded' : p.passed ? 'passed' : 'below'
-export const statusTip = (p: LibPaper) => p.excluded ? 'hard gate: ' + p.excluded : p.passed ? 'inside the top X% and above the minimum score' : 'outside the top X% or under the minimum score'
+export const statusTip = (p: LibPaper, rule?: { topPercent: number; threshold: number }) => {
+  const top = rule ? `top ${rule.topPercent}%` : 'the top share'
+  const min = rule ? `the minimum score ${f2(rule.threshold)}` : 'the minimum score'
+  return p.excluded ? 'hard gate: ' + p.excluded : p.passed ? `inside the ${top} and above ${min}` : `outside the ${top}, under ${min} or below the topic-fit floor`
+}
 export const authorYear = (p: LibPaper) => `${lastName(firstAuthor(p.paper))}${p.paper.authors.length > 1 ? ' et al.' : ''} ${p.paper.year ?? 'n.d.'}`
 export const tavilyUrl = (p: LibPaper) => p.hits.find(h => h.source === 'tavily')?.url
 
@@ -41,17 +46,22 @@ export function tileChips(p: LibPaper): { text: string; cls: string; title: stri
   const l = p.labels
   const out: { text: string; cls: string; title: string }[] = [{ text: l.kind, cls: 'kind', title: 'kind' }]
   if (l.recency === 'fresh') out.push({ text: 'Fresh', cls: 'fresh', title: 'published within the last 18 months' })
-  else if (l.recency === 'recent') out.push({ text: 'Recent', cls: '', title: 'published within the last 5 years' })
+  // "Recent" is the same cut-off as the Recent filter in the results bar (RECENT_FROM), not the server's 5-year label
+  else if (l.recency === 'recent' && (p.paper.year ?? 0) >= RECENT_FROM) out.push({ text: 'Recent', cls: '', title: `published ${RECENT_FROM} or later (same as the Recent filter)` })
   if (l.openAccess && l.openAccess !== 'closed') out.push({ text: 'OA', cls: '', title: 'open access: ' + l.openAccess })
   return out
 }
+
+/** Radar axes that are drawn into the shape: assessed ones only (a not-assessed axis is a dashed ring, never a 0). */
+export const radarShapeKeys = (cs: ScoreComponent[]): ComponentKey[] => COMPONENT_KEYS.filter(k => cs.find(c => c.key === k)?.value != null)
 
 export const comp = (p: LibPaper, k: ComponentKey) => p.components.find(c => c.key === k)
 export function compTip(c: ScoreComponent | undefined, deK: (t: string) => string = t => t): string {
   if (!c) return 'no component'
   const head = `${COMPONENT_META[c.key].label}: `
   if (c.value == null) return head + 'not assessed (weight redistributed)'
-  return `${head}${f2(c.value)} · grade ${grade(c.value)} · ${reason(c)}\n${deK(keyNumber(c))}`
+  const rel = relativeNote(c)
+  return `${head}${f2(c.value)} · grade ${grade(c.value)} · ${reason(c)}\n${deK(keyNumber(c))}${rel ? '\n' + rel : ''}`
 }
 
 export type SortKey = 'rank' | 'title' | 'year' | 'kind' | 'total' | 'passed' | ComponentKey
