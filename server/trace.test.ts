@@ -46,6 +46,7 @@ describe('LOG_PROMPTS', () => {
   })
 
   it('default mode still logs the text (for debugging)', async () => {
+    vi.stubEnv('LOG_PROMPTS', 'full') // a developer's .env.local may set metadata
     await oneChatCall()
     expect(logText()).toContain('PRIVATE-QUESTION')
   })

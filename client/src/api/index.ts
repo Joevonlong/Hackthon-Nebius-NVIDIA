@@ -18,7 +18,10 @@ export interface RunHandlers {
  */
 export function normalizePlayground(): void {
   if (typeof location === 'undefined' || typeof history === 'undefined') return
-  if (/^\/playground\/?$/.test(location.pathname)) history.replaceState(null, '', '/?demo=1' + location.hash)
+  if (/^\/playground\/?$/.test(location.pathname)) {
+    const q = new URLSearchParams(location.search); q.set('demo', '1')
+    history.replaceState(null, '', '/?' + q.toString() + location.hash)
+  }
 }
 normalizePlayground()
 

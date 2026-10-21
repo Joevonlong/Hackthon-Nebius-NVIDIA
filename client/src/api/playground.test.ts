@@ -26,6 +26,12 @@ describe('playground (D-08)', () => {
     expect(isDemo()).toBe(true)
   })
 
+  it('keeps other query parameters and the hash when rewriting', () => {
+    const h = fakeBrowser('/playground', '?q=melanoma', '#x')
+    normalizePlayground()
+    expect(h.replaceState).toHaveBeenCalledWith(null, '', '/?q=melanoma&demo=1#x')
+  })
+
   it('?demo=1 keeps working', () => {
     fakeBrowser('/', '?demo=1')
     expect(isDemo()).toBe(true)

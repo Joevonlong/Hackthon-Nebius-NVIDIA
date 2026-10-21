@@ -8,10 +8,10 @@ PaperTrail runs on your computer. The server you start is your own; there is no 
 
 | Service | When | What is sent | Needs a key | Code |
 |---|---|---|---|---|
-| Nebius Token Factory (models) | AI features: planning queries, embeddings, reranking, judging papers, library chat, goal extraction | Your research question, the notes and goals you wrote, paper titles and abstracts, and your chat messages, inside prompts. Your API key is sent only as the `Authorization` header to this service. | Yes (`TOKEN_FACTORY_API_KEY`); without it AI steps are skipped | `server/ai/http.ts`, `server/env.ts` (`TOKEN_FACTORY_BASE_URL`) |
-| OpenAlex | Finding papers, citations, entity lookups | Search queries, DOIs and OpenAlex ids. If you set `OPENALEX_MAILTO` or `OPENALEX_API_KEY`, those are sent too. | Optional | `server/sources/openalex.ts`, `server/library/sources/` |
-| PubMed (NCBI E-utilities) | Finding papers, abstracts, similar articles | Search queries and PubMed ids | No | `server/sources/pubmed.ts`, `server/library/sources/pubmed-lib.ts` |
-| Europe PMC | Finding papers, citation fallback | Search queries and DOIs | No | `server/library/sources/europepmc-lib.ts`, `server/library/sources/citations-fallback.ts` |
+| Nebius Token Factory (models) | AI features: planning queries, embeddings, reranking, judging papers, library chat, goal extraction | Your research question, the notes and goals you wrote, paper titles and abstracts, and your chat messages, inside prompts. Your API key is sent only as the `Authorization` header to this service. | Yes (`TOKEN_FACTORY_API_KEY`); without it AI steps are skipped | `server/ai/http.ts`, `server/ai/scout.ts` (AI SDK), `server/env.ts` (`TOKEN_FACTORY_BASE_URL`) |
+| OpenAlex | Finding papers, citations, entity lookups | Search queries, DOIs and OpenAlex ids. If you set `OPENALEX_MAILTO` or `OPENALEX_API_KEY`, those are sent too. | Optional | `server/sources/openalex.ts`, `server/ai/scout.ts` (direct `api.openalex.org` calls), `server/library/sources/openalex-lib.ts` |
+| PubMed (NCBI E-utilities) | Finding papers, abstracts, similar articles | Search queries and PubMed ids | No | `server/sources/pubmed.ts`, `server/library/sources/pubmed-lib.ts`, `server/discovery/seed-fallback.ts` |
+| Europe PMC | Finding papers, citation fallback | Search queries and DOIs | No | `server/sources/europepmc.ts`, `server/library/sources/europepmc-lib.ts`, `server/library/sources/citations-fallback.ts`, `server/discovery/seed-fallback.ts` |
 | Tavily (web search) | Library mode web search for context | Search queries (generated from your question); your Tavily key as `Authorization` header | Yes (`TAVILY_API_KEY`); skipped without it | `server/sources/tavily.ts`, `server/library/sources/tavily-lib.ts` |
 | Crossref | Fallback for DOI lookups and citations | DOIs; `CROSSREF_MAILTO` or `OPENALEX_MAILTO` if set | No | `server/discovery/seed-fallback.ts`, `server/library/sources/citations-fallback.ts` |
 | arXiv | Library mode source | Search queries | No | `server/library/sources/arxiv.ts` |
@@ -34,17 +34,29 @@ Notes:
 | Notes vault in the browser | IndexedDB of your browser (`idb-keyval`) | `client/src/stores/vault.ts` |
 | Theme, last-opened library, chat history per library | Browser `localStorage` | `client/src/App.vue`, `client/src/stores/chat.ts`, `client/src/stores/vault.ts` |
 | Run logs | `LOG_DIR/runs/<runId>/*.jsonl` (default `./logs`) | `server/trace.ts` |
-| Your API keys | `.env.local` in the repo, or the settings screen. Never written to logs; never committed (`.env.local` is ignored by git). | `server/env.ts` |
+| Your API keys | `.env.local` in the repo (for now there is no settings screen for keys). Never written to logs; never committed (`.env.local` is ignored by git). | `server/env.ts` |
 
 Deleting these folders removes the data. Nothing is uploaded to anyone for backup.
 
 ## Logs and prompt text
 
-Run logs help you check what the agent did. By default `llm.jsonl` and `chat.jsonl` contain **prompt and response text** (clipped), so they hold your research question and notes. Do not share them without reading them first.
+Run logs help you check what the agent did. By default `llm.jsonl` and `chat.jsonl` contain **prompt and response text** (clipped), so they hold your research question and notes.
 
-Set `LOG_PROMPTS=metadata` (in `.env.local` or the environment) to keep text out: `llm.jsonl` and `chat.jsonl` then record the endpoint, model, status, timing, token counts and the size of each text field (`{"chars": 1234}`), but no prompt, response, query or reply. This is covered by the test `server/trace.test.ts`.
+Set `LOG_PROMPTS=metadata` (in `.env.local` or the environment) to keep text out of **those two files only**: they then record the endpoint, model, status, timing, token counts and the size of each text field (`{"chars": 1234}`), but no prompt, response, query or reply. This is covered by `server/trace.test.ts`.
 
-One exception to know about: the per-library chat history that is saved next to a library (`<library folder>/chat.jsonl`) is written by `server/library/chat.ts` and is not yet covered by `LOG_PROMPTS`.
+`LOG_PROMPTS` does not change the other files in `logs/runs/<id>/`. In either mode they still contain your text:
+
+| File | Still contains | Written by |
+|---|---|---|
+| `summary.md` | Goals, question, subtopics and queries, verbatim quotes from your notes, paper titles | `server/library/report.ts`, `server/discovery/trace-report.ts` |
+| `events.jsonl` | The run events: goals, the request, paper titles | `server/library/pipeline.ts`, `server/discovery/registry.ts` |
+| `api.jsonl` | Source request URLs, which include search queries and DOIs | `server/data/http.ts` |
+| `tavily.jsonl` | Web search queries, result titles and clipped page text | `server/sources/tavily.ts`, `server/library/sources/tavily-lib.ts` |
+| `papers.jsonl`, `relations.jsonl`, `references.jsonl` | Paper records and citation links found for your question | `server/library/report.ts`, `server/discovery/trace-report.ts` |
+
+**Before sharing `logs/runs/<id>/` in a bug report, check these files.**
+
+Also not covered: the per-library chat history saved next to a library (`<library folder>/chat.jsonl`), written by `server/library/chat.ts`.
 
 ## Questions or corrections
 

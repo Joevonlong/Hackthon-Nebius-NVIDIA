@@ -158,6 +158,7 @@ const libraryPaper = (c: Context) => {
 demo.get('/demo/library/stream', libraryStream)
 demo.get('/demo/library/papers/:paperId', libraryPaper)
 demo.get('/demo/library', libraryGet)
+// DEMO=1 only enables these legacy aliases; the replay itself is reached at /api/demo/* via ?demo=1 or /playground.
 if (process.env.DEMO === '1') {
   demo.get(`/library/${DEMO_LIBRARY_ID}/stream`, libraryStream)
   demo.get(`/library/${DEMO_LIBRARY_ID}/papers/:paperId`, libraryPaper)
