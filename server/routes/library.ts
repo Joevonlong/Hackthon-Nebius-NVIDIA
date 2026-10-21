@@ -19,6 +19,7 @@ import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, ren
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
 import { PdfBusyError } from '../security/pdf-worker'
+import { logServerError } from '../security/errors'
 import { createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
@@ -51,8 +52,7 @@ library.get('/library/:id/export', c => {
   if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
   const r = exportLibrary(id)
   if (!r) return c.json({ error: 'library not found' }, 404)
-  const qid = (r.library as { questionId?: string | null })?.questionId
-  writeExport(qid, `${id}.json`, JSON.stringify(r, null, 2)) // D-37: a copy in <question>/exports/
+  // read-only: the copy in <question>/exports/ is saved by the client with PUT /questions/:id/exports/:name (#35)
   c.header('content-disposition', `attachment; filename="${id}.json"`)
   return c.json(r)
 })
@@ -87,8 +87,14 @@ library.get('/questions/:id/notes', c => {
   return notes ? c.json({ notes }) : c.json({ error: 'question not found' }, 404)
 })
 
-// note path = everything after /notes/ (e.g. seeds/S1%20Tirosh%202016.md)
-const notePath = (url: string) => decodeURIComponent(new URL(url).pathname.replace(/^.*?\/notes\//, ''))
+// Question id and note path from /questions/<id>/notes/<path> (e.g. seeds/S1%20Tirosh%202016.md). The id segment has no "/" (it is encoded),
+// so the first match is the right one even when the question folder is itself named "notes". A malformed %-escape gives null (400).
+const NOTE_ROUTE = /\/questions\/([^/]+)\/notes\/(.*)$/
+function noteRoute(url: string): { id: string; rel: string } | null {
+  const m = NOTE_ROUTE.exec(new URL(url).pathname)
+  if (!m) return null
+  try { return { id: decodeURIComponent(m[1]), rel: decodeURIComponent(m[2]) } } catch { return null }
+}
 /** FNV-1a + length of the text: the change detector the client keeps per note (hashText in client/src/stores/vault.ts; keep both identical). */
 export function noteHash(s: string): string {
   let h = 0x811c9dc5
@@ -111,7 +117,9 @@ const changedElsewhere = (current: string | null) => ({ error: 'changed on the s
 library.put('/questions/:id/notes/*', async c => {
   const body = await c.req.json().catch(() => null) as { content?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 2_000_000) return c.json({ error: 'Body must be { content: string }' }, 400)
-  const id = decodeURIComponent(c.req.param('id')); const rel = notePath(c.req.url)
+  const route = noteRoute(c.req.url)
+  if (!route) return c.json({ error: 'bad note path' }, 400)
+  const { id, rel } = route
   const pre = precondition(c, id, rel)
   if (pre.failed) return c.json(changedElsewhere(pre.current), 412)
   return writeNote(id, rel, body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
@@ -130,7 +138,9 @@ library.put('/questions/:id/exports/:name', async c => {
 })
 
 library.delete('/questions/:id/notes/*', c => {
-  const id = decodeURIComponent(c.req.param('id')); const rel = notePath(c.req.url)
+  const route = noteRoute(c.req.url)
+  if (!route) return c.json({ error: 'bad note path' }, 400)
+  const { id, rel } = route
   const pre = precondition(c, id, rel)
   if (pre.failed && pre.current !== null) return c.json(changedElsewhere(pre.current), 412)
   return deleteNote(id, rel) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
@@ -153,7 +163,8 @@ library.post('/seeds/import', async c => {
     return c.json({ file: name, format: r.format, ids: r.ids })
   } catch (e) {
     if (e instanceof PdfBusyError) return c.json({ error: e.message }, 503)
-    return c.json({ error: `Could not read ${name}: ${(e as Error).message?.slice(0, 200)}` }, 422)
+    logServerError('seeds/import', e)
+    return c.json({ error: `Could not read ${name}.`, code: 'seed_unreadable' }, 422)
   }
 })
 
@@ -166,7 +177,8 @@ library.post('/library', async c => {
   const s = createLibraryState(libraryId, body.data)
   withRun(libraryId, () => runLibrary(s, { gather: useFixture() ? fixtureGather : gather })).catch(e => {
     console.error(`[library ${libraryId}] crashed`, e)
-    emitLib(s, { type: 'error', message: (e as Error).message?.slice(0, 300) || 'library run failed' })
+    logServerError(`library ${libraryId}`, e)
+    emitLib(s, { type: 'error', message: 'library run failed (details are in the server log)' })
     emitLib(s, { type: 'done', libraryId, total: s.papers.length, passed: s.papers.filter(p => p.passed).length, ms: Date.now() - s.startedAt, dir: s.dir ?? '' })
   })
   return c.json({ libraryId, fixture: useFixture() || undefined })

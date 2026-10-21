@@ -3,6 +3,8 @@
 # Usage: scripts/deploy.sh <version> [--dry-run]     e.g. scripts/deploy.sh v1
 # Env:   NEBIUS_REGION (default eu-north1) · REGISTRY_NAME (default papertrail) · SUBNET_ID (default: first subnet found)
 # Reads TOKEN_FACTORY_API_KEY, TAVILY_API_KEY, OPENALEX_API_KEY, OPENALEX_MAILTO from .env.local at the repo root; never prints them.
+# Keys and the access token reach the CLI only through a mode-0600 temp file (--env-file), never as arguments. See docs/DEPLOY.md.
+# Also: PUBLIC_ORIGIN (required for a real deploy, e.g. https://papertrail.example) · PAPERTRAIL_ACCESS_TOKEN (default: created and shown once)
 # Each deploy uses a new tag and endpoint name (papertrail-<version>); there is no update command and creation takes ~5 min.
 set -euo pipefail
 
@@ -52,15 +54,35 @@ while [[ "$d" != "/" ]]; do
   if [[ -f "$d/.env.local" ]]; then ENV_FILE="$d/.env.local"; break; fi
   d="$(dirname "$d")"
 done
-ENV_ARGS=()
+# Keys and the access token go into a private file (mode 0600, removed on exit) that the CLI reads with --env-file,
+# never into command-line arguments, where `ps` and shell history could show them (#35).
+SECRETS="$(umask 077; mktemp "${TMPDIR:-/tmp}/papertrail-endpoint-env.XXXXXX")"
+trap 'rm -f "$SECRETS"' EXIT
+envval() { grep -E "^[[:space:]]*${1}=" "$ENV_FILE" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//" || true; }
 if [[ -n "$ENV_FILE" && -f "$ENV_FILE" ]]; then
   for key in TOKEN_FACTORY_API_KEY TAVILY_API_KEY OPENALEX_API_KEY OPENALEX_MAILTO; do
-    val="$(grep -E "^[[:space:]]*${key}=" "$ENV_FILE" | tail -1 | sed -E "s/^[^=]*=//; s/^['\"]//; s/['\"]\$//")" || true
-    if [[ -n "$val" ]]; then ENV_ARGS+=(--env "${key}=${val}"); say "env ${key}: set"; else say "env ${key}: missing (feature runs without it)"; fi
+    val="$(envval "$key")"
+    if [[ -n "$val" ]]; then printf '%s=%s\n' "$key" "$val" >> "$SECRETS"; say "env ${key}: set"; else say "env ${key}: missing (feature runs without it)"; fi
   done
 else
   say "no .env.local found; deploying without API keys (demo mode still works)"
 fi
+# Access token: the server refuses to start on a public address without one. Use PAPERTRAIL_ACCESS_TOKEN from the environment or
+# .env.local, else create one (shown once at the end of a real deploy).
+TOKEN="${PAPERTRAIL_ACCESS_TOKEN:-}"; NEW_TOKEN=0
+[[ -z "$TOKEN" && -n "$ENV_FILE" ]] && TOKEN="$(envval PAPERTRAIL_ACCESS_TOKEN)"
+if [[ -z "$TOKEN" ]]; then
+  if [[ $DRY_RUN == 1 ]]; then TOKEN="<generated-token>"; else command -v openssl >/dev/null || die "openssl not found (needed to create the access token)"; TOKEN="$(openssl rand -hex 32)"; NEW_TOKEN=1; fi
+fi
+[[ ${#TOKEN} -ge 16 ]] || die "PAPERTRAIL_ACCESS_TOKEN must be at least 16 characters"
+printf 'PAPERTRAIL_ACCESS_TOKEN=%s\n' "$TOKEN" >> "$SECRETS"
+say "env PAPERTRAIL_ACCESS_TOKEN: $([[ $NEW_TOKEN == 1 ]] && echo 'created' || echo 'set')"
+# The Host check only accepts the public name you give here (ALLOWED_ORIGINS), e.g. PUBLIC_ORIGIN=https://papertrail.example
+PUBLIC_ORIGIN="${PUBLIC_ORIGIN:-}"
+if [[ -n "$PUBLIC_ORIGIN" ]]; then printf 'ALLOWED_ORIGINS=%s\n' "$PUBLIC_ORIGIN" >> "$SECRETS"; say "env ALLOWED_ORIGINS: $PUBLIC_ORIGIN"
+elif [[ $DRY_RUN == 0 ]]; then die "PUBLIC_ORIGIN is required (the https origin the endpoint will be reached at); see docs/DEPLOY.md"
+else say "PUBLIC_ORIGIN not set (a real deploy requires it)"; fi
+ENV_ARGS=(--env-file "$SECRETS")
 
 # 3. Registry (create or reuse)
 REGISTRY_PATH=""
@@ -94,6 +116,10 @@ SUBNET_ARGS=(); [[ -n "$SUBNET" ]] && SUBNET_ARGS=(--subnet-id "$SUBNET")
 
 # 6. Create the endpoint
 say "create endpoint ${NAME}"
+# Never fall back to --env KEY=value: if this CLI has no --env-file, stop.
+if [[ $DRY_RUN == 0 ]]; then
+  nebius ai endpoint create --help 2>&1 | grep -q -- '--env-file' || die "this nebius CLI has no --env-file for 'ai endpoint create'; secrets are never passed as arguments. Update the CLI or deploy another way (docs/DEPLOY.md)"
+fi
 run nebius ai endpoint create --name "$NAME" --image "$IMAGE" \
   --platform cpu-d3 --preset 2vcpu-8gb --container-port 3000 --disk-size 20Gi \
   "${SUBNET_ARGS[@]}" "${ENV_ARGS[@]+"${ENV_ARGS[@]}"}"
@@ -115,4 +141,8 @@ for _ in $(seq 1 90); do
 done
 [[ -n "$URL" ]] || die "timeout waiting for endpoint ${ID}"
 say "public URL: ${URL}"
+if [[ $NEW_TOKEN == 1 ]]; then
+  say "access token (shown once; store it in a password manager): ${TOKEN}"
+  say "sign in once with: ${URL%/}/?token=<token>"
+fi
 curl -fsS --max-time 20 "${URL%/}/api/health" >/dev/null && say "health OK" || say "health check not yet answering; retry in a minute"

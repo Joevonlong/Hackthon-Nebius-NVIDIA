@@ -3,6 +3,7 @@ import type { Paper, Seed } from '@shared/contracts'
 import { getWork, normDoi } from '../sources/openalex'
 import { fetchAbstracts } from '../sources/pubmed'
 import { abstractsByDoi } from '../sources/europepmc'
+import { logServerError } from '../security/errors'
 import { openAlexProblem, resolveWithoutOpenAlex, type FallbackSource } from './seed-fallback'
 
 export type SeedRef = { kind: 'openalex' | 'doi' | 'pmid' | 'pmcid'; value: string }
@@ -14,6 +15,7 @@ export function parseSeedInput(raw: string): SeedRef | null {
   try { s = decodeURIComponent(s) } catch { /* keep as is */ }
   // DOI: bare, doi: prefix, doi.org URL, or anywhere in a publisher URL
   const doi = s.match(/(?:^|doi\.org\/|doi:\s*|\/)(10\.\d{4,9}\/[^\s?#"<>]+)/i)
+  if (doi && /(^|\/)\.\.?(\/|$)/.test(doi[1])) return null // dot segments are never part of a DOI (#35)
   if (doi && !/openalex\.org/i.test(s)) return { kind: 'doi', value: normDoi(doi[1].replace(/[.,;)]+$/, ''))! }
   const oa = s.match(/(?:^|openalex\.org\/(?:works\/)?)(W\d+)$/i)
   if (oa) return { kind: 'openalex', value: oa[1].toUpperCase() }
@@ -97,7 +99,8 @@ export async function resolveSeeds(inputs: string[], deps: { getWork?: typeof ge
     const hit = await fallback(ref)
     const reason = openAlexProblem(problem)
     if (hit) { via.push({ input, paperId: hit.paper.id, source: hit.source, reason }); return { input, paper: hit.paper } }
-    errors.push({ input, message: problem ? `${reason}; not found via Crossref / PubMed / Europe PMC either (${(problem as Error).message?.slice(0, 120) ?? ''})` : `Not found in OpenAlex, Crossref, PubMed or Europe PMC (${ref.kind}:${ref.value})` })
+    if (problem) logServerError('seeds/resolve', problem)
+    errors.push({ input, message: problem ? `${reason}; not found via Crossref / PubMed / Europe PMC either` : `Not found in OpenAlex, Crossref, PubMed or Europe PMC (${ref.kind}:${ref.value})` })
     return null
   }))
   const seen = new Map<string, string>()

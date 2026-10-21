@@ -27,3 +27,22 @@ describe('seed file import (D-36)', () => {
     expect(parseSeedText('x.txt', '10.1000/A\n10.1000/a\n31234567\narXiv:2101.00001').ids).toEqual(["10.1000/A", 'arXiv:2101.00001', 'PMID:31234567'])
   })
 })
+
+describe('BibTeX parsing runs in linear time (#35)', () => {
+  const MB = 1024 * 1024
+  const attacks: Record<string, string> = {
+    'unclosed doi={ repeated': 'doi={'.repeat(Math.ceil(MB / 5)),
+    'unclosed doi = " repeated': 'doi = "'.repeat(Math.ceil(MB / 8)),
+    'long whitespace runs': ('url ' + ' '.repeat(2000) + '= {').repeat(Math.ceil(MB / 2010)),
+  }
+  for (const [name, input] of Object.entries(attacks)) {
+    it(`1 MB adversarial input (${name}) finishes in under 1 s`, () => {
+      const t = Date.now()
+      parseSeedText('x.bib', input)
+      expect(Date.now() - t).toBeLessThan(1000)
+    })
+  }
+  it('still reads entries after the change', () => {
+    expect(parseSeedText('a.bib', '@article{a, doi={10.1/abc}}').ids).toEqual(['10.1/abc'])
+  })
+})
