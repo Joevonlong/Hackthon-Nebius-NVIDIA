@@ -6,6 +6,7 @@ import { embed } from '../ai/embed'
 import { hasKey } from '../ai/http'
 import { env } from '../env'
 import { trace } from '../trace'
+import { cleanUrls } from '../ai/untrusted'
 import { deriveGoals, knownBySource, knownGroups } from './goals'
 import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
@@ -45,7 +46,7 @@ export const getLibraryState = (id: string) => libs.get(id)
 
 export function emitLib(s: LibraryState, e: LibraryEvent) {
   if (s.done) return
-  const copy = structuredClone(e)
+  const copy = cleanUrls(structuredClone(e))
   const check = LibraryEvent.safeParse(copy)
   if (!check.success) console.warn(`[library ${s.id}] event ${e.type} fails contract:`, check.error.issues.slice(0, 3))
   s.events.push(copy)
@@ -208,7 +209,7 @@ async function runLibraryStages(s: LibraryState, deps: PipelineDeps): Promise<vo
   const sc = await timed(s, 'score', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
   const pre = sc.out
   // checkpoint: the scored (pre-LLM) papers reach disk now, so a build killed during the LLM reads keeps partial results
-  s.papers = pre
+  s.papers = cleanUrls(pre)
   writeLibraryFiles(s)
   emitLib(s, { type: 'stage', stage: 'score', status: 'done', count: pre.length, ms: sc.ms, message: `pre-LLM score · ${passSummary(pre, rule)}` })
 
@@ -244,7 +245,7 @@ async function runLibraryStages(s: LibraryState, deps: PipelineDeps): Promise<vo
 
   // 6. re-score + select
   const se = await timed(s, 'select', async () => scoreLibrary(items, goals, { weights: req.weights, threshold: req.threshold, topPercent: req.topPercent, now, openalexDown, knownGroups: kg }))
-  s.papers = markFieldUncertain(se.out)
+  s.papers = cleanUrls(markFieldUncertain(se.out))
 
   // 6b. CR-10 E-2: reference lists from Europe PMC for passed papers OpenAlex gave none (429 / PubMed-only records)
   const refsOpts = deps.references ?? (env.raw.EPMC_REFS === '0' || process.env.VITEST ? false : {})

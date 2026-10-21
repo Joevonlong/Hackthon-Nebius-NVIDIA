@@ -12,6 +12,21 @@ export function httpUrlOrNull(u: string): string | null {
   if (u.trim()) try { onUrlDrop?.(u) } catch { /* tracing must not break parsing */ }
   return null
 }
+/** Cleans every `url` / `oaUrl` string in a parsed value in place (old files, events); never throws, never drops the object. */
+export function sanitizeUrls<T>(v: T): T {
+  const walk = (x: unknown): void => {
+    if (Array.isArray(x)) { for (const i of x) walk(i); return }
+    if (!x || typeof x !== 'object') return
+    const o = x as Record<string, unknown>
+    for (const k of Object.keys(o)) {
+      const val = o[k]
+      if ((k === 'url' || k === 'oaUrl') && typeof val === 'string') { const u = httpUrlOrNull(val); o[k] = u ?? (k === 'oaUrl' ? null : '') }
+      else walk(val)
+    }
+  }
+  walk(v)
+  return v
+}
 export const SafeUrl = z.string().transform(u => httpUrlOrNull(u) ?? '')
 export const SafeUrlNullable = z.string().nullable().transform(u => (u == null ? null : httpUrlOrNull(u)))
 

@@ -1,12 +1,21 @@
 // Paper abstracts, web snippets and note text are untrusted input: they go into prompts only inside these blocks,
 // and the system prompt says the content of a block is data, never instructions.
-import { randomBytes } from 'node:crypto'
-import { setUrlDropHandler } from '@shared/contracts'
+import { createHash, randomBytes } from 'node:crypto'
+import { sanitizeUrls, setUrlDropHandler } from '@shared/contracts'
 import { trace } from '../trace'
 
 /** Only the scheme is logged: the rest of a dropped URL may be hostile or carry a key. */
 export const urlScheme = (u: string) => u.match(/^\s*([a-z][a-z0-9+.-]{0,20}):/i)?.[1]?.toLowerCase() ?? 'none'
-setUrlDropHandler(u => trace('events', { type: 'url_dropped', scheme: urlScheme(u) }))
+// Once per distinct dropped URL per process, so re-reading a library or re-emitting events does not repeat the line.
+const seenDrops = new Set<string>()
+setUrlDropHandler(u => {
+  const h = createHash('sha1').update(u).digest('hex')
+  if (seenDrops.has(h)) return
+  seenDrops.add(h)
+  trace('events', { type: 'url_dropped', scheme: urlScheme(u), hash: h.slice(0, 8) })
+})
+/** Drops non-http(s) `url` / `oaUrl` values in place (ingest and read paths); registers the trace handler. */
+export const cleanUrls = <T>(v: T): T => sanitizeUrls(v)
 
 // Per process, not per prompt: all untrusted text is written before this process starts, so it cannot know the nonce; and the notice stays a constant.
 // The tag name carries a random nonce, so text written before this process started cannot name (and so cannot close) the block.
