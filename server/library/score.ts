@@ -84,14 +84,14 @@ export function buildKnown(records: EnrichedRecord[], knownPapers: string[], gro
   const grouped = new Set(groups.flat())
   const all = [...groups, ...knownPapers.filter(k => !grouped.has(k)).map(k => [k])]
   for (const g of all) {
-    const r = g.map(id => byId.get(id) ?? byId.get(id.toLowerCase())).find(Boolean)
-    const prior = (r && byKey.get(r.key)) || g.map(id => known.get(id)).find(Boolean)
-    if (prior) { for (const id of g) known.set(id, prior); if (r) for (const id of recIds(r)) known.set(id, prior); continue }
-    const ref: KnownRef = r
-      ? { label: `K${++count}`, id: g[0], title: r.paper.title, url: paperSource(r)?.url ?? r.paper.url }
-      : { label: `K${++count}`, id: g[0], title: g[0], url: knownUrl(g[0]) }
-    for (const id of g) known.set(id, ref)
-    if (r) { for (const id of recIds(r)) known.set(id, ref); knownKeys.add(r.key); byKey.set(r.key, ref) }
+    // Grouping only affects COUNTING: every id that matches a record excludes that record, whatever its group.
+    const recs = [...new Set(g.map(id => byId.get(id) ?? byId.get(id.toLowerCase())).filter((r): r is EnrichedRecord => !!r))]
+    const prior = recs.map(r => byKey.get(r.key)).find(Boolean) ?? g.map(id => known.get(id)).find(Boolean)
+    const ref: KnownRef = prior ?? (recs[0]
+      ? { label: `K${++count}`, id: g[0], title: recs[0].paper.title, url: paperSource(recs[0])?.url ?? recs[0].paper.url }
+      : { label: `K${++count}`, id: g[0], title: g[0], url: knownUrl(g[0]) })
+    for (const id of g) if (!known.has(id)) known.set(id, ref)
+    for (const r of recs) { knownKeys.add(r.key); if (!byKey.has(r.key)) byKey.set(r.key, ref); for (const id of recIds(r)) if (!known.has(id)) known.set(id, ref) }
   }
   return { known, knownKeys, count }
 }
@@ -370,13 +370,13 @@ export const OFF_TOPIC_TAG = 'off-topic (LLM read)'
 
 /**
  * Topic-fit floor for papers the LLM did not read, on the RAW relevance signal (not the min–max value, which is 0 for the
- * lowest paper of any build). HEURISTIC thresholds: embedding cosine < 0.45 sits below every one of the 300 papers in the
+ * lowest paper of any build). HEURISTIC thresholds: embedding cosine < 0.45 sits below every one of the 150 papers in the
  * recorded real melanoma run (server/demo/recordings/library-melanoma.json: min 0.46, 10th percentile 0.57, median 0.65);
- * keyword overlap 0 means no goal keyword or subtopic term appears in title + abstract.
+ * keyword overlap 0 means no goal keyword or subtopic term appears in title + abstract (not applied to a title-only record: no text to judge).
  */
 export const EMBED_FLOOR = 0.45
 export const TOPIC_FLOOR_TAG = 'below topic-fit floor'
-export const underFloor = (rel: RelevanceSignal | null): boolean => !!rel && (rel.method === 'embedding' ? rel.cos < EMBED_FLOOR : rel.cos <= 0)
+export const underFloor = (rel: RelevanceSignal | null, hasAbstract = true): boolean => !!rel && (rel.method === 'embedding' ? rel.cos < EMBED_FLOOR : hasAbstract && rel.cos <= 0)
 type FitItem = { llmRead?: { relevance: number } | null; labels?: { tags: string[] } }
 /** Every shortlisted paper clears a topic-fit floor: the LLM read when there is one, else the tag scoreLibrary derived from the raw signal. */
 export function belowTopicFloor(p: FitItem): boolean {
@@ -440,7 +440,7 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
     const tags = item.labels.tags.filter(t => t !== OFF_TOPIC_TAG && t !== TOPIC_FLOOR_TAG)
     if (ctx.knownKeys.has(item.rec.key) && !tags.includes('in-vault')) tags.push('in-vault')
     if (offTopicByLlm({ llmRead: item.llm })) tags.push(OFF_TOPIC_TAG)
-    else if (!item.llm && underFloor(item.rel)) tags.push(TOPIC_FLOOR_TAG)
+    else if (!item.llm && underFloor(item.rel, !!item.rec.paper.abstract)) tags.push(TOPIC_FLOOR_TAG)
     const labels = { ...item.labels, tags }
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,

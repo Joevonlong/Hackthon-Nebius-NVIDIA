@@ -5,6 +5,7 @@ import {
   authorsComponent, buildContext, citationsComponent, combine, findDuplicates, graphComponent, llmValue, ordinal, passFlags, pct, TOPIC_FLOOR_TAG,
   relevanceComponent, scoreLibrary, venueComponent, type ScoreItem,
 } from './score'
+import { knownGroups } from './goals'
 import { mkRecord, testGoals } from './test-records'
 import type { EnrichedRecord } from './types'
 
@@ -143,7 +144,34 @@ describe('known papers (Seed links)', () => {
   })
 })
 
+describe('reference list in a note', () => {
+  it('a single-spaced list of DOIs is N known papers: all N are excluded and counted', () => {
+    const notes = [{ path: 'Questions/q/Refs.md', title: 'Refs', content: '- 10.1111/aaa\n- 10.2222/bbb\n- 10.3333/ccc' }]
+    const groups = knownGroups(notes)
+    expect(groups).toHaveLength(3)
+    const recs = ['aaa', 'bbb', 'ccc'].map((x, i) => mkRecord(`W${i + 1}`, { paper: { doi: `10.${i + 1}${i + 1}${i + 1}${i + 1}/${x}` } }))
+    const g = { ...testGoals(), knownPapers: groups.flat() }
+    const ctx = buildContext(recs.map(r => item(r)), g, NOW, false, groups)
+    expect(ctx.knownCount).toBe(3)
+    expect(ctx.knownKeys.size).toBe(3)
+    const out = scoreLibrary(recs.map(r => item(r)), g, { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW, knownGroups: groups })
+    expect(out.every(p => p.excluded === 'already in your vault')).toBe(true)
+  })
+  it('ids on one line (or a whole seed note) are one paper, but every matching record is still excluded', () => {
+    const a = mkRecord('W1', { paper: { doi: '10.1111/aaa' } }), b = mkRecord('W2', { paper: { pmid: '1234567' } })
+    const ctx = buildContext([item(a), item(b)], { ...testGoals(), knownPapers: ['10.1111/aaa', 'pmid:1234567'] }, NOW, false, [['10.1111/aaa', 'pmid:1234567']])
+    expect(ctx.knownCount).toBe(1)
+    expect(ctx.knownKeys.size).toBe(2)
+  })
+})
+
 describe('topic-fit floor', () => {
+  it('keyword overlap 0 does not drop a title-only record (no abstract to judge)', () => {
+    const kw = (r: ReturnType<typeof mkRecord>) => { const i = item(r, 0); i.rel = { cos: 0, best: '', bestKind: 'keywords', method: 'keywords' }; return i }
+    const out = scoreLibrary([kw(mkRecord('W1', { paper: { abstract: null } })), kw(mkRecord('W2'))], testGoals(), { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW })
+    expect(out.find(p => p.paper.id === 'W1')!.passed).toBe(true)
+    expect(out.find(p => p.paper.id === 'W2')!.passed).toBe(false)
+  })
   const opts = { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW }
   const passedOf = (out: ReturnType<typeof scoreLibrary>, id: string) => out.find(p => p.paper.id === id)!
 

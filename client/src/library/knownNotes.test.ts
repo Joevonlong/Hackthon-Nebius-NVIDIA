@@ -12,6 +12,9 @@ describe('notes treated as known', () => {
     ])).toBe(2)
     expect(notesKnownCount([seed])).toBe(0)
   })
+  it('a reference list (one id per line) is N papers', () => {
+    expect(notesKnownCount([{ path: 'Notes/refs.md', content: '- 10.1111/aaa\n- 10.2222/bbb\n- 10.3333/ccc' }])).toBe(3)
+  })
   it('one note with a DOI and a PMID is 1 paper', () => {
     expect(notesKnownCount([{ path: 'Notes/a.md', content: 'doi 10.1234/x PMID 1234567' }])).toBe(1)
   })

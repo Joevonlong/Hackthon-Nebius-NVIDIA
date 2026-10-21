@@ -42,13 +42,13 @@ function mergeGroups(groups: string[][]): string[][] {
 
 /**
  * Known papers as groups of ids, one group = one paper. A seed note names ONE paper (all its ids are one group); in other
- * notes, ids in the same paragraph are one paper. `fromNotes` are the groups named only in non-seed notes.
+ * notes, ids are merged only when they share one line / bullet item (a reference list is N papers). `fromNotes` are the groups named only in non-seed notes.
  */
 export function knownBySource(notes: VaultNote[]): { seeds: string[][]; fromNotes: string[][] } {
   const seedGroups: string[][] = [], noteGroups: string[][] = []
   for (const n of notes) {
     if (isSeedNote(n)) { const o = new Set<string>(); idsIn(n.content, o); if (o.size) seedGroups.push([...o]) }
-    else for (const block of n.content.split(/\n\s*\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+    else for (const block of n.content.split(/\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
   }
   const seeds = mergeGroups(seedGroups)
   const seedIds = new Set(seeds.flat())
