@@ -12,6 +12,19 @@ export interface RunHandlers {
   onTransportError(message: string): void
 }
 
+/**
+ * D-08: the playground replays recordings and is off unless asked for. `/playground` is an alias of `/?demo=1`, so the
+ * one flag (also read by stores/vault.ts and stores/library.ts) keeps its meaning. Runs once when this module loads.
+ */
+export function normalizePlayground(): void {
+  if (typeof location === 'undefined' || typeof history === 'undefined') return
+  if (/^\/playground\/?$/.test(location.pathname)) {
+    const q = new URLSearchParams(location.search); q.set('demo', '1')
+    history.replaceState(null, '', '/?' + q.toString() + location.hash)
+  }
+}
+normalizePlayground()
+
 const params = () => new URLSearchParams(typeof location === 'undefined' ? '' : location.search)
 export const isDemo = () => params().get('demo') === '1'
 export const isMock = () => params().get('mock') === '1'
