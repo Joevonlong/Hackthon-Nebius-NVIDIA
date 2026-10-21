@@ -42,7 +42,7 @@ Out of scope (this cycle): Electron app, paid cloud, other fields than biomed,
 | 1 | Spike | Kill the riskiest unknown | #18 RESULTS.md: include precision ≥ 0.80 or a re-scope decision | builder | — | todo (M2 batch 1) |
 | 2 | Define | Work cut into independent sub-issues | 👤 issue list approved | coordinator | kickoff | done (D-02, issues #5–#30) |
 | 3 | Design | Contracts before parallel agent work | #19 merged: contracts + ADR, ownership disjoint per batch | architect | — | todo (M2 batch 1) |
-| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batch 2: #17 ✅, #16 merged, Docker check open; #15 fixing) |
+| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batch 2 merged; #16 Docker check open; batch 3 #35) |
 | 5 | Harden | It works for real | Per milestone: verifier gate + security-scan, no open high/critical; end of M3: #30 | verifier | security-scan | todo |
 | 6 | Release | v0.4.0 out | 👤 tag v0.4.0, README updated (#30) | coordinator | — | todo |
 | 7 | Learn | The suite gets better | `retro` done, lessons saved | coordinator | retro, lesson | todo |
