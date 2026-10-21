@@ -167,7 +167,7 @@ function queue(s: Sync, op: Op) { if (!s.ops.some(o => opKey(o) === opKey(op))) 
 /** A queued delete of `path` now expects the server to hold `hash`. */
 function rebase(s: Sync, path: string, hash: string) {
   s.ops = s.ops.map(o => {
-    if (o.op !== 'delete' || o.path !== path || !o.base) return o
+    if (o.op !== 'delete' || o.path !== path) return o // also a delete queued before the first PUT landed (no base yet)
     s.done.add(opKey(o)); const m: Op = { ...o, base: hash }; s.done.delete(opKey(m)); return m
   })
 }
@@ -309,6 +309,8 @@ export const useVault = defineStore('vault', {
       const onServer = new Set(questions.map(q => q.id))
       for (const q of questions) {
         if (hiddenByOps(s, q.id)) continue
+        // what this folder looked like before the GET: anything that moved meanwhile (a save, a rename) is newer than the server data below
+        const before = new Map(this.notesIn(q.id).map(n => [n.path, [s.synced[n.path], noteHash(n)] as const]))
         const r = await call(`${qUrl(q.id)}/notes`)
         if (!r?.ok) continue
         const { notes = [] } = await r.json().catch(() => ({})) as { notes?: { path: string; content: string; updatedAt: number }[] }
@@ -321,6 +323,8 @@ export const useVault = defineStore('vault', {
           const sh = hashText(sn.content)
           const i = this.notes.findIndex(n => n.path === path)
           const local = this.notes[i]
+          const was = before.get(path)
+          if (local ? !was || was[0] !== s.synced[path] || was[1] !== noteHash(local) : was) continue // changed while we were asking: the next pull sees it
           const adopt = () => {
             const kind = kindOf(sn.path, sn.content)
             const n: Note = { path, kind, title: path.split('/').pop()!.replace(/\.md$/, ''), content: sn.content, paperId: kind === 'note' ? undefined : paperIdOf(sn.content), updatedAt: sn.updatedAt }
@@ -429,7 +433,9 @@ export const useVault = defineStore('vault', {
       const s = S(this)
       if (isDemo() || s.running || Date.now() - s.lastRefresh < 3000) return
       s.lastRefresh = Date.now()
-      await this.pull()
+      s.running = true // a flush must not interleave with the pull (it would see its own just-saved text as stale)
+      try { await this.pull() } finally { s.running = false }
+      schedule(this, 0)
     },
     /** pagehide / tab hidden: write IndexedDB now and fire the unsaved PUTs with keepalive (retried on the next load if they don't land). */
     flushOnExit() {

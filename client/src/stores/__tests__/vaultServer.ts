@@ -7,7 +7,7 @@ export function fakeServer() {
   const calls: { method: string; url: string; keepalive?: boolean }[] = []
   // online: false = network error; failPut: next N PUTs get a 500; status: every write (PUT/DELETE/PATCH) gets this status (0 = off);
   // gate: when set, the next PUT waits for it (an in-flight save)
-  const state = { online: true, failPut: 0, putStatus: 0, status: 0, gate: null as Promise<void> | null }
+  const state = { online: true, failPut: 0, putStatus: 0, status: 0, gate: null as Promise<void> | null, listGate: null as Promise<void> | null }
   const res = (status: number, body: unknown = {}) => new Response(JSON.stringify(body), { status })
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input); const method = init?.method ?? 'GET'
@@ -25,6 +25,7 @@ export function fakeServer() {
     const m = url.match(/^\/api\/questions\/([^/]+)(?:\/notes(?:\/(.+))?)?$/)
     if (!m) return res(404)
     const q = decodeURIComponent(m[1]); const rel = m[2] && decodeURIComponent(m[2])
+    if (!rel && url.endsWith('/notes') && folders.has(q)) { const snapshot = res(200, { notes: [...folders.get(q)!].map(([path, v]) => ({ path, ...v })) }); if (state.listGate) { const g = state.listGate; state.listGate = null; await g } return snapshot }
     if (!rel && url.endsWith('/notes')) return folders.has(q) ? res(200, { notes: [...folders.get(q)!].map(([path, v]) => ({ path, ...v })) }) : res(404)
     if (!rel) {
       if (method === 'DELETE') return folders.delete(q) ? res(200) : res(404)
