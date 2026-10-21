@@ -1,7 +1,7 @@
 # Now
 Updated: 2026-10-21 · phase 4 Build (M1) · batch 1 merged ✅ · batch 2 merged ✅ (#16 open for the Docker check) · batch 3 (#35) starting
 
-**Next step:** batch 2 builders in worktrees from `milestone/m1-safe-to-share` → PR per issue → reviewer (+ verifier for #15, #16) → merge → comment + close issue → delete branch. Then batch 3 (#35), then the M1 gate.
+**Next step:** batch 3: #35 builder (branch from `milestone/m1-safe-to-share`) → PR → reviewer + verifier (critical) → merge → comment + close. Then the #16 Docker check (needs Docker running), then the M1 gate (verifier on the milestone, Codex Security question, PR milestone → main for Joe).
 **How to check:** `gh pr list -R Joevonlong/PaperTrail --base milestone/m1-safe-to-share`; `gh issue list -R Joevonlong/PaperTrail --milestone "M1 Safe to share"`.
 
 Flow (user's request, 2026-10-21): one sub-issue = one PR into `milestone/m1-safe-to-share`; merge after review/verify; **after merge: comment on the issue (what landed + evidence + PR) and `gh issue close` it** ("Closes #n" doesn't auto-close into a non-default branch); delete the merged remote branch; when M1 is done, open one PR `milestone/m1-safe-to-share` → `main` for Joe to review (don't merge).
