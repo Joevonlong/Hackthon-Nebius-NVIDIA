@@ -77,3 +77,14 @@ describe('GET /papers/:id side effects', () => {
     expect((await get({})).status).toBe(404)
   })
 })
+
+describe('paper id is decoded once', () => {
+  it('a paper whose id contains %xx text resolves to itself', async () => {
+    const dir = join(process.env.DATA_DIR!, 'library', 'lib_readside')
+    mkdirSync(join(dir, 'papers'), { recursive: true })
+    writeFileSync(join(dir, 'library.json'), JSON.stringify({ libraryId: 'lib_readside', questionId: 'Q', request: {}, papers: [{ paperId: 'a%41', file: 'papers/lit.json' }] }))
+    writeFileSync(join(dir, 'papers', 'lit.json'), JSON.stringify({ paper: { id: 'a%41' } }))
+    expect((await library.request('/library/lib_readside/papers/a%2541')).status).toBe(200)
+    expect((await library.request('/library/lib_readside/papers/aA')).status).toBe(404)
+  })
+})

@@ -236,10 +236,7 @@ library.get('/library/:id', c => {
 
 // Q2-7: paperId may be the file id ("pmid_38082384") or the paper id ("pmid:38082384", a DOI with "/"); {.+} keeps slashes.
 library.get('/library/:id/papers/:paperId{.+}', c => {
-  const raw = c.req.param('paperId')
-  let pid = raw
-  try { pid = decodeURIComponent(raw) } catch { /* already decoded */ }
-  const r = readPaperFile(c.req.param('id'), pid)
+  const r = readPaperFile(c.req.param('id'), c.req.param('paperId')) // Hono has decoded the param once already (#41)
   if (r === 'bad') return c.json({ error: 'bad id' }, 400)
   if (!r) return c.json({ error: 'paper not found' }, 404)
   return c.json(r)
