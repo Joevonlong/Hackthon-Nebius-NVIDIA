@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { env } from '../env'
 import { runLogDir, writeRunFile } from '../trace'
 import type { LibraryState } from './pipeline'
+import { knownBySource } from './goals'
 import { passSummary } from './score'
 
 const jsonl = (rows: unknown[]) => rows.map(r => JSON.stringify(r)).join('\n') + (rows.length ? '\n' : '')
@@ -57,7 +58,7 @@ function summary(s: LibraryState, topN: number, nRel: number): string {
     for (const e of g.evidence) L.push(`- \`${e.notePath}\`: "${esc(e.quote)}"`)
     L.push('', '**Subtopics**', '', '| subtopic | query |', '|---|---|')
     for (const t of g.subtopics) L.push(`| ${esc(t.name)} | ${esc(t.query)} |`)
-    L.push('', `**Keywords:** ${g.keywords.join(', ')}`, '', `**Known papers in the notes:** ${g.knownPapers.map((k, i) => `K${i + 1} ${k}`).join(' · ') || '(none)'}`, '')
+    L.push('', `**Keywords:** ${g.keywords.join(', ')}`, '', `**Known papers in the notes:** ${g.knownPapers.map((k, i) => `K${i + 1} ${k}`).join(' · ') || '(none)'}`, '', `${knownBySource(s.request.notes).fromNotes.length} papers from your notes are ${s.request.notesAsKnown === false ? 'NOT treated as known (excluded by the user)' : 'treated as known'}; the rest come from seeds.`, '')
   }
 
   L.push('## Stages', '', '| stage | status | count | ms | message |', '|---|---|---|---|---|')

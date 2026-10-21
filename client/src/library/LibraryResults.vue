@@ -8,7 +8,7 @@ import { useLibrary, SOURCE_LABEL, RECENT_FROM } from '../stores/library'
 import { useUi } from '../stores/ui'
 import { useVault } from '../stores/vault'
 import { shortTitle } from '../discover/literatureNote'
-import { activeFilterCount, f2 } from './score'
+import { activeFilterCount, f2, RELATIVE_NOTICE } from './score'
 import { DEFAULT_WEIGHTS } from '@shared/library'
 import PassRule from './PassRule.vue'
 import ResultTiles from './results/ResultTiles.vue'
@@ -99,13 +99,14 @@ const recentCount = computed(() => lib.papers.filter(p => (p.paper.year ?? 0) >=
     <p v-if="lib.notice" class="notice">{{ lib.notice }}</p>
     <p v-if="lib.lastApplied" class="notice applied">Applied from chat: {{ lib.lastApplied.rationale }} · ▲/▼ show rank moves for a few seconds.</p>
     <p v-if="lib.reweighted" class="notice">Re-scored in the browser with your weights. Build again to search with them.</p>
+    <p v-if="lib.status === 'done' && lib.eligibleCount" class="notice">{{ RELATIVE_NOTICE }}</p>
     <p v-if="lib.short" class="notice">Only {{ lib.view.length }} papers are loaded; build again to return {{ lib.topK }}.</p>
 
     <template v-if="lib.papers.length">
       <PassRule />
       <div class="filters">
         <div class="frow">
-          <button type="button" class="chip recent" :aria-pressed="recentOn" :title="`published ${RECENT_FROM} or later`" @click="toggleRecent">Recent (≤ 3 years) <small>{{ recentCount }}</small></button>
+          <button type="button" class="chip recent" :aria-pressed="recentOn" :title="`published ${RECENT_FROM} or later (same cut-off as the Recent chip on each paper)`" @click="toggleRecent">Recent (≤ 3 years) <small>{{ recentCount }}</small></button>
           <span class="flbl">Kind</span>
           <button v-for="k in kinds" :key="k" type="button" class="chip" :aria-pressed="!!lib.filters.kinds?.includes(k)" @click="toggleKind(k)">{{ k }} <small>{{ kindCount(k) }}</small></button>
         </div>

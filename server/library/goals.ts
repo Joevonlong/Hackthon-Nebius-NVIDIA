@@ -14,21 +14,54 @@ const ARXIV_RE = /(?:\barXiv\s*:?\s*|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(
 const ARXIV_DOI_RE = /^10\.48550\/arxiv\.(\d{4}\.\d{4,5})/i
 const OPENALEX_RE = /(?:openalex\.org\/(?:works\/)?|\b)(W\d{6,12})\b/g
 
-export function extractKnownPapers(notes: VaultNote[]): string[] {
-  const out = new Set<string>()
-  for (const n of notes) {
-    const text = n.content
-    for (const m of text.matchAll(DOI_RE)) {
-      const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
-      const ax = doi.match(ARXIV_DOI_RE)
-      out.add(ax ? `arxiv:${ax[1]}` : doi)
-    }
-    for (const m of text.matchAll(PMID_RE)) out.add(`pmid:${m[1]}`)
-    for (const m of text.matchAll(ARXIV_RE)) out.add(`arxiv:${m[1]}`)
-    for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
+/** Seed notes live in Questions/<name>/seeds/ (or the old Seeds/); every other note is a "note". */
+export const isSeedNote = (n: VaultNote) => /(^|\/)seeds\//i.test(n.path)
+
+function idsIn(text: string, out: Set<string>) {
+  for (const m of text.matchAll(DOI_RE)) {
+    const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
+    const ax = doi.match(ARXIV_DOI_RE)
+    out.add(ax ? `arxiv:${ax[1]}` : doi)
   }
-  return [...out]
+  for (const m of text.matchAll(PMID_RE)) out.add(`pmid:${m[1]}`)
+  for (const m of text.matchAll(ARXIV_RE)) out.add(`arxiv:${m[1]}`)
+  for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
 }
+
+/** Merges id groups that share an id (one paper can be named by DOI, PMID and OpenAlex id in different places). */
+function mergeGroups(groups: string[][]): string[][] {
+  const out: Set<string>[] = []
+  for (const g of groups) {
+    const hit = out.filter(o => g.some(id => o.has(id)))
+    const merged = new Set<string>(g)
+    for (const o of hit) { for (const id of o) merged.add(id); out.splice(out.indexOf(o), 1) }
+    out.push(merged)
+  }
+  return out.map(o => [...o])
+}
+
+/**
+ * Known papers as groups of ids, one group = one paper. A seed note names ONE paper (all its ids are one group); in other
+ * notes, ids are merged only when they share one line / bullet item (a reference list is N papers). `fromNotes` are the groups named only in non-seed notes.
+ */
+export function knownBySource(notes: VaultNote[]): { seeds: string[][]; fromNotes: string[][] } {
+  const seedGroups: string[][] = [], noteGroups: string[][] = []
+  for (const n of notes) {
+    if (isSeedNote(n)) { const o = new Set<string>(); idsIn(n.content, o); if (o.size) seedGroups.push([...o]) }
+    else for (const block of n.content.split(/\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+  }
+  const seeds = mergeGroups(seedGroups)
+  const seedIds = new Set(seeds.flat())
+  const fromNotes = mergeGroups(noteGroups.map(g => g.filter(id => !seedIds.has(id))).filter(g => g.length))
+  return { seeds, fromNotes }
+}
+
+/** `notesAsKnown` (default true): also count ids that appear only in non-seed notes. */
+export function knownGroups(notes: VaultNote[], notesAsKnown = true): string[][] {
+  const { seeds, fromNotes } = knownBySource(notes)
+  return notesAsKnown ? [...seeds, ...fromNotes] : seeds
+}
+export const extractKnownPapers = (notes: VaultNote[], notesAsKnown = true): string[] => [...new Set(knownGroups(notes, notesAsKnown).flat())]
 
 // ---------- deterministic fallback ----------
 const STOP = new Set(('a an and are as at be been but by can could do does for from had has have how i if in into is it its may might more most no not of on or our over such than that the their them then there these they this those to under up use used using was we were what when where which while who why will with within without would you your also each other only very between both after before about across per via vs'
@@ -129,8 +162,8 @@ export function verifyEvidence(evidence: { notePath: string; quote: string }[], 
 const clean = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n)
 const uniq = (xs: string[]) => [...new Map(xs.map(x => [x.toLowerCase(), x])).values()]
 
-export async function deriveGoals(notes: VaultNote[], opts: { timeoutMs?: number } = {}): Promise<Goals> {
-  const knownPapers = extractKnownPapers(notes)
+export async function deriveGoals(notes: VaultNote[], opts: { timeoutMs?: number; notesAsKnown?: boolean } = {}): Promise<Goals> {
+  const knownPapers = extractKnownPapers(notes, opts.notesAsKnown ?? true)
   const fb = fallbackGoals(notes, knownPapers)
   if (!hasKey()) return fb
   try {

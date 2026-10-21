@@ -31,6 +31,7 @@ export const LibraryRequest = z.object({
   llmReadTopK: z.number().int().min(0).max(100).default(40), // LLM reads only the best pre-scored papers
   questionId: z.string().max(200).optional(), // D-33: the research question folder this build reads (Questions/<name>/)
   questionName: z.string().max(200).optional(),
+  notesAsKnown: z.boolean().optional(), // default true: ids named in non-seed notes count as known papers; false = seeds only
 })
 export type LibraryRequest = z.infer<typeof LibraryRequest>
 

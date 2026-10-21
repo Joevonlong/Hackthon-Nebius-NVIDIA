@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_WEIGHTS, LibPaper } from '@shared/library'
 import { labelRecord } from './labels'
 import {
-  authorsComponent, buildContext, citationsComponent, combine, findDuplicates, graphComponent, llmValue, ordinal, pct,
+  authorsComponent, buildContext, citationsComponent, combine, findDuplicates, graphComponent, llmValue, ordinal, passFlags, pct, TOPIC_FLOOR_TAG,
   relevanceComponent, scoreLibrary, venueComponent, type ScoreItem,
 } from './score'
+import { knownGroups } from './goals'
 import { mkRecord, testGoals } from './test-records'
 import type { EnrichedRecord } from './types'
 
@@ -31,7 +32,7 @@ describe('relevance', () => {
     const ctx = buildContext(items, testGoals(), NOW)
     const c = relevanceComponent(items[1], ctx)
     expect(c.value).toBeCloseTo(0.5)
-    expect(c.evidence[0].text).toMatch(/best match: subtopic 'T cell states' cos 0\.50 \(66th pct of 3\)/)
+    expect(c.evidence[0].text).toMatch(/best match: subtopic 'T cell states' cos 0\.50 \(66th pct within this build \(3 papers\)\)/)
     expect(c.evidence[0].source?.url).toBe('https://openalex.org/W2')
     expect(relevanceComponent(item(mkRecord('W9'), null), ctx).value).toBeNull()
   })
@@ -45,17 +46,19 @@ describe('citations', () => {
     expect(c.value).toBe(0.99)
     expect(c.evidence[0].text).toBe('cited_by 1,522 · 99th percentile for field and year (OpenAlex)')
   })
-  it('new papers use FWCI or neutral 0.5', () => {
+  it('new papers use FWCI, or are not assessed (no neutral 0.5)', () => {
     const a = mkRecord('W1', { paper: { publicationDate: '2026-03-01', year: 2026 }, extra: { fwci: 1 } })
     const b = mkRecord('W2', { paper: { publicationDate: '2026-03-01', year: 2026 } })
     expect(citationsComponent(item(a), ctxOf([a, b])).value).toBeCloseTo(0.5)
-    expect(citationsComponent(item(b), ctxOf([a, b])).value).toBe(0.5)
+    const nb = citationsComponent(item(b), ctxOf([a, b]))
+    expect(nb.value).toBeNull()
+    expect(nb.how).toMatch(/^Not assessed: paper < 2 years old/)
   })
   it('older papers without a percentile use log(cited_by+1) percentile within the library', () => {
     const recs = [0, 10, 100, 1000].map((c, i) => mkRecord(`W${i}`, { paper: { citedByCount: c } }))
     const c = citationsComponent(item(recs[3]), ctxOf(recs))
     expect(c.value).toBe(1)
-    expect(c.evidence[0].text).toMatch(/100th pct of 4 in this library/)
+    expect(c.evidence[0].text).toMatch(/100th pct within this build \(4 papers\)/)
   })
   // Q2-1: OpenAlex 429 / not enriched → citedByCount 0 is a placeholder, not data
   const noOa = (id: string, o: Parameters<typeof mkRecord>[1] = {}) => mkRecord(id, { ...o, paper: { id: `pmid:${id}`, url: `https://pubmed.ncbi.nlm.nih.gov/${id}/`, citedByCount: 0, ...o.paper } })
@@ -76,7 +79,7 @@ describe('citations', () => {
     const recs = [0, 0, 0].map((c, i) => mkRecord(`W${i}`, { paper: { citedByCount: c } }))
     const c = citationsComponent(item(recs[0]), ctxOf(recs))
     expect(c.value).toBe(0)
-    expect(c.evidence[0].text).toBe('cited_by 0 (OpenAlex) · 0th pct of 3 in this library')
+    expect(c.evidence[0].text).toBe('cited_by 0 (OpenAlex) · 0th pct within this build (3 papers)')
   })
   it('Q2-1: no OpenAlex record but a Google Scholar count → assessed from Scholar', () => {
     const r = noOa('222', { paper: { citedByCount: 40 }, extra: { scholarCitedBy: 40 } })
@@ -123,6 +126,88 @@ describe('graph', () => {
   })
 })
 
+describe('known papers (Seed links)', () => {
+  it('a seed with DOI + PMID + OpenAlex id is ONE paper; two ids of one paper make one link', () => {
+    const seed = mkRecord('W9', { paper: { doi: '10.1/seed', pmid: '111111' } })
+    const other = mkRecord('W8', { paper: { referencedWorks: ['W9'] } })
+    const items = [item(seed), item(other)]
+    const g = { ...testGoals(), knownPapers: ['10.1/seed', 'pmid:111111', 'W9'] }
+    const ctx = buildContext(items, g, NOW)
+    expect(ctx.knownCount).toBe(1)
+    expect(graphComponent(items[1], ctx).value).toBe(0.5) // one linked paper, not two
+  })
+  it('a seed that is NOT in the records still counts once, via its id group', () => {
+    const items = [item(mkRecord('W1'))]
+    const g = { ...testGoals(), knownPapers: ['10.1234/absent', 'pmid:222222', 'W77', '10.1234/other'] }
+    expect(buildContext(items, g, NOW, false, [['10.1234/absent', 'pmid:222222', 'W77'], ['10.1234/other']]).knownCount).toBe(2)
+    expect(buildContext(items, g, NOW).knownCount).toBe(4) // without groups every id is its own paper
+  })
+})
+
+describe('reference list in a note', () => {
+  it('a single-spaced list of DOIs is N known papers: all N are excluded and counted', () => {
+    const notes = [{ path: 'Questions/q/Refs.md', title: 'Refs', content: '- 10.1111/aaa\n- 10.2222/bbb\n- 10.3333/ccc' }]
+    const groups = knownGroups(notes)
+    expect(groups).toHaveLength(3)
+    const recs = ['aaa', 'bbb', 'ccc'].map((x, i) => mkRecord(`W${i + 1}`, { paper: { doi: `10.${i + 1}${i + 1}${i + 1}${i + 1}/${x}` } }))
+    const g = { ...testGoals(), knownPapers: groups.flat() }
+    const ctx = buildContext(recs.map(r => item(r)), g, NOW, false, groups)
+    expect(ctx.knownCount).toBe(3)
+    expect(ctx.knownKeys.size).toBe(3)
+    const out = scoreLibrary(recs.map(r => item(r)), g, { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW, knownGroups: groups })
+    expect(out.every(p => p.excluded === 'already in your vault')).toBe(true)
+  })
+  it('ids on one line (or a whole seed note) are one paper, but every matching record is still excluded', () => {
+    const a = mkRecord('W1', { paper: { doi: '10.1111/aaa' } }), b = mkRecord('W2', { paper: { pmid: '1234567' } })
+    const ctx = buildContext([item(a), item(b)], { ...testGoals(), knownPapers: ['10.1111/aaa', 'pmid:1234567'] }, NOW, false, [['10.1111/aaa', 'pmid:1234567']])
+    expect(ctx.knownCount).toBe(1)
+    expect(ctx.knownKeys.size).toBe(2)
+  })
+})
+
+describe('topic-fit floor', () => {
+  it('keyword overlap 0 does not drop a title-only record (no abstract to judge)', () => {
+    const kw = (r: ReturnType<typeof mkRecord>) => { const i = item(r, 0); i.rel = { cos: 0, best: '', bestKind: 'keywords', method: 'keywords' }; return i }
+    const out = scoreLibrary([kw(mkRecord('W1', { paper: { abstract: null } })), kw(mkRecord('W2'))], testGoals(), { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW })
+    expect(out.find(p => p.paper.id === 'W1')!.passed).toBe(true)
+    expect(out.find(p => p.paper.id === 'W2')!.passed).toBe(false)
+  })
+  const opts = { weights: DEFAULT_WEIGHTS, threshold: 0, topPercent: 100, now: NOW }
+  const passedOf = (out: ReturnType<typeof scoreLibrary>, id: string) => out.find(p => p.paper.id === id)!
+
+  it('keeps 5 on-topic papers with cosines 0.80–0.85 (the floor is on the raw signal, not min–max)', () => {
+    const items = [0.8, 0.81, 0.82, 0.83, 0.85].map((c, i) => item(mkRecord(`W${i + 1}`), c))
+    const out = scoreLibrary(items, testGoals(), opts)
+    expect(out.every(p => p.passed)).toBe(true)
+    expect(out.some(p => p.labels.tags.includes(TOPIC_FLOOR_TAG))).toBe(false)
+  })
+  it('drops a paper whose raw cosine is under the floor (embedding) or whose keyword overlap is 0', () => {
+    const kw = item(mkRecord('W3'), 0); kw.rel = { cos: 0, best: '', bestKind: 'keywords', method: 'keywords' }
+    const out = scoreLibrary([item(mkRecord('W1'), 0.7), item(mkRecord('W2'), 0.2), kw], testGoals(), opts)
+    expect(passedOf(out, 'W1').passed).toBe(true)
+    expect(passedOf(out, 'W2').passed).toBe(false)
+    expect(passedOf(out, 'W2').labels.tags).toContain(TOPIC_FLOOR_TAG)
+    expect(passedOf(out, 'W3').passed).toBe(false)
+  })
+  it('the tag is derived per pass: an LLM read in between rescues the paper and the shared labels are never mutated', () => {
+    const low = item(mkRecord('W2'), 0.2)
+    const items = [item(mkRecord('W1'), 0.7), low]
+    const before = [...low.labels.tags]
+    expect(passedOf(scoreLibrary(items, testGoals(), opts), 'W2').labels.tags).toContain(TOPIC_FLOOR_TAG)
+    expect(low.labels.tags).toEqual(before)
+    low.llm = { model: 'm', read: 'abstract', relevance: 3, quality: 3, why: 'on topic', quote: null, verified: false, concerns: [] } as unknown as ScoreItem['llm']
+    const second = passedOf(scoreLibrary(items, testGoals(), opts), 'W2')
+    expect(second.labels.tags).not.toContain(TOPIC_FLOOR_TAG)
+    expect(second.passed).toBe(true)
+  })
+  it('passFlags: the LLM read decides when present, else the stored tag', () => {
+    const base = { total: 0.9, excluded: null }
+    const rule = { topPercent: 100, threshold: 0.5 }
+    expect(passFlags([{ ...base, labels: { tags: [TOPIC_FLOOR_TAG] } }, { ...base, labels: { tags: [] } },
+      { ...base, labels: { tags: [TOPIC_FLOOR_TAG] }, llmRead: { relevance: 3 } }, { ...base, labels: { tags: [] }, llmRead: { relevance: 1 } }], rule)).toEqual([false, true, true, false])
+  })
+})
+
 describe('venue + authors', () => {
   it('preprint servers get 0.2; missing metrics → null; full metrics are scored', () => {
     const pre = mkRecord('W1', { paper: { type: 'preprint', venue: 'bioRxiv' }, venue: { type: 'repository' } })
@@ -136,8 +221,15 @@ describe('venue + authors', () => {
     const v = venueComponent(items[2], ctx)
     expect(v.value).toBeCloseTo(1)
     expect(v.evidence[0].source?.url).toBe('https://openalex.org/S1')
-    expect(v.evidence[0].text).toMatch(/Nature · h-index 1,000 \(100th pct of 2\) · core source · journal · ISSN/)
+    expect(v.evidence[0].text).toMatch(/Nature · h-index 1,000 \(100th pct within this build \(2 papers\)\) · core source · journal · ISSN/)
     expect(venueComponent(items[3], ctx).value).toBeCloseTo((0.6 * 0.5 + 0.1) / 1)
+  })
+  it('venue without a source h-index is not assessed, even with core / ISSN (was 1.00)', () => {
+    const r = mkRecord('W5', { venue: { id: 'S5', name: 'Core J', hIndex: null, isCore: true, issn: '1234-5678', type: 'journal' } })
+    const items = [item(r)]
+    const v = venueComponent(items[0], buildContext(items, testGoals(), NOW))
+    expect(v.value).toBeNull()
+    expect(v.how).toMatch(/^Not assessed/)
   })
   it('authors: 0.7·pct(max lead h-index) + 0.3·ROR, null without h-index', () => {
     const inst = [{ name: 'Dana-Farber', ror: 'https://ror.org/02jzgtq86', type: 'healthcare', country: 'US' }]
