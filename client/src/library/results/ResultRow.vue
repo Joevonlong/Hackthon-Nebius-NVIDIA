@@ -3,7 +3,7 @@
 import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../../stores/library'
-import { COMPONENT_KEYS, f2, grade } from '../score'
+import { COMPONENT_KEYS, f2, gradeOf } from '../score'
 import { fmtScore, authorYear, comp, compTip, status, statusTip } from './facts'
 import { useHoverCard } from './useHoverCard'
 import MoveBadge from './MoveBadge.vue'
@@ -14,7 +14,7 @@ import StackBar from '../charts/StackBar.vue' // CR-11 V-4
 const props = defineProps<{ paper: LibPaper; threshold: number; move?: number | null; gen?: number; inVault?: boolean; expanded?: boolean }>()
 const emit = defineEmits<{ open: []; toggle: [] }>()
 const lib = useLibrary()
-const g = computed(() => grade(props.paper.total))
+const g = computed(() => gradeOf(props.paper))
 const st = computed(() => status(props.paper))
 const hc = useHoverCard()
 </script>
@@ -30,10 +30,10 @@ const hc = useHoverCard()
     </td>
     <td class="num yr">{{ paper.paper.year ?? 'n.d.' }}</td>
     <td class="kd" :title="paper.labels.kind">{{ paper.labels.kind }}</td>
-    <td v-for="k in COMPONENT_KEYS" :key="k" class="sbc"><SparkBar :c="comp(paper, k)" :tip="compTip(comp(paper, k), lib.deK)" /></td>
-    <td class="num tot" :title="`total ${fmtScore(paper.total, threshold)} · minimum ${f2(threshold)}`"><b class="gi" :class="{ hi: g === 'A' || g === 'B' }">{{ g }}</b>{{ fmtScore(paper.total, threshold) }}</td>
-    <td class="gc"><b class="g" :class="'g-' + g" :title="`grade ${g}`">{{ g }}</b></td>
-    <td><span class="st" :title="statusTip(paper)">{{ st }}</span></td>
+    <td v-for="k in COMPONENT_KEYS" :key="k" class="sbc"><SparkBar :c="comp(paper, k)" :tip="compTip(comp(paper, k), lib.deK, lib.papers.length)" /></td>
+    <td class="num tot" :title="`total ${fmtScore(paper.total, threshold)} · minimum ${f2(threshold)}`"><b class="gi" :class="{ hi: g === 'A' || g === 'B' }">{{ g ?? '–' }}</b>{{ fmtScore(paper.total, threshold) }}</td>
+    <td class="gc"><b class="g" :class="'g-' + g" :title="g ? `grade ${g}` : 'no grade: nothing could be assessed'">{{ g ?? '–' }}</b></td>
+    <td><span class="st" :title="statusTip(paper, lib)">{{ st }}</span></td>
     <td><button type="button" class="x" :aria-expanded="!!expanded" :aria-label="(expanded ? 'Close' : 'Open') + ' report card'" :title="expanded ? 'Close report card' : 'Report card'" @click.stop="hc.close(); emit('toggle')"><span class="plus" :class="{ open: expanded }" aria-hidden="true" /></button></td>
   </tr>
 </template>

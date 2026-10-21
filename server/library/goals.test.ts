@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.hoisted(() => { process.env.TOKEN_FACTORY_API_KEY = ''; process.env.TRACE_CONSOLE = '0' })
 
 import { Goals } from '@shared/library'
-import { deriveGoals, extractKnownPapers, fallbackGoals, tfidfKeywords, verifyEvidence } from './goals'
+import { deriveGoals, extractKnownPapers, knownBySource, fallbackGoals, tfidfKeywords, verifyEvidence } from './goals'
 
 const notes = [
   { path: 'Question.md', title: 'Melanoma immune atlas', content: '# Melanoma immune atlas\n\nWhich single-cell methods help study melanoma immune cells?\n\n## T cell exhaustion\n\n## Brain metastasis\n' },
@@ -14,6 +14,18 @@ const notes = [
 describe('known paper ids', () => {
   it('extracts DOI, PMID, arXiv (incl. arXiv DOIs) and OpenAlex ids', () => {
     expect(extractKnownPapers(notes).sort()).toEqual(['10.1126/science.aad0501', 'W2899145148', 'arxiv:2101.01234', 'arxiv:2203.00001', 'pmid:27124452', 'pmid:30388456'].sort())
+  })
+})
+
+describe('notes as known papers', () => {
+  const vault = [
+    { path: 'Questions/q/seeds/S1.md', title: 'S1', content: 'doi 10.1234/seed' },
+    { path: 'Questions/q/Idea.md', title: 'Idea', content: 'see 10.2345/mentioned and 10.1234/seed, PMID 123456' },
+  ]
+  it('splits seeds from ids only named in other notes, and the toggle drops the latter', () => {
+    expect(knownBySource(vault)).toEqual({ seeds: ['10.1234/seed'], fromNotes: ['10.2345/mentioned', 'pmid:123456'] })
+    expect(extractKnownPapers(vault)).toHaveLength(3)
+    expect(extractKnownPapers(vault, false)).toEqual(['10.1234/seed'])
   })
 })
 

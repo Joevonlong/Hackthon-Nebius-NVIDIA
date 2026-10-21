@@ -3,19 +3,22 @@
 // weakness, and the passed / below badge (lane U1). Replaces the six-colour stacked bar.
 import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
-import { COMPONENT_META, f2, grade, keyNumber, verdict } from './score'
+import { COMPONENT_META, f2, grade, keyNumber, relativeNote, verdict } from './score'
+import { useLibrary } from '../stores/library'
+import { statusTip as statusTipOf } from './results/facts'
 
 const props = defineProps<{ paper: LibPaper; compact?: boolean; move?: number | null }>()
+const lib = useLibrary()
 const v = computed(() => verdict(props.paper))
 const status = computed(() => props.paper.excluded ? 'excluded' : props.paper.passed ? 'passed' : 'below')
-const statusTip = computed(() => props.paper.excluded ? 'hard gate: ' + props.paper.excluded : props.paper.passed ? 'inside the top X% and above the minimum score' : 'outside the top X% or under the minimum score')
-const chipTip = (c: LibPaper['components'][number]) => `${COMPONENT_META[c.key].label}: ${f2(c.value)} (grade ${grade(c.value ?? 0)}) · ${keyNumber(c)}`
+const statusTip = computed(() => statusTipOf(props.paper, lib))
+const chipTip = (c: LibPaper['components'][number]) => c.value == null ? `${COMPONENT_META[c.key].label}: not assessed` : `${COMPONENT_META[c.key].label}: ${f2(c.value)} (grade ${grade(c.value)}) · ${keyNumber(c)}${relativeNote(c, lib.papers.length) ? ' · ' + relativeNote(c, lib.papers.length) : ''}`
 </script>
 
 <template>
   <div class="vd" :class="{ compact }">
-    <div class="score" :title="`total ${f2(paper.total)} · grade ${v.grade} (A ≥ 0.85 · B ≥ 0.70 · C ≥ 0.55 · D ≥ 0.40 · E below)`">
-      <b class="g" :class="'g-' + v.grade">{{ v.grade }}</b><span class="tot">{{ f2(paper.total) }}</span>
+    <div class="score" :title="v.grade ? `total ${f2(paper.total)} · grade ${v.grade} (A ≥ 0.85 · B ≥ 0.70 · C ≥ 0.55 · D ≥ 0.40 · E below)` : 'no grade: nothing could be assessed'">
+      <b class="g" :class="'g-' + v.grade">{{ v.grade ?? '–' }}</b><span class="tot">{{ f2(paper.total) }}</span>
     </div>
     <div class="body">
       <p class="sent">{{ v.sentence }}</p>

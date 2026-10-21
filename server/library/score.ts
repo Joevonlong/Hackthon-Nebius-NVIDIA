@@ -68,23 +68,26 @@ export interface LibraryContext {
 
 const recIds = (r: EnrichedRecord) => [r.key, r.paper.id, r.paper.doi?.toLowerCase(), r.paper.pmid ? `pmid:${r.paper.pmid}` : null, r.extra.arxiv ? `arxiv:${r.extra.arxiv.id}` : null].filter(Boolean) as string[]
 
-export function buildKnown(records: EnrichedRecord[], knownPapers: string[]): { known: Map<string, KnownRef>; knownKeys: Set<string> } {
+/** Several ids (DOI + PMID + OpenAlex) of one library record are ONE known paper; an id with no record counts as one each. */
+export function buildKnown(records: EnrichedRecord[], knownPapers: string[]): { known: Map<string, KnownRef>; knownKeys: Set<string>; count: number } {
   const byId = new Map<string, EnrichedRecord>()
   for (const r of records) for (const id of recIds(r)) if (!byId.has(id)) byId.set(id, r)
   const known = new Map<string, KnownRef>()
   const knownKeys = new Set<string>()
-  knownPapers.forEach((kid, i) => {
-    const label = `K${i + 1}`
+  let count = 0
+  knownPapers.forEach(kid => {
     const r = byId.get(kid) ?? byId.get(kid.toLowerCase())
     if (r) {
-      const ref: KnownRef = { label, id: kid, title: r.paper.title, url: paperSource(r)?.url ?? r.paper.url }
+      if (knownKeys.has(r.key)) return
+      const ref: KnownRef = { label: `K${++count}`, id: kid, title: r.paper.title, url: paperSource(r)?.url ?? r.paper.url }
       for (const id of recIds(r)) known.set(id, ref)
       knownKeys.add(r.key)
     } else {
+      const label = `K${++count}`
       known.set(kid, { label, id: kid, title: kid, url: /^W\d+$/.test(kid) ? openalexUrl(kid) : kid.startsWith('pmid:') ? pubmedUrl(kid.slice(5)) : kid.startsWith('arxiv:') ? arxivUrl(kid.slice(6)) : `https://doi.org/${kid}` })
     }
   })
-  return { known, knownKeys }
+  return { known, knownKeys, count }
 }
 
 /** D-32 / J-5: a known paper's short title for evidence lines (instead of bare K1, K16 … ids). */
@@ -116,14 +119,14 @@ const bestAuthorH = (rec: EnrichedRecord) => { const hs = leadAuthors(rec).map(a
 export function buildContext(items: ScoreItem[], goals: Goals, now = new Date(), openalexDown = false): LibraryContext {
   const recs = items.map(i => i.rec)
   const rel = asc(items.map(i => i.rel?.cos).filter((x): x is number => x != null))
-  const { known, knownKeys } = buildKnown(recs, goals.knownPapers)
+  const { known, knownKeys, count } = buildKnown(recs, goals.knownPapers)
   return {
     n: items.length,
     rel, relMin: rel[0] ?? 0, relMax: rel[rel.length - 1] ?? 0,
     venueH: asc(recs.map(r => r.venue.hIndex).filter((h): h is number => h != null)),
     authorH: asc(recs.map(bestAuthorH).filter((h): h is number => h != null)),
     logCites: asc(recs.map(knownCitedBy).filter((c): c is number => c != null).map(c => Math.log1p(c))),
-    known, knownKeys, knownCount: goals.knownPapers.length, now, openalexDown,
+    known, knownKeys, knownCount: count, now, openalexDown,
     citeYears: recs.map(r => ({ year: r.paper.year ?? null, count: anyCitedBy(r) })).filter((x): x is { year: number | null; count: number } => x.count != null),
   }
 }
@@ -137,18 +140,18 @@ export function relevanceComponent(item: ScoreItem, ctx: LibraryContext): RawCom
   if (!rel) return { key: 'relevance', value: null, how: 'Not assessed: no embedding and no keyword signal for this paper.', evidence: [] }
   const span = ctx.relMax - ctx.relMin
   const value = span > 1e-9 ? clamp01((rel.cos - ctx.relMin) / span) : 0.5
-  const p = `${ordinal(pct(ctx.rel, rel.cos))} pct of ${ctx.rel.length}`
+  const p = `${ordinal(pct(ctx.rel, rel.cos))} pct within this build (${ctx.rel.length} papers)`
   if (rel.method === 'embedding') {
     const what = rel.bestKind === 'question' ? 'the goal question' : `subtopic '${rel.best}'`
     return {
       key: 'relevance', value,
-      how: 'Max cosine (Qwen3-Embedding) of title+abstract to the goal question and each subtopic query, rescaled min–max within this library.',
+      how: `Max cosine (Qwen3-Embedding) of title+abstract to the goal question and each subtopic query, rescaled min–max within this build (${ctx.rel.length} papers).`,
       evidence: [{ text: `best match: ${what} cos ${rel.cos.toFixed(2)} (${p})`, source: src }],
     }
   }
   return {
     key: 'relevance', value,
-    how: 'No embeddings available: share of goal keywords and subtopic terms found in title+abstract, rescaled min–max within this library.',
+    how: `No embeddings available: share of goal keywords and subtopic terms found in title+abstract, rescaled min–max within this build (${ctx.rel.length} papers).`,
     evidence: [{ text: `keyword overlap ${rel.cos.toFixed(2)}${rel.best ? ` (best: ${rel.best})` : ''} (${p})`, source: src }],
   }
 }
@@ -204,14 +207,14 @@ export function citationsComponent(item: ScoreItem, ctx: LibraryContext): RawCom
   if (ageYears != null && ageYears < 2) {
     const f = rec.extra.fwci
     if (f != null) return { key: 'citations', value: clamp01(f / (f + 1)), how: 'Paper < 2 years old and no normalized percentile: FWCI mapped as fwci/(fwci+1) (FWCI 1 = field average → 0.5).', evidence: [{ text: `FWCI ${r2(f)} · cited_by ${fmt(cites)} · ${ageYears.toFixed(1)} years old (OpenAlex)`, source: src }, ...scholar] }
-    return { key: 'citations', value: 0.5, how: 'Paper < 2 years old with no normalized percentile or FWCI: neutral 0.5.', evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ageYears.toFixed(1)} years old — too new to judge by citations`, source: src }, ...scholar] }
+    return { key: 'citations', value: null, how: 'Not assessed: paper < 2 years old with no normalized percentile or FWCI (too new to judge by citations).', evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ageYears.toFixed(1)} years old — too new to judge by citations`, source: src }, ...scholar] }
   }
   // a real 0 is the bottom, not "≤ everyone else with 0" (which read as a high percentile when many counts are 0)
   const v = cites === 0 ? 0 : pct(ctx.logCites, Math.log1p(cites))
   return {
     key: 'citations', value: v,
-    how: `No OpenAlex normalized percentile: percentile of log(cited_by+1) within this library (${ctx.logCites.length} papers with a citation count; 0 citations = 0).`,
-    evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ordinal(v)} pct of ${ctx.logCites.length} in this library`, source: src }, ...(via === 'Google Scholar' ? [] : scholar)],
+    how: `No OpenAlex normalized percentile: percentile of log(cited_by+1) within this build (${ctx.logCites.length} papers with a citation count; 0 citations = 0).`,
+    evidence: [{ text: `cited_by ${fmt(cites)} (${via}) · ${ordinal(v)} pct within this build (${ctx.logCites.length} papers)`, source: src }, ...(via === 'Google Scholar' ? [] : scholar)],
   }
 }
 
@@ -240,16 +243,17 @@ export function venueComponent(item: ScoreItem, ctx: LibraryContext): RawCompone
     return { key: 'venue', value: 0.2, how: 'Repository / preprint server: fixed 0.2 (not peer reviewed).', evidence: [{ text: `${name} · ${vtype || 'preprint'}${rec.extra.arxiv ? ` · arXiv ${rec.extra.arxiv.id}` : ''}`, source: rec.extra.arxiv ? { name: 'arXiv', url: arxivUrl(rec.extra.arxiv.id) } : vsrc }] }
   }
   if (!v.id && !v.name) return { key: 'venue', value: null, how: hasOpenAlexWork(rec) ? 'Not assessed: no venue for this paper.' : `Not assessed: no venue data from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [] }
-  if (v.hIndex == null && v.isCore == null) return { key: 'venue', value: null, how: hasOpenAlexWork(rec) || v.id ? 'Not assessed: OpenAlex gave no venue metrics (h-index, core status).' : `Not assessed: no venue metrics from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [{ text: `${name}${vtype ? ` · ${vtype}` : ''} · no venue metrics`, source: vsrc }] }
+  // no h-index: the rest (core, type, ISSN) is near-constant, so rescaling over it would hand out 1.00 for nothing
+  if (v.hIndex == null) return { key: 'venue', value: null, how: hasOpenAlexWork(rec) || v.id ? 'Not assessed: OpenAlex gave no source h-index for this venue.' : `Not assessed: no venue metrics from OpenAlex for this paper (${NO_OPENALEX}).`, evidence: [{ text: `${name}${vtype ? ` · ${vtype}` : ''} · no venue metrics`, source: vsrc }] }
   let got = 0, max = 0
   const bits: string[] = [name]
   const missing: string[] = []
-  if (v.hIndex != null) { const p = pct(ctx.venueH, v.hIndex); got += 0.6 * p; max += 0.6; bits.push(`h-index ${fmt(v.hIndex)} (${ordinal(p)} pct of ${ctx.venueH.length})`) } else missing.push('h-index')
+  if (v.hIndex != null) { const p = pct(ctx.venueH, v.hIndex); got += 0.6 * p; max += 0.6; bits.push(`h-index ${fmt(v.hIndex)} (${ordinal(p)} pct within this build (${ctx.venueH.length} papers))`) } else missing.push('h-index')
   if (v.isCore != null) { got += v.isCore ? 0.2 : 0; max += 0.2; bits.push(v.isCore ? 'core source' : 'not a core source') } else missing.push('core status')
   max += 0.1; if (vtype === 'journal' || vtype === 'conference') { got += 0.1; bits.push(vtype) } else bits.push(vtype || 'type unknown')
   max += 0.1; const indexed = !!v.isInDoaj || !!v.issn; if (indexed) { got += 0.1; bits.push(v.isInDoaj ? 'in DOAJ' : `ISSN ${v.issn}`) }
   if (v.publisher) bits.push(v.publisher)
-  const how = '0.6·pct(source h-index within library) + 0.2·core source + 0.1·journal/conference + 0.1·indexed (DOAJ or ISSN).'
+  const how = '0.6·pct(source h-index within this build) + 0.2·core source + 0.1·journal/conference + 0.1·indexed (DOAJ or ISSN).'
     + (missing.length ? ` Missing ${missing.join(', ')}: rescaled over the available parts.` : '')
   const matched = rec.extra.venueMatch ? ` · matched cached OpenAlex source by ${rec.extra.venueMatch}` : ''
   return { key: 'venue', value: clamp01(got / max), how: how + (rec.extra.venueMatch ? ` Venue matched to a cached OpenAlex source by ${rec.extra.venueMatch} (no OpenAlex work record).` : ''), evidence: [{ text: bits.join(' · ') + (v.id ? ` (OpenAlex ${v.id.replace(OA, '')})` : '') + matched, source: vsrc }] }
@@ -271,8 +275,8 @@ export function authorsComponent(item: ScoreItem, ctx: LibraryContext): RawCompo
     if (inst) bits.push(inst.name + (inst.ror ? ` (ROR ${inst.ror.replace('https://ror.org/', '')})` : ''))
     return { text: bits.join(', '), source: a.id ? { name: 'OpenAlex author', url: openalexUrl(a.id) } : undefined }
   })
-  evidence.push({ text: `best lead-author h-index ${fmt(best)} = ${ordinal(p)} pct of ${ctx.authorH.length} in this library${hasRor ? ' · institution with ROR' : ' · no institution with ROR'}` })
-  return { key: 'authors', value, how: '0.7·pct(max h-index of first/last author within library) + 0.3·has an institution with a ROR id.', evidence }
+  evidence.push({ text: `best lead-author h-index ${fmt(best)} = ${ordinal(p)} pct within this build (${ctx.authorH.length} papers)${hasRor ? ' · institution with ROR' : ' · no institution with ROR'}` })
+  return { key: 'authors', value, how: '0.7·pct(max h-index of first/last author within this build) + 0.3·has an institution with a ROR id.', evidence }
 }
 
 export const llmValue = (l: LlmReadT) => clamp01(((l.relevance + l.quality) / 6) * (l.verified ? 1 : 0.6))
@@ -358,12 +362,23 @@ export const DEFAULT_TOP_PERCENT = 25
 export const offTopicByLlm = (p: { llmRead?: { relevance: number } | null }) => !!p.llmRead && p.llmRead.relevance <= 1
 export const OFF_TOPIC_TAG = 'off-topic (LLM read)'
 
-export function passFlags(items: { total: number; excluded: string | null; llmRead?: { relevance: number } | null }[], rule: PassRule): boolean[] {
+/** Topic-fit floor for papers the LLM did not read: relevance (min–max within the build) under this can never pass. */
+export const TOPIC_FLOOR = 0.2
+export const TOPIC_FLOOR_TAG = 'below topic-fit floor'
+type FitItem = { llmRead?: { relevance: number } | null; components?: { key: string; value: number | null }[] }
+/** Every shortlisted paper clears a topic-fit floor: the LLM read when there is one, else the relevance component. */
+export function belowTopicFloor(p: FitItem): boolean {
+  if (p.llmRead) return offTopicByLlm(p)
+  const rel = p.components?.find(c => c.key === 'relevance')?.value
+  return rel != null && rel < TOPIC_FLOOR
+}
+
+export function passFlags(items: ({ total: number; excluded: string | null } & FitItem)[], rule: PassRule): boolean[] {
   const idx = items.map((p, i) => ({ p, i })).filter(x => !x.p.excluded).sort((a, b) => b.p.total - a.p.total || a.i - b.i)
   const pctl = Math.min(100, Math.max(0, rule.topPercent))
   const k = idx.length ? Math.max(1, Math.ceil((idx.length * pctl) / 100)) : 0
   const out = items.map(() => false)
-  idx.forEach((x, r) => { if (r < k && x.p.total >= rule.threshold && !offTopicByLlm(x.p)) out[x.i] = true })
+  idx.forEach((x, r) => { if (r < k && x.p.total >= rule.threshold && !belowTopicFloor(x.p)) out[x.i] = true })
   return out
 }
 
@@ -411,6 +426,7 @@ export function scoreLibrary(items: ScoreItem[], goals: Goals, opts: ScoreOption
     const excluded = gateOf(item.rec, dups.get(item.rec.key)) ?? (ctx.knownKeys.has(item.rec.key) ? 'already in your vault' : null)
     const labels = ctx.knownKeys.has(item.rec.key) && !item.labels.tags.includes('in-vault') ? { ...item.labels, tags: [...item.labels.tags, 'in-vault'] } : item.labels
     if (offTopicByLlm({ llmRead: item.llm }) && !labels.tags.includes(OFF_TOPIC_TAG)) labels.tags = [...labels.tags, OFF_TOPIC_TAG]
+    else if (belowTopicFloor({ llmRead: item.llm, components }) && !labels.tags.includes(TOPIC_FLOOR_TAG)) labels.tags = [...labels.tags, TOPIC_FLOOR_TAG]
     const p: LibPaper = {
       paper: item.rec.paper, authors: item.rec.authors, venue: item.rec.venue, labels, hits: item.rec.hits, relations: item.rec.relations,
       components, total, passed: false, excluded, rank: 0, llmRead: item.llm, file: fileFor(item.rec),

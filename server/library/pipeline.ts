@@ -6,7 +6,7 @@ import { embed } from '../ai/embed'
 import { hasKey } from '../ai/http'
 import { env } from '../env'
 import { trace } from '../trace'
-import { deriveGoals } from './goals'
+import { deriveGoals, knownBySource } from './goals'
 import { labelRecord, markFieldUncertain, pickSubtopics, subtopicsByKeywords } from './labels'
 import { llmReadAll } from './llmread'
 import { passSummary, scoreLibrary, type LlmReadT, type RelevanceSignal, type ScoreItem } from './score'
@@ -149,11 +149,11 @@ export async function runLibrary(s: LibraryState, deps: PipelineDeps): Promise<v
   emitLib(s, { type: 'library', libraryId: s.id, request: { topK: req.topK, threshold: req.threshold, sources: req.sources, weights: req.weights } })
 
   // 1. goals
-  const g = await timed(s, 'goals', () => deriveGoals(req.notes, { timeoutMs: Number(env.raw.LIBRARY_PLANNER_TIMEOUT_MS || 60000) }))
+  const g = await timed(s, 'goals', () => deriveGoals(req.notes, { timeoutMs: Number(env.raw.LIBRARY_PLANNER_TIMEOUT_MS || 60000), notesAsKnown: req.notesAsKnown }))
   const goals = g.out
   s.goals = goals
   emitLib(s, { type: 'goals', goals })
-  emitLib(s, { type: 'stage', stage: 'goals', status: 'done', count: goals.subtopics.length, ms: g.ms, message: `${goals.model ? `planner ${goals.model}` : 'deterministic fallback (no planner)'} · ${goals.goals.length} goals · ${goals.subtopics.length} subtopics · ${goals.keywords.length} keywords · ${goals.knownPapers.length} known papers · ${goals.evidence.length} verified note quotes` })
+  emitLib(s, { type: 'stage', stage: 'goals', status: 'done', count: goals.subtopics.length, ms: g.ms, message: `${goals.model ? `planner ${goals.model}` : 'deterministic fallback (no planner)'} · ${goals.goals.length} goals · ${goals.subtopics.length} subtopics · ${goals.keywords.length} keywords · ${goals.knownPapers.length} known papers (${knownBySource(req.notes).fromNotes.length} from your notes ${req.notesAsKnown === false ? 'excluded' : 'treated as known'}) · ${goals.evidence.length} verified note quotes` })
 
   // 2. search (L1)
   const sr = await timed(s, 'search', async () => {

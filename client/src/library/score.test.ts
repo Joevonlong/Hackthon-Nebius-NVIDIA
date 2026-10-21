@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_WEIGHTS, LibPaper, LibraryRequest } from '@shared/library'
-import { combine, grade, matchesFilters, passCut, rescore, verdict, keyNumber, notAssessedWhy } from './score'
+import { belowTopicFloor, combine, gradeOf, grade, matchesFilters, passCut, rescore, verdict, keyNumber, notAssessedWhy } from './score'
 import { buildMockLibrary } from './mock'
 
 const comp = (key: LibPaper['components'][number]['key'], value: number | null, weight = 0.1) => ({ key, label: key, weight, value, contribution: 0, how: '', evidence: [] })
@@ -14,6 +14,19 @@ describe('library score', () => {
     expect(noLlm.components.find(c => c.key === 'llm')!.contribution).toBe(0)
   })
 
+  it('a paper with nothing assessed has no grade and the verdict says so', () => {
+    const none = { total: 0, components: [comp('relevance', null), comp('venue', null)] } as unknown as LibPaper
+    expect(gradeOf(none)).toBeNull()
+    expect(verdict(none).grade).toBeNull()
+    expect(gradeOf({ total: 0.2, components: [comp('relevance', 0.2)] } as unknown as LibPaper)).toBe('E')
+  })
+  it('client rescore applies the topic-fit floor to unread papers too', () => {
+    const base = (rel: number, title: string) => ({ paper: { title }, labels: { tags: [] }, excluded: null, passed: false, rank: 0, total: 0, llmRead: null,
+      components: [comp('relevance', rel, 0.3), comp('graph', 1, 0.15)] }) as unknown as LibPaper
+    const r = rescore([base(0.05, 'off'), base(0.6, 'on')], { topPercent: 100, threshold: 0, weights: DEFAULT_WEIGHTS })
+    expect(r.find(p => p.paper.title === 'off')!.passed).toBe(false)
+    expect(r.find(p => p.paper.title === 'on')!.passed).toBe(true)
+  })
   it('grades on the D-25 scale', () => {
     expect([0.9, 0.85, 0.7, 0.69, 0.55, 0.4, 0.39].map(grade).join('')).toBe('AABCCDE')
   })
@@ -25,9 +38,9 @@ describe('library score', () => {
     for (const p of papers.slice(0, 50)) expect(LibPaper.safeParse(p).success).toBe(true)
     const n = papers.filter(p => !p.excluded).length
     const r = rescore(papers, { topPercent: 25, threshold: 0 })
-    // D-38: papers the LLM read rated 0–1 of 3 inside the cut do not pass (no backfill).
+    // D-38 + topic-fit floor: papers the LLM rated 0–1 of 3, or unread ones under the relevance floor, do not pass (no backfill).
     const cut = passCut(n, 25)
-    const offTopicInCut = r.filter(p => !p.excluded).slice(0, cut).filter(p => p.llmRead && p.llmRead.relevance <= 1).length
+    const offTopicInCut = r.filter(p => !p.excluded).slice(0, cut).filter(p => belowTopicFloor(p)).length
     expect(r.filter(p => p.passed).length).toBe(cut - offTopicInCut)
     expect(r.every(p => !(p.passed && p.llmRead && p.llmRead.relevance <= 1))).toBe(true)
     expect(r[0].rank).toBe(1)
@@ -35,7 +48,7 @@ describe('library score', () => {
     const strict = rescore(papers, { topPercent: 25, threshold: 0.95 })
     expect(strict.filter(p => p.passed).length).toBeLessThan(r.filter(p => p.passed).length)
     expect(strict.filter(p => p.passed).every(p => p.total >= 0.95)).toBe(true)
-    const offTopicAll = papers.filter(p => !p.excluded && p.llmRead && p.llmRead.relevance <= 1).length
+    const offTopicAll = papers.filter(p => !p.excluded && belowTopicFloor(p)).length
     expect(rescore(papers, { topPercent: 100, threshold: 0 }).filter(p => p.passed).length).toBe(n - offTopicAll)
     const reweighted = rescore(papers, { topPercent: 25, threshold: 0.5, weights: { ...DEFAULT_WEIGHTS, citations: 0.5 } })
     expect(reweighted.map(p => p.paper.id)).not.toEqual(r.map(p => p.paper.id))

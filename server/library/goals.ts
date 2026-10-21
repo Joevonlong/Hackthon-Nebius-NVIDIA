@@ -14,20 +14,31 @@ const ARXIV_RE = /(?:\barXiv\s*:?\s*|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(
 const ARXIV_DOI_RE = /^10\.48550\/arxiv\.(\d{4}\.\d{4,5})/i
 const OPENALEX_RE = /(?:openalex\.org\/(?:works\/)?|\b)(W\d{6,12})\b/g
 
-export function extractKnownPapers(notes: VaultNote[]): string[] {
-  const out = new Set<string>()
-  for (const n of notes) {
-    const text = n.content
-    for (const m of text.matchAll(DOI_RE)) {
-      const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
-      const ax = doi.match(ARXIV_DOI_RE)
-      out.add(ax ? `arxiv:${ax[1]}` : doi)
-    }
-    for (const m of text.matchAll(PMID_RE)) out.add(`pmid:${m[1]}`)
-    for (const m of text.matchAll(ARXIV_RE)) out.add(`arxiv:${m[1]}`)
-    for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
+/** Seed notes live in Questions/<name>/seeds/ (or the old Seeds/); every other note is a "note". */
+export const isSeedNote = (n: VaultNote) => /(^|\/)seeds\//i.test(n.path)
+
+function idsIn(text: string, out: Set<string>) {
+  for (const m of text.matchAll(DOI_RE)) {
+    const doi = m[1].replace(/[.)\]}>*_`'"]+$/, '').toLowerCase()
+    const ax = doi.match(ARXIV_DOI_RE)
+    out.add(ax ? `arxiv:${ax[1]}` : doi)
   }
-  return [...out]
+  for (const m of text.matchAll(PMID_RE)) out.add(`pmid:${m[1]}`)
+  for (const m of text.matchAll(ARXIV_RE)) out.add(`arxiv:${m[1]}`)
+  for (const m of text.matchAll(OPENALEX_RE)) out.add(m[1])
+}
+
+/** Ids named in seed notes, and ids named only in other notes (those are "treated as known" unless the user opts out). */
+export function knownBySource(notes: VaultNote[]): { seeds: string[]; fromNotes: string[] } {
+  const seeds = new Set<string>(), other = new Set<string>()
+  for (const n of notes) idsIn(n.content, isSeedNote(n) ? seeds : other)
+  return { seeds: [...seeds], fromNotes: [...other].filter(id => !seeds.has(id)) }
+}
+
+/** `notesAsKnown` (default true): also count ids that appear only in non-seed notes. */
+export function extractKnownPapers(notes: VaultNote[], notesAsKnown = true): string[] {
+  const { seeds, fromNotes } = knownBySource(notes)
+  return notesAsKnown ? [...seeds, ...fromNotes] : seeds
 }
 
 // ---------- deterministic fallback ----------
@@ -129,8 +140,8 @@ export function verifyEvidence(evidence: { notePath: string; quote: string }[], 
 const clean = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n)
 const uniq = (xs: string[]) => [...new Map(xs.map(x => [x.toLowerCase(), x])).values()]
 
-export async function deriveGoals(notes: VaultNote[], opts: { timeoutMs?: number } = {}): Promise<Goals> {
-  const knownPapers = extractKnownPapers(notes)
+export async function deriveGoals(notes: VaultNote[], opts: { timeoutMs?: number; notesAsKnown?: boolean } = {}): Promise<Goals> {
+  const knownPapers = extractKnownPapers(notes, opts.notesAsKnown ?? true)
   const fb = fallbackGoals(notes, knownPapers)
   if (!hasKey()) return fb
   try {
