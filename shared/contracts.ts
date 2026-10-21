@@ -2,6 +2,34 @@
 // Spec: docs/RANKING_AND_STORAGE.md · decisions: docs/PRODUCT_PLAN.md §1
 import { z } from 'zod'
 
+// URLs from sources, web search and library files are untrusted. Bad ones are dropped on read ('' / null) instead of
+// rejecting the whole file, so old libraries still load; the UI shows an empty URL as plain text.
+let onUrlDrop: ((url: string) => void) | null = null
+/** Installs the handler and returns the previous one (tests restore it). */
+export const setUrlDropHandler = (fn: ((url: string) => void) | null) => { const prev = onUrlDrop; onUrlDrop = fn; return prev }
+export function httpUrlOrNull(u: string): string | null {
+  try { const t = u.trim(); const p = new URL(t); if (p.protocol === 'http:' || p.protocol === 'https:') return t } catch { /* not a URL */ }
+  if (u.trim()) try { onUrlDrop?.(u) } catch { /* tracing must not break parsing */ }
+  return null
+}
+/** Cleans every `url` / `oaUrl` string in a parsed value in place (old files, events); never throws, never drops the object. */
+export function sanitizeUrls<T>(v: T): T {
+  const walk = (x: unknown): void => {
+    if (Array.isArray(x)) { for (const i of x) walk(i); return }
+    if (!x || typeof x !== 'object') return
+    const o = x as Record<string, unknown>
+    for (const k of Object.keys(o)) {
+      const val = o[k]
+      if ((k === 'url' || k === 'oaUrl') && typeof val === 'string') { const u = httpUrlOrNull(val); o[k] = u ?? (k === 'oaUrl' ? null : '') }
+      else walk(val)
+    }
+  }
+  walk(v)
+  return v
+}
+export const SafeUrl = z.string().transform(u => httpUrlOrNull(u) ?? '')
+export const SafeUrlNullable = z.string().nullable().transform(u => (u == null ? null : httpUrlOrNull(u)))
+
 export const AbstractSource = z.enum(['openalex', 'pubmed', 'europepmc'])
 
 export const Paper = z.object({
@@ -19,11 +47,11 @@ export const Paper = z.object({
   citationPct: z.number().nullable(), // OpenAlex citation_normalized_percentile (0..1)
   isRetracted: z.boolean(),
   isOa: z.boolean().nullable(),
-  oaUrl: z.string().nullable(),
+  oaUrl: SafeUrlNullable,
   abstract: z.string().nullable(),
   abstractSource: AbstractSource.nullable(),
   referencedWorks: z.array(z.string()), // OpenAlex ids
-  url: z.string(), // https://openalex.org/W...
+  url: SafeUrl, // https://openalex.org/W...
 })
 export type Paper = z.infer<typeof Paper>
 
@@ -45,7 +73,7 @@ export const ROUTE_LABEL: Record<RouteId, string> = {
   R5: 'Scout agent (Tavily)',
 }
 
-export const SourceRef = z.object({ name: z.string(), url: z.string() })
+export const SourceRef = z.object({ name: z.string(), url: SafeUrl })
 export type SourceRef = z.infer<typeof SourceRef>
 
 export const Signal = z.object({

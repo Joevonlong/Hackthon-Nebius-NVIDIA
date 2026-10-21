@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { atomicWriteJsonSync } from '../data/atomic'
 import type { Goals, LibPaper, LibraryRequest, LibrarySummary } from '@shared/library'
 import { env } from '../env'
+import { cleanUrls } from '../ai/untrusted'
 import type { LibraryState } from './pipeline'
 import { safeFileId } from './score'
 import { findQuestionLibrary, questionLibraryDir, questionLibraryIds, questionDir } from './workspace'
@@ -64,6 +65,7 @@ export function writeLibraryFiles(s: LibraryState): string | null {
     const dir = questionLibraryDir(s.request.questionId, s.id) ?? legacyLibraryDir(s.id)
     if (!dir) return null
     mkdirSync(join(dir, 'papers'), { recursive: true })
+    cleanUrls(s.papers)
     atomicWriteJsonSync(join(dir, 'goals.json'), s.goals)
     const { notes, ...rest } = s.request
     const prev = readJson(join(dir, 'library.json')) as { name?: string | null } | null
@@ -156,7 +158,7 @@ export function readLibrary(id: string): StoredLibrary | null {
     const goals = existsSync(join(dir, file)) ? JSON.parse(readFileSync(join(dir, file), 'utf8')) : null
     const papersDir = join(dir, 'papers')
     const papers: LibPaper[] = existsSync(papersDir)
-      ? readdirSync(papersDir).filter(f => f.endsWith('.json')).map(f => { file = `papers/${f}`; return JSON.parse(readFileSync(join(papersDir, f), 'utf8')) as LibPaper }).sort((a, b) => a.rank - b.rank)
+      ? readdirSync(papersDir).filter(f => f.endsWith('.json')).map(f => { file = `papers/${f}`; return cleanUrls(JSON.parse(readFileSync(join(papersDir, f), 'utf8')) as LibPaper) }).sort((a, b) => a.rank - b.rank)
       : []
     return { goals, papers, request: lib.request }
   } catch { throw new LibraryCorruptError(id, file) }
@@ -180,7 +182,7 @@ export function readPaperFile(id: string, paperId: string): LibPaper | null | 'b
   const file = resolve(papersDir, `${name}.json`)
   if (!file.startsWith(papersDir + sep)) return 'bad'
   if (!existsSync(file)) return null
-  try { return JSON.parse(readFileSync(file, 'utf8')) as LibPaper } catch { return null }
+  try { return cleanUrls(JSON.parse(readFileSync(file, 'utf8')) as LibPaper) } catch { return null }
 }
 
 // ---------- D-35: history (list, rename, trash, export) ----------

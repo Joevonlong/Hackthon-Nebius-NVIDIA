@@ -5,6 +5,7 @@ import { ROUTE_LABEL } from '@shared/contracts'
 import { useDiscovery, REJECT_REASONS, type RejectReason } from '../stores/discovery'
 import { useUi } from '../stores/ui'
 import { useVault } from '../stores/vault'
+import { safeUrl } from '../util/safeUrl'
 import { abstractSourceLabel, buildLiteratureNote, doiUrl, pubmedUrl, seedNoteName, seedNotePath, signalLine } from './literatureNote'
 
 const props = defineProps<{ paperId: string }>()
@@ -70,7 +71,7 @@ const clearFb = () => disc.setFeedback(props.paperId, null)
         <button v-else class="btn" type="button" @click="openSaved">In vault · open note</button>
         <button class="btn" type="button" :aria-pressed="fb?.verdict === 'keep'" :class="{ on: fb?.verdict === 'keep' }" @click="keep">👍 Keep</button>
         <button class="btn" type="button" :aria-pressed="fb?.verdict === 'reject'" :class="{ on: fb?.verdict === 'reject' }" @click="fb?.verdict === 'reject' ? clearFb() : reject()">👎 Not relevant</button>
-        <a class="tag" :href="p.url" target="_blank" rel="noopener">OpenAlex ↗</a>
+        <a v-if="safeUrl(p.url)" class="tag" :href="safeUrl(p.url)!" target="_blank" rel="noopener">OpenAlex ↗</a>
         <a v-if="p.doi" class="tag" :href="doiUrl(p.doi)" target="_blank" rel="noopener">DOI ↗</a>
         <a v-if="p.pmid" class="tag" :href="pubmedUrl(p.pmid)" target="_blank" rel="noopener">PubMed ↗</a>
       </div>
@@ -117,7 +118,7 @@ const clearFb = () => disc.setFeedback(props.paperId, null)
             · <span class="route">{{ t.sig.route }}</span> {{ ROUTE_LABEL[t.sig.route] }}
           </template>
           <template v-else>{{ t.text }}</template>
-          · <a :href="t.sig.source.url" target="_blank" rel="noopener" class="src">{{ t.sig.source.name }} ↗</a>
+          · <a v-if="safeUrl(t.sig.source.url)" :href="safeUrl(t.sig.source.url)!" target="_blank" rel="noopener" class="src">{{ t.sig.source.name }} ↗</a><span v-else class="src">{{ t.sig.source.name }}</span>
         </li>
         <li v-if="!trail.length" class="muted">No recorded signals.</li>
       </ul>

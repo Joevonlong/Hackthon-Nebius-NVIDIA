@@ -5,6 +5,7 @@ import { LlmRead, type Goals } from '@shared/library'
 import { env } from '../env'
 import { chatJson, createLimiter, hasKey } from '../ai/http'
 import { verifyQuote } from '../ai/verify'
+import { UNTRUSTED_NOTICE, untrustedBlock } from '../ai/untrusted'
 import type { EnrichedRecord } from './types'
 import type { LlmReadT } from './score'
 
@@ -23,6 +24,7 @@ const SCHEMA = {
 }
 
 const SYSTEM = `You are a careful senior researcher screening papers for a literature library. You read one paper's title and abstract and grade it. Reply with JSON only:
+${UNTRUSTED_NOTICE}
 {"relevance":0-3,"quality":0-3,"why":"…","quote":"…","concerns":["…"]}
 - relevance: 3 = directly answers the research question or a goal, 2 = clearly useful for a subtopic, 1 = tangential, 0 = off-topic.
 - quality: 3 = strong design and clear, substantial results (large cohort, rigorous method, validated), 2 = solid, 1 = weak or preliminary, 0 = not a research contribution or not assessable.
@@ -38,9 +40,7 @@ ${goals.goals.map((g, i) => `${i + 1}. ${g}`).join('\n')}
 SUBTOPICS: ${goals.subtopics.map(s => s.name).join('; ')}
 
 PAPER
-Title: ${rec.paper.title}
-Year: ${rec.paper.year ?? 'unknown'} · Venue: ${rec.paper.venue ?? 'unknown'} · Type: ${rec.paper.type ?? 'unknown'}
-ABSTRACT: ${abs}
+${untrustedBlock('paper', `Title: ${rec.paper.title}\nYear: ${rec.paper.year ?? 'unknown'} · Venue: ${rec.paper.venue ?? 'unknown'} · Type: ${rec.paper.type ?? 'unknown'}\nABSTRACT: ${abs}`, { id: rec.paper.id })}
 
 Return the JSON object now.`
 }

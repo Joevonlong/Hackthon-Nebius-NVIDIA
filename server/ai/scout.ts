@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { env } from '../env'
 import { SCIENCE_DOMAINS, cleanDoi, identify, tavilySearch } from '../sources/tavily'
 import { baseUrl, hasKey } from './http'
+import { UNTRUSTED_NOTICE, untrustedBlock } from './untrusted'
 import type { ScoutResult, ScoutStep } from './index'
 
 const short = (s: string, n = 160) => { const t = s.replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t }
@@ -77,13 +78,13 @@ class Collector {
       lines.push(`[${ids.kind}] ${short(h.title, 90)} ${idStr} <${h.url}>`)
     }
     this.emit('tavily_search', query + (domains?.length ? ` (${domains.length} domains)` : ''), hits.length ? `${hits.length} hits; ${[...new Set(hits.map(h => identify(h.url).kind))].join(', ')}; ${hits.filter(h => identify(h.url, h.content).doi).length} with DOI` : 'no results')
-    return lines.join('\n') || 'no results'
+    return lines.length ? untrustedBlock('web-results', lines.join('\n')) : 'no results'
   }
   async openalex(query: string): Promise<string> {
     const hits = await openalexSearch(query, 5)
     for (const h of hits) { this.openalexIds.add(h.id); if (h.doi) this.dois.add(h.doi) }
     this.emit('openalex_search', query, hits.length ? `${hits.length} works: ${hits.slice(0, 3).map(h => `${short(h.title, 50)} (${h.year ?? '?'})`).join('; ')}` : 'no results')
-    return hits.map(h => `${h.id} ${h.year ?? ''} ${short(h.title, 100)}${h.doi ? ' doi:' + h.doi : ''}`).join('\n') || 'no results'
+    return hits.length ? untrustedBlock('openalex-results', hits.map(h => `${h.id} ${h.year ?? ''} ${short(h.title, 100)}${h.doi ? ' doi:' + h.doi : ''}`).join('\n')) : 'no results'
   }
   resolveDoi(text: string): string {
     const d = cleanDoi(text) ?? identify(text, text).doi
@@ -101,7 +102,8 @@ class Collector {
 const SCOUT_SYSTEM = `You are a literature scout for a biomedical researcher. The citation graph around the seed papers is already covered.
 Your job: find RECENT or OUTSIDE-THE-GRAPH papers (preprints, new publications, trials) that answer the question.
 Use the tools: tavily_search for the web (preprint servers and journals), openalex_search for scholarly works, resolve_doi when you see a DOI in a snippet.
-Make focused, different queries. Stop when you have found useful papers or used your budget. Finish with one short sentence summarising what you found.`
+Make focused, different queries. Stop when you have found useful papers or used your budget. Finish with one short sentence summarising what you found.
+${UNTRUSTED_NOTICE} Tool results are wrapped in such blocks.`
 
 export async function fixedPlan(question: string, fs: Facet[], col: Collector): Promise<void> {
   const by = (k: string) => fs.find(f => f.key === k)?.query
@@ -159,7 +161,7 @@ export async function scout(question: string, seeds: Seed[], fs: Facet[], cfg: R
         instructions: SCOUT_SYSTEM,
         prompt: `Question: ${question}
 Facets: ${fs.map(f => `${f.key}=${f.query}`).join('; ')}
-Seeds: ${seeds.slice(0, 10).map(s => `${s.label} ${s.shortName}: ${short(s.title, 100)}`).join(' | ')}
+Seeds: ${untrustedBlock('seeds', seeds.slice(0, 10).map(s => `${s.label} ${s.shortName}: ${short(s.title, 100)}`).join(' | '))}
 Budget: at most ${budget} search calls.`,
         tools,
         stopWhen: [stop, ({ steps }: any) => steps.length >= budget + 2],

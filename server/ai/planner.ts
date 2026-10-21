@@ -4,6 +4,7 @@ import type { RunConfig } from '@shared/config'
 import { z } from 'zod'
 import { env } from '../env'
 import { chatJson, hasKey } from './http'
+import { UNTRUSTED_NOTICE, untrustedBlock } from './untrusted'
 
 const FacetOut = z.object({
   topic: z.object({ label: z.string(), query: z.string() }),
@@ -25,7 +26,7 @@ export function fallbackFacets(question: string): Facet[] {
   ]
 }
 
-const seedList = (seeds: Seed[]) => seeds.slice(0, 10).map(s => `- ${s.label} ${s.shortName}: ${s.title}`).join('\n')
+const seedList = (seeds: Seed[]) => seeds.length ? untrustedBlock('seeds', seeds.slice(0, 10).map(s => `- ${s.label} ${s.shortName}: ${s.title}`).join('\n')) : ''
 
 const clip = (s: string, n: number) => s.replace(/\s+/g, ' ').trim().slice(0, n)
 
@@ -71,7 +72,7 @@ export async function facets(question: string, seeds: Seed[], cfg: RunConfig): P
       schema: { name: 'facets', schema: FACET_SCHEMA },
       validate: usableFacets,
       fallbackModel: plannerFallbackModel(),
-      system: 'You split a biomedical research question into search facets. Reply with JSON only.',
+      system: 'You split a biomedical research question into search facets. Reply with JSON only. ' + UNTRUSTED_NOTICE,
       user: `Research question: ${question}
 
 Seed papers:
@@ -111,7 +112,7 @@ export async function expandQueries(question: string, fs: Facet[], cfg: RunConfi
       schema: { name: 'queries', schema: QUERIES_SCHEMA },
       validate: usableQueries,
       fallbackModel: plannerFallbackModel(),
-      system: 'You write literature search queries for the OpenAlex full-text search API. Reply with JSON only.',
+      system: 'You write literature search queries for the OpenAlex full-text search API. Reply with JSON only. ' + UNTRUSTED_NOTICE,
       user: `Research question: ${question}
 Facets: ${fs.map(f => `${f.key}=${f.query}`).join('; ')}
 

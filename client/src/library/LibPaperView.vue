@@ -7,6 +7,7 @@ import { useVault, questionNotePath } from '../stores/vault'
 import { useUi } from '../stores/ui'
 import { noteName } from '../stores/vault-utils'
 import { doiUrl } from '../discover/literatureNote'
+import { safeUrl } from '../util/safeUrl'
 import { buildLibraryNote } from './libraryNote'
 import { f2 } from './score'
 import Verdict from './Verdict.vue'
@@ -80,7 +81,7 @@ const copy = async () => { try { await navigator.clipboard.writeText(JSON.string
       <h2>{{ lp.paper.title }}</h2>
       <p class="meta">{{ lp.paper.authors.slice(0, 3).join(', ') }}{{ lp.paper.authors.length > 3 ? ' et al.' : '' }} · {{ lp.paper.year ?? 'n.d.' }} · {{ lp.paper.venue || 'no venue' }} · {{ lp.paper.citedByCount.toLocaleString('en') }} citations</p>
       <p class="links">
-        <a :href="lp.paper.url" target="_blank" rel="noopener">OpenAlex</a>
+        <a v-if="safeUrl(lp.paper.url)" :href="safeUrl(lp.paper.url)!" target="_blank" rel="noopener">OpenAlex</a>
         <a v-if="lp.paper.doi" :href="doiUrl(lp.paper.doi)" target="_blank" rel="noopener">DOI</a>
         <a v-if="lp.paper.pmid" :href="`https://pubmed.ncbi.nlm.nih.gov/${lp.paper.pmid}/`" target="_blank" rel="noopener">PubMed</a>
       </p>

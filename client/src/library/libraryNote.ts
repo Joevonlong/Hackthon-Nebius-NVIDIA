@@ -2,6 +2,7 @@
 // plus labels, the total score and its top evidence lines.
 import type { LibPaper } from '@shared/library'
 import { litNoteName, litNotePath, sourceLinks } from '../discover/literatureNote'
+import { mdLink } from '../util/safeUrl'
 import { COMPONENT_META, f2 } from './score'
 
 const yaml = (v: string) => '"' + v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ') + '"'
@@ -33,7 +34,7 @@ export function buildLibraryNote(lp: LibPaper, ctx: { libraryId: string | null; 
       c.value == null
         ? `- **${COMPONENT_META[c.key].label}** · weight 0% (not assessed; its share moved to the assessed components) = 0.00 — ${c.how}`
         : `- **${COMPONENT_META[c.key].label}** · weight ${pc(share(c))} × value ${f2(c.value)} = ${f2(c.contribution)} — ${c.how}`,
-      ...c.evidence.slice(0, 3).map(e => `  - ${e.text}${e.source ? ` · [${e.source.name}](${e.source.url})` : ''}`),
+      ...c.evidence.slice(0, 3).map(e => `  - ${e.text}${e.source ? ` · ${mdLink(e.source.name, e.source.url)}` : ''}`),
     ].join('\n')), '',
     ...(lp.llmRead ? [`**LLM read (${lp.llmRead.model}):** ${lp.llmRead.why}`, ...(lp.llmRead.quote ? ['', `> ${lp.llmRead.quote}`, '', lp.llmRead.verified ? '✓ verified quote' : '⚠ unverified quote'] : []), ''] : []),
     '## Relations', '',

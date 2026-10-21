@@ -3,6 +3,7 @@
 import { computed } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { SOURCE_LABEL } from '../stores/library'
+import { safeUrl } from '../util/safeUrl'
 
 const props = defineProps<{ paper: LibPaper }>()
 const chips = computed(() => {
@@ -22,14 +23,14 @@ const chips = computed(() => {
 })
 const found = computed(() => props.paper.labels.sources.map(s => {
   const hits = props.paper.hits.filter(h => h.source === s)
-  return { s, label: SOURCE_LABEL[s], title: hits.map(h => `${h.via}${h.query ? ': ' + h.query : ''}${h.rank != null ? ' · rank ' + h.rank : ''}`).join('\n') || 'found by ' + SOURCE_LABEL[s], url: hits[0]?.url }
+  return { s, label: SOURCE_LABEL[s], title: hits.map(h => `${h.via}${h.query ? ': ' + h.query : ''}${h.rank != null ? ' · rank ' + h.rank : ''}`).join('\n') || 'found by ' + SOURCE_LABEL[s], url: safeUrl(hits[0]?.url) }
 }))
 </script>
 
 <template>
   <div class="chips">
     <span v-for="(c, i) in chips" :key="i" class="chip" :class="c.cls" :title="c.title">{{ c.text }}</span>
-    <a v-for="f in found" :key="f.s" class="chip src" :href="f.url" target="_blank" rel="noopener" :title="'found by ' + f.label + '\n' + f.title" @click.stop>{{ f.label }}</a>
+    <template v-for="f in found" :key="f.s"><a v-if="f.url" class="chip src" :href="f.url" target="_blank" rel="noopener" :title="'found by ' + f.label + '\n' + f.title" @click.stop>{{ f.label }}</a><span v-else class="chip src" :title="'found by ' + f.label + '\n' + f.title">{{ f.label }}</span></template>
   </div>
 </template>
 
