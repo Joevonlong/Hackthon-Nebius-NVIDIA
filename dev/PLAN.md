@@ -57,6 +57,7 @@ Run a batch only after the previous batch is merged. Sub-issues in one batch own
 | M1 Safe to share (due 2026-11-04) | 0 | #11 security baseline: /security-review (Codex blocked 2026-10-21) | — |
 | | 1 | #12 A1 lock down API · #13 B1 vault sync · #14 C1 trustworthy scores | #12, #13 |
 | | 2 | #15 A2 untrusted data · #16 B2 durable storage · #17 D1 foundations + CI | #15, #16 |
+| | 3 | #35 A3 API follow-ups + safe remote deploy (from #11 baseline) | #35 |
 | | gate | verifier on M1 + security-scan re-run (⏰ remind user: Codex Security blocked on ChatGPT-account model, see NOW.md) | always |
 | M2 Research agent loop (due 2026-11-18) | 1 | #18 S1 spike · #19 X1 contracts (architect) · #20 E1 run from anywhere | — |
 | | 2 | #21 X2 agent runtime · #22 X3 intent stage · #23 X6 knowledge base | #21 |

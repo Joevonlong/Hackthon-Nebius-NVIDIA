@@ -9,3 +9,4 @@
 - D-08 · 2026-10-21 · The hackathon demo becomes a playground (`DEMO=1` or `/playground`), off in the product by default; not deleted · why: it is the best way to try the app without keys · by Assumed (from the #4 review)
 - D-09 · 2026-10-21 · Full text from open-access sources only (Unpaywall, Europe PMC, arXiv); never paywalled PDFs · by Assumed (intention card "must not")
 - D-10 · 2026-10-21 · Product name stays "PaperTrail" for now; trademark question (SolarWinds Papertrail) is open · by Assumed (user's call, pending)
+- D-11 · 2026-10-21 · `shared/library.ts` gets one optional field `notesAsKnown` (default true = old behaviour) via #14, outside an architect issue · why: a small, backward-compatible toggle; the coordinator scoped it in the #14 brief · by coordinator
