@@ -13,13 +13,21 @@ export interface AtomicOptions { /** fsync the file and folder (default true). O
 /** A write target is a symlink that leads outside the workspace, data and log folders: refused, never replaced or followed. */
 export class SymlinkOutsideError extends HTTPException {
   constructor(public file: string) {
-    const message = `Not saved: ${basename(file)} is a symbolic link that points outside the PaperTrail folders. Replace the link with a regular file or move the target inside the workspace.`
+    const message = `Not saved: ${basename(file)} is, or sits in a folder that is, a symbolic link pointing outside the PaperTrail folders. If you linked it on purpose (e.g. notes in Dropbox), set WORKSPACE_DIR to the real location; otherwise replace the link with a regular file or folder inside the workspace.`
     super(409, { message, res: Response.json({ error: message, code: 'symlink_outside_workspace' }, { status: 409 }) })
   }
 }
 
-const realRoots = () => [process.env.WORKSPACE_DIR || './workspace', process.env.DATA_DIR || './data', process.env.LOG_DIR || './logs']
-  .map(r => { try { return realpathSync(resolve(r)) } catch { return resolve(r) } }) // a root that is itself a link (macOS /tmp) compares by real path
+/** realpath of the nearest existing ancestor plus the not-yet-existing rest. */
+function realish(p: string): string {
+  let d = p; let rest = ''
+  while (!existsSync(d) && dirname(d) !== d) { rest = join(basename(d), rest); d = dirname(d) }
+  return join(realpathSync(d), rest)
+}
+const rawRoots = () => [process.env.WORKSPACE_DIR || './workspace', process.env.DATA_DIR || './data', process.env.LOG_DIR || './logs']
+const within = (p: string, r: string) => p === r || p.startsWith(r + sep)
+const realRoots = () => rawRoots()
+  .map(r => realish(resolve(r))) // a root that is itself a link (macOS /tmp) compares by real path, even before it exists
 const insideRoots = (real: string) => realRoots().some(r => real === r || real.startsWith(r + sep))
 
 const TMP_RE = /^\..+\.\d+\.[0-9a-f]{8}\.tmp$/ // exactly the names this module creates
@@ -49,6 +57,12 @@ export function atomicWriteFileSync(target: string, data: string | Uint8Array, o
     mode = statSync(file).mode & 0o7777
   }
   const dir = dirname(file)
+  // a folder on the path may be a link too: a target that lies lexically under a root must really lie under one
+  const lexical = resolve(target)
+  if ([...rawRoots().map(r => resolve(r)), ...realRoots()].some(r => within(lexical, r))) {
+    const realDir = realish(dir)
+    if (!insideRoots(realDir)) throw new SymlinkOutsideError(target)
+  }
   mkdirSync(dir, { recursive: true })
   sweepStaleTemps(dir)
   // hidden name: the file listings skip dot files, so a leftover temp file never shows up as a note or paper

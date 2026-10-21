@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, chmodSync, existsSync, lstatSync, mkdtempSync, readFileSync, readdirSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { SymlinkOutsideError, atomicHooks, atomicWriteFileSync, atomicWriteJsonSync } from './atomic'
@@ -71,5 +71,28 @@ describe('atomic writes', () => {
     expect(statSync(secret).mode & 0o777).toBe(0o640)
     expect(readdirSync(outside).sort()).toEqual(['.x.md.1.deadbeef.tmp', 'bashrc']) // no temp file, no sweep
     expect(lstatSync(link).isSymbolicLink()).toBe(true)
+  })
+
+  it('refuses a symlinked folder that points outside the workspace and writes nothing there', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'atomic-ws-')); const outside = mkdtempSync(join(tmpdir(), 'atomic-out-'))
+    process.env.WORKSPACE_DIR = ws
+    mkdirSync(join(ws, 'Q'))
+    symlinkSync(outside, join(ws, 'Q', 'notes'))
+    expect(() => atomicWriteFileSync(join(ws, 'Q', 'notes', 'a.md'), 'x')).toThrow(SymlinkOutsideError)
+    expect(() => atomicWriteFileSync(join(ws, 'Q', 'notes', 'new', 'a.md'), 'x')).toThrow(SymlinkOutsideError) // not-yet-existing subfolder
+    expect(readdirSync(outside)).toEqual([])
+    // a whole question folder that is a link
+    symlinkSync(outside, join(ws, 'L'))
+    expect(() => atomicWriteFileSync(join(ws, 'L', 'Question.md'), 'x')).toThrow(/WORKSPACE_DIR/)
+    expect(readdirSync(outside)).toEqual([])
+  })
+
+  it('still writes through a symlinked folder that stays inside the workspace', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'atomic-ws-'))
+    process.env.WORKSPACE_DIR = ws
+    mkdirSync(join(ws, 'real-notes'))
+    symlinkSync(join(ws, 'real-notes'), join(ws, 'notes'))
+    atomicWriteFileSync(join(ws, 'notes', 'a.md'), 'ok')
+    expect(readFileSync(join(ws, 'real-notes', 'a.md'), 'utf8')).toBe('ok')
   })
 })
