@@ -55,7 +55,7 @@ export function knownBySource(notes: VaultNote[]): { seeds: string[][]; fromNote
   const seedGroups: string[][] = [], noteGroups: string[][] = []
   for (const n of notes) {
     if (isSeedNote(n)) { const o = new Set<string>(); idsIn(n.content, o); if (o.size) seedGroups.push([...o]) }
-    else for (const block of n.content.split(/\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+    else for (const block of n.content.split(/\n/)) { if (!block.trim()) continue; const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
   }
   const seeds = mergeGroups(seedGroups)
   const seedIds = new Set(seeds.flat())
@@ -90,7 +90,14 @@ export function tfidfKeywords(notes: VaultNote[], k = 12): string[] {
 }
 
 const isQuestionNote = (n: VaultNote) => /question/i.test(n.path) || /question/i.test(n.title)
-const headingsOf = (s: string) => [...s.matchAll(/^#{1,3}\s+(.+?)\s*#*\s*$/gm)].map(m => m[1].trim())
+// per line, with the closing #s cut by a scan: a lazy `(.+?)\s*#*\s*$` rescans a long whitespace run from every start (#41)
+const headingsOf = (s: string) => s.split('\n').flatMap(line => {
+  const m = /^#{1,3}[ \t]+(.*)$/.exec(line.replace(/\r$/, '')); if (!m) return []
+  let t = m[1].trim()
+  while (t.endsWith('#')) t = t.slice(0, -1)
+  t = t.trim()
+  return t ? [t] : []
+})
 const firstQuestionLine = (s: string) => s.split('\n').map(l => l.replace(/^[#>*\-\s]+/, '').trim()).find(l => l.endsWith('?') && l.length > 10)
 
 export function fallbackGoals(notes: VaultNote[], knownPapers: string[]): Goals {

@@ -108,7 +108,7 @@ function csv(text: string): string[] {
 export function detectFormat(fileName: string, text: string): SeedFormat {
   const ext = fileName.toLowerCase().split('.').pop() ?? ''
   if (ext === 'pdf') return 'pdf'
-  if (ext === 'bib' || ext === 'bibtex' || /^\s*@\w+\s*\{/m.test(text)) return 'bibtex'
+  if (ext === 'bib' || ext === 'bibtex' || /^[ \t]*@\w+[ \t]*\{/m.test(text)) return 'bibtex'
   if (ext === 'ris' || ext === 'nbib' || /^TY\s{1,2}-/m.test(text)) return 'ris'
   if (ext === 'json' || /^\s*[[{]/.test(text)) return 'csl-json'
   if (ext === 'csv' || ext === 'tsv') return 'csv'
@@ -131,6 +131,6 @@ export function dedupe(ids: string[]): string[] {
 /** PDF: text of the first 2 pages (unpdf), then the first DOI / arXiv id found. */
 export async function parseSeedPdf(bytes: Uint8Array): Promise<{ format: 'pdf'; ids: string[]; text: number }> {
   const pages = (await extractPdfPages(bytes, { maxPages: 2 })).join('\n') // worker thread with a deadline (#12)
-  const ids = idsInText(pages.replace(/\s*\n\s*/g, ' ')).filter(x => x.startsWith('10.') || x.startsWith('arXiv:'))
+  const ids = idsInText(pages.replace(/\s+/g, ' ')).filter(x => x.startsWith('10.') || x.startsWith('arXiv:'))
   return { format: 'pdf', ids: dedupe(ids).slice(0, 1), text: pages.length }
 }

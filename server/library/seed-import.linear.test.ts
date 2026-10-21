@@ -13,6 +13,10 @@ describe('seed import id extraction stays linear (#41)', () => {
     'many repeated labels': n => 'PMID '.repeat(Math.ceil(n / 5)),
     'long punctuation run after a DOI': n => '10.1234/a' + '.'.repeat(n) + 'x',
     'long brace run after a DOI': n => '10.1234/a' + '}'.repeat(n) + 'x',
+    'long newline run': n => '\n'.repeat(n) + 'x',
+    'mixed newline and space runs': n => '\n '.repeat(n / 2) + 'x',
+    'mixed newline and tab runs': n => '\n\t'.repeat(n / 2) + 'x',
+    'blank lines before a heading-like line': n => '\n'.repeat(n) + '@x',
   }
   for (const [name, make] of Object.entries(shapes)) {
     it(`${name}: a few KB and 1 MB finish under 200 ms`, () => {
@@ -21,6 +25,14 @@ describe('seed import id extraction stays linear (#41)', () => {
   }
   it('still reads ids written with a short separator', () => {
     expect(idsInText('PMID:  {12345678} arXiv : 2101.00001 10.1000/abc.')).toEqual(['10.1000/abc', 'PMID:12345678', 'arXiv:2101.00001'])
+  })
+})
+
+describe('PDF text collapse stays linear (#41)', () => {
+  it('newline and space runs finish under 200 ms', () => {
+    for (const n of [4_000, MB]) for (const s of ['\n', ' \n', ' \t\n']) {
+      expect(timed(() => idsInText((s.repeat(n / s.length) + 'x').replace(/\s+/g, ' ')))).toBeLessThan(200)
+    }
   })
 })
 

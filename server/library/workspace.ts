@@ -2,8 +2,9 @@
 //   ${WORKSPACE_DIR}/<question>/{Question.md, seeds/*.md, notes/*.md, libraries/<libraryId>/…, exports/}
 // The question id IS the folder name (a safe file name). Deleting moves the folder to ${WORKSPACE_DIR}/.trash/.
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
-import { SymlinkOutsideError, atomicWriteFileSync, atomicWriteJsonSync } from '../data/atomic'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import { HTTPException } from 'hono/http-exception'
+import { atomicWriteFileSync, atomicWriteJsonSync } from '../data/atomic'
 
 export const workspaceRoot = () => resolve(process.env.WORKSPACE_DIR || './workspace')
 
@@ -41,16 +42,21 @@ const firstParagraph = (content: string) => {
   return out.join(' ')
 }
 
-/** Read-side containment (#41), same rule as the write side: the real path of `p` must lie under the real workspace folder. */
-function insideWorkspace(p: string): boolean {
+/**
+ * Read-side containment (#41): the real path of `p` must lie under the real workspace folder. This is narrower than the write side
+ * (atomic.ts also accepts the data and log folders) on purpose: notes, listings and Question.md only ever live under WORKSPACE_DIR.
+ */
+export function insideWorkspace(p: string): boolean {
   try {
     const root = realpathSync(workspaceRoot()); const real = realpathSync(p)
     return real === root || real.startsWith(root + sep)
   } catch { return false }
 }
-/** Throws the 409 `symlink_outside_workspace` error for a path that is, or sits in, a link leading out of the workspace. */
+/** Throws the 409 `symlink_outside_workspace` error (same code as the write side) for a path that is, or sits in, a link leading out of the workspace. */
 export function assertReadable(file: string): void {
-  if (!insideWorkspace(file)) throw new SymlinkOutsideError(file)
+  if (insideWorkspace(file)) return
+  const message = `Not read: ${basename(file)} is, or sits in a folder that is, a symbolic link pointing outside the workspace folder. Replace the link with a regular file or folder inside the workspace.`
+  throw new HTTPException(409, { message, res: Response.json({ error: message, code: 'symlink_outside_workspace' }, { status: 409 }) })
 }
 
 function walkMd(dir: string, base = dir, seen = new Set<string>()): string[] {
@@ -138,9 +144,12 @@ export function writeNote(id: string, rel: string, content: string): boolean {
   return true
 }
 
+const lstatExists = (p: string) => { try { lstatSync(p); return true } catch { return false } }
+
 export function deleteNote(id: string, rel: string): boolean {
   const file = notePathIn(id, rel)
-  if (!file || !existsSync(file) || rel === 'Question.md') return false
+  // lstat: a link (even a dangling one or one leading outside) is removed itself; rmSync never follows it
+  if (!file || (!existsSync(file) && !lstatExists(file)) || rel === 'Question.md') return false
   rmSync(file)
   return true
 }

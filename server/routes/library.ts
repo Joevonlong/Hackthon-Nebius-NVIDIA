@@ -20,7 +20,7 @@ import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
 import { PdfBusyError, PdfTimeoutError } from '../security/pdf-worker'
 import { logServerError } from '../security/errors'
-import { assertReadable, createQuestion, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { assertReadable, createQuestion, insideWorkspace, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
@@ -106,10 +106,11 @@ export function noteHash(s: string): string {
  * it still has that content, and `If-None-Match: *` only creates a file that does not exist; otherwise 412 with the current content.
  * No header = an older client: the write goes through.
  */
-function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string): { current: string | null; failed: boolean } {
+function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string, forDelete = false): { current: string | null; failed: boolean } {
   const file = notePathIn(id, rel)
-  if (file && existsSync(file)) assertReadable(file) // a link out of the workspace is refused (409), never read
-  const current = file && existsSync(file) ? readFileSync(file, 'utf8') : null
+  // a link out of the workspace is never read: refused (409), except for DELETE, which removes the link itself and treats the note as unread
+  const readable = !!file && existsSync(file) && (forDelete ? insideWorkspace(file) : (assertReadable(file), true))
+  const current = readable ? readFileSync(file!, 'utf8') : null
   const match = c.req.header('if-match'); const none = c.req.header('if-none-match')
   const failed = (match !== undefined && (current === null || noteHash(current) !== match.trim().replace(/^"|"$/g, ''))) || (none?.trim() === '*' && current !== null)
   return { current, failed }
@@ -142,7 +143,7 @@ library.delete('/questions/:id/notes/*', c => {
   const route = noteRoute(c.req.url)
   if (!route) return c.json({ error: 'bad note path' }, 400)
   const { id, rel } = route
-  const pre = precondition(c, id, rel)
+  const pre = precondition(c, id, rel, true)
   if (pre.failed && pre.current !== null) return c.json(changedElsewhere(pre.current), 412)
   return deleteNote(id, rel) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
 })

@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -46,6 +46,15 @@ describe('read-side containment', () => {
   })
 })
 
+describe('deleting a note that is a link', () => {
+  it('removes the link itself, leaves the outside file alone, and answers 200', async () => {
+    const r = await library.request('/questions/Q/notes/notes%2Flink-out.md', { method: 'DELETE', headers: { 'if-match': '"x:1"' } })
+    expect(r.status).toBe(200)
+    expect(existsSync(join(ws, 'Q', 'notes', 'link-out.md'))).toBe(false)
+    expect(readFileSync(join(outside, 'secret.md'), 'utf8')).toBe('outside text')
+  })
+})
+
 describe('question id is decoded once', () => {
   it('a folder named with %xx text resolves to itself, not to another folder', async () => {
     for (const name of ['a%41', '%2e%2e']) {
@@ -72,9 +81,13 @@ describe('GET /papers/:id side effects', () => {
     expect((await get({ 'sec-fetch-site': 'cross-site' })).status).toBe(403)
     expect((await get({ 'sec-fetch-site': 'same-site' })).status).toBe(403)
   })
-  it('lets a same-origin request (or a client without the header) through', async () => {
+  it('lets a same-origin request through', async () => {
     expect((await get({ 'sec-fetch-site': 'same-origin' })).status).toBe(404) // reached the lookup; nothing found
-    expect((await get({})).status).toBe(404)
+  })
+  it('without Sec-Fetch-Site, needs the session cookie', async () => {
+    expect((await get({})).status).toBe(403)
+    expect((await get({ cookie: 'other=1' })).status).toBe(403)
+    expect((await get({ cookie: 'a=b; pt_session_3001=abc' })).status).toBe(404)
   })
 })
 

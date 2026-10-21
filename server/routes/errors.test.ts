@@ -37,7 +37,7 @@ describe('seed import errors', () => {
 
 describe('papers route', () => {
   it('an upstream failure is a generic 502 with a code', async () => {
-    const r = await runs.request('/papers/10.1234%2Fupstream-test')
+    const r = await runs.request('/papers/10.1234%2Fupstream-test', { headers: { 'sec-fetch-site': 'same-origin' } })
     expect(r.status).toBe(502)
     const text = await r.text()
     expect(text).not.toContain('UPSTREAM-LEAK')

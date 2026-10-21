@@ -43,7 +43,7 @@ export function notesKnownGroups(notes: Pick<VaultNote, 'path' | 'content'>[]): 
   const seedIds = new Set<string>(), noteGroups: string[][] = []
   for (const n of notes) {
     if (isSeed(n)) idsIn(n.content, seedIds)
-    else for (const block of n.content.split(/\n/)) { const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
+    else for (const block of n.content.split(/\n/)) { if (!block.trim()) continue; const o = new Set<string>(); idsIn(block, o); if (o.size) noteGroups.push([...o]) }
   }
   return mergeGroups(noteGroups.map(g => g.filter(id => !seedIds.has(id))).filter(g => g.length))
 }
