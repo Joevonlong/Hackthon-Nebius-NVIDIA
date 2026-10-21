@@ -75,29 +75,75 @@ interface Sync {
   synced: Record<string, string>   // path → hash of the content the server has confirmed
   ops: Op[]                        // queued note deletes / folder renames / folder deletes (persisted)
   done: Set<string>; removed: Set<string>  // since the last IndexedDB write: finished ops, paths deleted here
-  rejected: Record<string, string> // path → hash the server refused with a 4xx (not retried until the content changes)
+  rejected: Record<string, string> // path → hash the server refused with a permanent 4xx (not retried until the content changes)
+  tomb: Record<string, number>     // path → when it was deleted/renamed away (0 = revived); other tabs' saves must not bring it back
+  disk: Record<string, string>     // path → hash of the copy this tab last read from / wrote to IndexedDB (base for cross-tab conflicts)
+  pulled: boolean                  // pull() has reached the server once: only then are never-synced notes uploaded
   timer?: ReturnType<typeof setTimeout>; saveTimer?: ReturnType<typeof setTimeout>
   id: string; backoff: number; running: boolean; hooked: boolean
 }
 const syncs = new WeakMap<object, Sync>()
 const S = (store: object): Sync => {
   let s = syncs.get(store)
-  if (!s) syncs.set(store, s = { synced: {}, ops: [], done: new Set(), removed: new Set(), rejected: {}, id: Math.random().toString(36).slice(2), backoff: 1000, running: false, hooked: false })
+  if (!s) syncs.set(store, s = { synced: {}, ops: [], done: new Set(), removed: new Set(), rejected: {}, tomb: {}, disk: {}, pulled: false, id: Math.random().toString(36).slice(2), backoff: 1000, running: false, hooked: false })
   return s
 }
 /** A question folder with a queued delete / rename-away: pull() must not bring it back. */
+const TOMB_TTL = 30 * 864e5
+/** A save older than a delete of the same path (from any tab) must not resurrect it; a tie keeps the note. */
+const buried = (tomb: Record<string, number>, n: Note) => (tomb[n.path] ?? 0) > n.updatedAt
+const hashes = new WeakMap<object, { c: string; h: string }>()
+/** hashText of a note's content, cached per note object so persist() does not rehash every note on every save. */
+function noteHash(n: Note): string {
+  const e = hashes.get(n)
+  if (e && e.c === n.content) return e.h
+  const h = hashText(n.content); hashes.set(n, { c: n.content, h }); return h
+}
 const hiddenByOps = (s: Sync, q: string) => s.ops.some(o => (o.op === 'rmq' && o.name === q) || (o.op === 'mvq' && o.from === q))
 const pendingDelete = (s: Sync, path: string) => s.ops.some(o => o.op === 'delete' && o.path === path)
 
 type Store = ReturnType<typeof useVault>
 /** Not on the server yet (or changed since): only notes inside Questions/ sync; an untouched "New note" stub stays local (Q2-15). */
-const unsaved = (s: Sync, n: Note) => !!splitQuestionPath(n.path) && !isStub(n.path, n.content) && s.synced[n.path] !== hashText(n.content)
-const wantsPush = (s: Sync, store: Store, n: Note) => unsaved(s, n) && s.rejected[n.path] !== hashText(n.content) && !store.conflicts[n.path]
-/** Make the server's question folder exist (offline-created questions); true when it does. */
+const unsaved = (s: Sync, n: Note) => !!splitQuestionPath(n.path) && !isStub(n.path, n.content) && s.synced[n.path] !== noteHash(n)
+const refused = (s: Sync, n: Note) => unsaved(s, n) && s.rejected[n.path] === noteHash(n)
+const wantsPush = (s: Sync, store: Store, n: Note) => unsaved(s, n) && s.rejected[n.path] !== noteHash(n) && !store.conflicts[n.path]
+/** Statuses that may pass on a later try (guard cookie refresh = 401/403, overload, server error). Any other 4xx is a refusal. */
+const transient = (status: number) => status >= 500 || status === 401 || status === 403 || status === 408 || status === 429
+/** Make the server's question folder exist (offline-created questions). True only when we created it: a 409 means a folder of that name is already there and is never written into. */
 async function ensureQuestion(store: Store, q: string): Promise<boolean> {
   const note = store.notes.find(n => n.path === questionPath(q))
   const r = await call('/api/questions', json('POST', { id: q, content: note?.content ?? '' }))
-  return !!r && (r.ok || r.status === 409)
+  return !!r && r.ok
+}
+/** Names of the server's question folders, or null when unreachable. */
+async function serverQuestions(): Promise<Set<string> | null> {
+  const r = await call('/api/questions')
+  if (!r?.ok) return null
+  const { questions = [] } = await r.json().catch(() => ({})) as { questions?: { id: string }[] }
+  return new Set(questions.map(q => q.id))
+}
+/** Moves the local notes of one question folder to another name; saved copies stay saved because the server renames the folder too. */
+function moveNotes(store: Store, from: string, to: string) {
+  const s = S(store)
+  const prefix = questionFolder(from) + '/'
+  const map = new Map<string, string>()
+  for (const n of store.notes) if (n.path.startsWith(prefix)) {
+    const old = n.path
+    n.path = questionFolder(to) + '/' + old.slice(prefix.length); n.updatedAt = Date.now()
+    map.set(old, n.path)
+    if (s.synced[old]) s.synced[n.path] = s.synced[old]
+    if (store.conflicts[old]) store.conflicts[n.path] = store.conflicts[old]
+    forget(store, old); revive(s, n.path)
+  }
+  retarget(s, o => map.get(o))
+}
+/** Queued deletes that wait on a path which just moved on must wait on its new path, or they would delete an unconfirmed original. */
+function retarget(s: Sync, to: (path: string) => string | undefined) {
+  s.ops = s.ops.map(o => {
+    const next = o.op === 'delete' && o.after ? to(o.after) : undefined
+    if (!next || o.op !== 'delete') return o
+    s.done.add(opKey(o)); const m: Op = { ...o, after: next }; s.done.delete(opKey(m)); return m
+  })
 }
 function schedule(store: Store, ms = 300) {
   if (isDemo()) return
@@ -107,31 +153,43 @@ function schedule(store: Store, ms = 300) {
 /** The note exists again: drop a queued delete of it and let persist() keep it. */
 function revive(s: Sync, path: string) {
   s.ops = s.ops.filter(o => !(o.op === 'delete' && o.path === path)); s.removed.delete(path)
+  if (s.tomb[path]) s.tomb[path] = 0
 }
 function queue(s: Sync, op: Op) { if (!s.ops.some(o => opKey(o) === opKey(op))) s.ops.push(op); s.done.delete(opKey(op)) }
 function forget(store: Store, path: string) {
-  const s = S(store); delete s.synced[path]; delete store.conflicts[path]; s.removed.add(path)
+  const s = S(store); delete s.synced[path]; delete store.conflicts[path]; s.removed.add(path); s.tomb[path] = Date.now()
 }
 
-/** Writes notes + sync metadata to IndexedDB, merged with what other tabs wrote (newer updatedAt wins; our own deletes win). */
+/** Writes notes + sync metadata to IndexedDB, merged with what other tabs wrote (newer updatedAt wins; deletes from any tab win over older saves). */
 async function writeNow(store: Store) {
   if (isDemo()) return
   const s = S(store)
   const removed = new Set(s.removed), done = new Set(s.done)
   const mine = JSON.parse(JSON.stringify(store.notes)) as Note[]
-  await update<Note[] | undefined>(DB_KEY, stored => {
-    const by = new Map<string, Note>()
-    for (const n of Array.isArray(stored) ? stored : []) if (!removed.has(n.path)) by.set(n.path, n)
-    for (const n of mine) { const o = by.get(n.path); if (!o || o.updatedAt <= n.updatedAt) by.set(n.path, n) }
-    return [...by.values()]
-  })
-  await update<{ synced?: Record<string, string>; ops?: Op[] } | undefined>(META_KEY, stored => {
+  const myTomb = { ...s.tomb }
+  let tomb: Record<string, number> = {}
+  await update<{ synced?: Record<string, string>; ops?: Op[]; tomb?: Record<string, number> } | undefined>(META_KEY, stored => {
     const synced = { ...(stored?.synced ?? {}), ...s.synced }
     for (const p of removed) delete synced[p]
+    tomb = { ...(stored?.tomb ?? {}), ...myTomb }
+    const now = Date.now()
+    for (const [p, at] of Object.entries(tomb)) if (at < now - TOMB_TTL) delete tomb[p]
     const ops = new Map<string, Op>()
     for (const o of [...(stored?.ops ?? []), ...s.ops]) if (!done.has(opKey(o))) ops.set(opKey(o), o)
-    return { synced, ops: [...ops.values()] }
+    return { synced, ops: [...ops.values()], tomb }
   })
+  const wrote: Record<string, string> = {}
+  await update<Note[] | undefined>(DB_KEY, stored => {
+    const by = new Map<string, Note>()
+    for (const n of Array.isArray(stored) ? stored : []) if (!removed.has(n.path) && !buried(tomb, n)) by.set(n.path, n)
+    for (const n of mine) {
+      if (buried(tomb, n)) continue
+      const o = by.get(n.path)
+      if (!o || o.updatedAt <= n.updatedAt) { by.set(n.path, n); wrote[n.path] = hashText(n.content) }
+    }
+    return [...by.values()]
+  })
+  Object.assign(s.disk, wrote)
   for (const p of removed) s.removed.delete(p)
   for (const k of done) s.done.delete(k)
   try { if (typeof BroadcastChannel !== 'undefined') { const bc = new BroadcastChannel(CHANNEL); bc.postMessage(s.id); bc.close() } } catch { /* no channel */ }
@@ -192,10 +250,12 @@ export const useVault = defineStore('vault', {
       if (!isDemo()) {
         try {
           const stored = await get<Note[]>(DB_KEY)
-          const meta = await get<{ synced?: Record<string, string>; ops?: Op[] }>(META_KEY)
+          const meta = await get<{ synced?: Record<string, string>; ops?: Op[]; tomb?: Record<string, number> }>(META_KEY)
           // Keep notes lane C may have upserted before load finished.
           const fresh = this.notes
-          this.notes = Array.isArray(stored) ? stored : []
+          s.tomb = { ...(meta?.tomb ?? {}), ...s.tomb }
+          this.notes = (Array.isArray(stored) ? stored : []).filter(n => !buried(s.tomb, n))
+          for (const n of this.notes) s.disk[n.path] = hashText(n.content)
           for (const n of fresh) { const i = this.notes.findIndex(x => x.path === n.path); if (i >= 0) this.notes[i] = n; else this.notes.push(n) }
           s.synced = { ...(meta?.synced ?? {}), ...s.synced }
           for (const o of meta?.ops ?? []) queue(s, o)
@@ -204,7 +264,6 @@ export const useVault = defineStore('vault', {
         }
       }
       this.migrate()
-      if (s.ops.length) await this.flush() // finish queued folder renames / deletes before pull() looks at the server
       await this.pull()
       // CR-8: the inline title replaces the generic "# Question" heading of older question notes
       for (const q of this.questions) {
@@ -221,8 +280,9 @@ export const useVault = defineStore('vault', {
     },
     /**
      * D-37: the server's question folders are merged into the browser copy, never blindly over it. A note changed here and not
-     * yet saved is kept; if the server copy changed too it is flagged in `conflicts` (resolve with resolveConflict).
-     * Local-only question folders are created on the server; their notes upload in flush(). Without a server the local cache is used.
+     * yet saved is kept; a note this browser never synced that differs from the server's, or one both sides changed, is flagged in
+     * `conflicts` (resolve with resolveConflict). Local-only question folders are created on the server; their notes upload in
+     * flush(). Without a server the local cache is used.
      */
     async pull() {
       const s = S(this)
@@ -251,16 +311,18 @@ export const useVault = defineStore('vault', {
             s.synced[path] = sh; delete this.conflicts[path]
           }
           if (!local) { adopt(); continue }
-          const lh = hashText(local.content)
-          if (lh === sh) { s.synced[path] = sh; delete this.conflicts[path]; continue }
+          if (noteHash(local) === sh) { s.synced[path] = sh; delete this.conflicts[path]; continue }
           const base = s.synced[path]
-          // unchanged here since the last sync → the server wins; never synced (older vault) → the newer side wins
-          if (base === lh || (base === undefined && local.updatedAt <= sn.updatedAt)) adopt()
-          else if (base !== sh) this.conflicts[path] = { server: sn.content } // both sides changed: keep ours, flag it
+          // unchanged here since the last sync → the server wins; local edit on an unchanged server copy → ours is pushed;
+          // otherwise (both changed, or this browser never synced it) keep ours and flag it. Never guess by timestamps.
+          if (base === noteHash(local)) adopt()
+          else if (base !== sh) this.conflicts[path] = { server: sn.content }
         }
         for (const n of this.notesIn(q.id)) if (!seen.has(n.path)) delete s.synced[n.path] // the server lost it: upload again
       }
-      for (const q of this.questions.filter(x => !onServer.has(x.id) && !hiddenByOps(s, x.id))) await ensureQuestion(this, q.id)
+      s.pulled = true
+      // a folder that is the target of a queued rename is created by that rename, not here
+      for (const q of this.questions.filter(x => !onServer.has(x.id) && !hiddenByOps(s, x.id) && !s.ops.some(o => o.op === 'mvq' && o.to === x.id))) await ensureQuestion(this, q.id)
     },
     /**
      * Pushes every unsaved note (PUT), then runs queued renames/deletes. A failed call keeps the note unsaved and retries
@@ -270,41 +332,64 @@ export const useVault = defineStore('vault', {
       const s = S(this)
       if (isDemo() || s.running) return
       s.running = true; clearTimeout(s.timer)
-      let fail = false; let changed = false; let err = ''
+      let fail = false; let changed = false
       try {
-        for (const op of [...s.ops]) { // 1. folder renames / deletes
-          if (op.op === 'delete') continue
+        // never upload into a folder before seeing what the server has (a same-named folder from another browser)
+        if (!s.pulled) await this.pull()
+        if (!s.pulled) fail = true
+        // 1. folder renames / deletes (2xx = done; 404/409 on a rename = the target name is taken or the source is gone)
+        for (let guard = 0; !fail && guard < 50; guard++) {
+          const op = s.ops.find(o => o.op !== 'delete') as Exclude<Op, { op: 'delete' }> | undefined
+          if (!op) break
           const r = op.op === 'rmq' ? await call(qUrl(op.name), { method: 'DELETE' }) : await call(qUrl(op.from), json('PATCH', { name: op.to }))
-          if (!r || r.status >= 500) { fail = true; break }
-          // the server could not rename it (gone / name taken): upload the notes under the new name instead
-          if (op.op === 'mvq' && !r.ok) for (const n of this.notesIn(op.to)) delete s.synced[n.path]
-          s.ops = s.ops.filter(o => opKey(o) !== opKey(op)); s.done.add(opKey(op)); changed = true
+          if (!r) { fail = true; break }
+          const finish = () => { s.ops = s.ops.filter(o => opKey(o) !== opKey(op)); s.done.add(opKey(op)); changed = true }
+          if (r.ok || (op.op === 'rmq' && r.status === 404)) { finish(); continue }
+          if (op.op === 'rmq' || (r.status !== 404 && r.status !== 409)) { fail = true; break }
+          // the new name exists on the server: never write into that folder. Take a free name and try again.
+          const names = await serverQuestions()
+          if (!names) { fail = true; break }
+          if (!names.has(op.to) && r.status === 404) { for (const n of this.notesIn(op.to)) delete s.synced[n.path]; finish(); continue } // source gone: upload the notes instead
+          let k = 2; let name = op.to
+          do name = `${op.to} (${k++})`; while (names.has(name) || this.notesIn(name).length)
+          const wasCurrent = this.current === op.to
+          finish(); moveNotes(this, op.to, name); queue(s, { op: 'mvq', from: op.from, to: name })
+          if (wasCurrent) this.setCurrent(name)
+          changed = true
         }
         if (!fail) for (const n of [...this.notes]) { // 2. unsaved notes
           if (!wantsPush(s, this, n)) continue
-          const sp = splitQuestionPath(n.path)!
+          const path = n.path; const sp = splitQuestionPath(path)!
           const content = n.content; const h = hashText(content)
           const put = () => call(noteUrl(sp.q, sp.rel), json('PUT', { content }))
           let r = await put()
           if (r?.status === 400 && await ensureQuestion(this, sp.q)) r = await put()
-          if (!r || r.status >= 500 || r.status === 408 || r.status === 429) { fail = true; break }
-          if (r.ok) { s.synced[n.path] = h; changed = true }
-          else { s.rejected[n.path] = h; err = `The server refused ${n.path} (${r.status}); it is kept in this browser.` }
+          if (!r || transient(r.status)) { fail = true; break }
+          if (r.ok) {
+            // the note may have been renamed or removed while the PUT was in flight: only a note still at this path counts as saved
+            if (this.notes.some(x => x.path === path)) s.synced[path] = h
+            changed = true
+          } else s.rejected[path] = h
         }
         if (!fail) for (const op of [...s.ops]) { // 3. deletes (old file of a rename only once the new one is saved)
           if (op.op !== 'delete') continue
           const next = op.after ? this.notes.find(n => n.path === op.after) : undefined
           if (next && unsaved(s, next)) continue
           const sp = splitQuestionPath(op.path)
-          if (sp) { const r = await call(noteUrl(sp.q, sp.rel), { method: 'DELETE' }); if (!r || r.status >= 500) { fail = true; break } }
+          if (sp) { const r = await call(noteUrl(sp.q, sp.rel), { method: 'DELETE' }); if (!r || !(r.ok || r.status === 404)) { fail = true; break } }
           s.ops = s.ops.filter(o => opKey(o) !== opKey(op)); s.done.add(opKey(op)); changed = true
         }
       } finally { s.running = false }
       const left = this.notes.filter(n => wantsPush(s, this, n)).length
-      this.unsynced = left
-      if (fail) { err = `Server not reachable: ${left || 'some'} change${left === 1 ? '' : 's'} saved only in this browser, retrying.`; s.backoff = Math.min(s.backoff * 2, 30_000); schedule(this, s.backoff) }
-      else { s.backoff = 1000; if (left) schedule(this) }
-      this.syncError = err
+      const turned = this.notes.filter(n => refused(s, n)).length
+      this.unsynced = this.notes.filter(n => unsaved(s, n)).length
+      if (fail) {
+        this.syncError = `Server not reachable or refusing requests: ${this.unsynced || 'some'} change${this.unsynced === 1 ? '' : 's'} saved only in this browser, retrying.`
+        s.backoff = Math.min(s.backoff * 2, 30_000); schedule(this, s.backoff)
+      } else {
+        s.backoff = 1000; if (left) schedule(this)
+        this.syncError = turned ? `The server refused ${turned} note${turned === 1 ? '' : 's'}; kept in this browser.` : ''
+      }
       if (changed) this.persist()
     },
     /** pagehide / tab hidden: write IndexedDB now and fire the unsaved PUTs with keepalive (retried on the next load if they don't land). */
@@ -313,41 +398,53 @@ export const useVault = defineStore('vault', {
       const s = S(this)
       clearTimeout(s.saveTimer)
       void writeNow(this).catch(() => { /* the debounced copy already ran or will on next edit */ })
+      if (!s.pulled) return // never-seen folders are uploaded only after pull() (next load)
       for (const n of this.notes) {
         if (!wantsPush(s, this, n)) continue
         const sp = splitQuestionPath(n.path)!
         try { void fetch(noteUrl(sp.q, sp.rel), { ...json('PUT', { content: n.content }), keepalive: true }).catch(() => {}) } catch { /* body over the keepalive limit */ }
       }
     },
-    /** Another tab saved: adopt its newer notes (and what it already synced) without losing ours. */
+    /**
+     * Another tab saved: adopt its newer notes and deletes without losing ours. A note both tabs changed since this tab last
+     * read the shared copy is flagged in `conflicts` (server = the other tab's copy), never silently dropped.
+     */
     async mergeFromDisk() {
       if (isDemo()) return
       const s = S(this)
       try {
         const stored = await get<Note[]>(DB_KEY)
-        const meta = await get<{ synced?: Record<string, string> }>(META_KEY)
+        const meta = await get<{ synced?: Record<string, string>; tomb?: Record<string, number> }>(META_KEY)
+        for (const [p, at] of Object.entries(meta?.tomb ?? {})) if (at > (s.tomb[p] ?? 0)) s.tomb[p] = at
+        const gone = this.notes.filter(n => buried(s.tomb, n))
+        if (gone.length) { this.notes = this.notes.filter(n => !buried(s.tomb, n)); for (const n of gone) { delete s.synced[n.path]; delete s.disk[n.path]; delete this.conflicts[n.path] } }
         for (const n of Array.isArray(stored) ? stored : []) {
-          if (s.removed.has(n.path)) continue
+          if (s.removed.has(n.path) || buried(s.tomb, n)) continue
           const i = this.notes.findIndex(x => x.path === n.path)
-          if (i < 0) this.notes.push(n)
-          else if (n.updatedAt > this.notes[i].updatedAt) this.notes[i] = n
-          else continue
-          if (meta?.synced?.[n.path]) s.synced[n.path] = meta.synced[n.path]
+          const sh = hashText(n.content)
+          const adopt = () => { if (i < 0) this.notes.push(n); else this.notes[i] = n; s.disk[n.path] = sh; if (meta?.synced?.[n.path]) s.synced[n.path] = meta.synced[n.path]; delete this.conflicts[n.path] }
+          if (i < 0) { adopt(); continue }
+          const lh = noteHash(this.notes[i])
+          if (lh === sh) { s.disk[n.path] = sh; continue }
+          const base = s.disk[n.path]
+          if (base === lh) adopt()                    // only the other tab changed it
+          else if (base !== sh) this.conflicts[n.path] = { server: n.content } // both changed it
         }
       } catch { /* IndexedDB unavailable: nothing to merge */ }
     },
-    /** Settle a flagged conflict: keep this browser's copy (it is then pushed over the server's) or take the server's. */
+    /** Settle a flagged conflict: keep this browser's copy (it is then pushed over the server's) or take the other copy. */
     resolveConflict(path: string, keep: 'local' | 'server') {
       const c = this.conflicts[path]; const s = S(this)
       if (!c) return
       s.synced[path] = hashText(c.server)
       if (keep === 'server') { const n = this.notes.find(x => x.path === path); if (n) { n.content = c.server; n.updatedAt = Date.now() } }
+      else { const n = this.notes.find(x => x.path === path); if (n) n.updatedAt = Date.now() } // newer than the other tab's copy, so it wins the next merge
       delete this.conflicts[path]
       this.persist(); schedule(this)
     },
     /** One-time D-33 migration: Notes/Question.md + Seeds/* → Questions/<name>/{Question.md, seeds/}. User notes stay. */
     migrate() {
-      if (lsGet(MIGRATED_KEY)) return
+      if (isDemo() || lsGet(MIGRATED_KEY)) return
       const q = this.notes.find(n => n.path === QUESTION_PATH)
       const seeds = this.notes.filter(n => n.path.startsWith('Seeds/'))
       if (q || seeds.length) {
@@ -367,7 +464,7 @@ export const useVault = defineStore('vault', {
     persist() {
       if (isDemo()) return
       const s = S(this)
-      this.unsynced = this.notes.filter(n => wantsPush(s, this, n)).length
+      this.unsynced = this.notes.filter(n => unsaved(s, n)).length
       clearTimeout(s.saveTimer)
       s.saveTimer = setTimeout(() => { void this.saveNow() }, 150)
     },
@@ -376,7 +473,7 @@ export const useVault = defineStore('vault', {
       clearTimeout(S(this).saveTimer)
       try { await writeNow(this) } catch { this.error = 'Saving to IndexedDB failed.' }
     },
-    setCurrent(id: string | null) { this.current = id; lsSet(CURRENT_KEY, id) },
+    setCurrent(id: string | null) { this.current = id; if (!isDemo()) lsSet(CURRENT_KEY, id) },
     /** Creates Questions/<name>/Question.md; returns the folder name (made unique) or null without a name. */
     async createQuestion(rawName: string, text: string): Promise<string | null> {
       const base = safeQuestionName(rawName) || nameFromQuestion(text)
@@ -400,15 +497,7 @@ export const useVault = defineStore('vault', {
       if (!next || next === oldName) return null
       if (this.notes.some(n => n.path.toLowerCase().startsWith(questionFolder(next).toLowerCase() + '/'))) return null
       const s = S(this)
-      const from = questionFolder(oldName) + '/'
-      for (const n of this.notes) if (n.path.startsWith(from)) {
-        const old = n.path
-        n.path = questionFolder(next) + '/' + old.slice(from.length); n.updatedAt = Date.now()
-        // the server renames the folder, so the saved copies stay saved under the new path
-        if (s.synced[old]) s.synced[n.path] = s.synced[old]
-        if (this.conflicts[old]) { this.conflicts[n.path] = this.conflicts[old] }
-        forget(this, old); revive(s, n.path)
-      }
+      moveNotes(this, oldName, next)
       if (this.current === oldName) this.setCurrent(next)
       queue(s, { op: 'mvq', from: oldName, to: next })
       this.persist(); schedule(this)
@@ -451,6 +540,7 @@ export const useVault = defineStore('vault', {
       n.updatedAt = Date.now()
       if (this.conflicts[path]) this.conflicts[newPath] = this.conflicts[path]
       forget(this, path); revive(s, newPath)
+      retarget(s, p => (p === path ? newPath : undefined)) // X→X2→X3: the delete of X must wait for X3, not X2
       if (splitQuestionPath(path)) queue(s, { op: 'delete', path, after: newPath })
       this.persist(); schedule(this)
       return true
