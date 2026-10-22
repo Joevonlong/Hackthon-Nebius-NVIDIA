@@ -1,7 +1,7 @@
 # Now
-Updated: 2026-10-22 · phase 4 Build (M1) · batches 1–4 merged ✅ · Docker PASS · Codex done, #11 closed · left: #43 (batch 5), then PR → main for Joe
+Updated: 2026-10-22 · phase 4 Build · **M1 done** (D-18) · PR #44 → main open for Joe · next: M2 batch 1 (#18 spike, #19 contracts, #20 run from anywhere, #43)
 
-**Next step:** #43 builder (branch from milestone/m1-safe-to-share) → reviewer → merge → close #43 and epic #5 → PR `milestone/m1-safe-to-share` → `main` for Joe (don't merge) → mark M1 done in PLAN.md, D-line, ask "Anything worth a lesson?" (candidate: worktree base is main).
+**Next step:** wait for Joe's review of PR #44; then M2 batch 1: #19 contracts (architect) first, #18 spike and #20 in parallel; #43 hardening alongside (D-18).
 **How to check:** `gh pr list -R Joevonlong/PaperTrail --base milestone/m1-safe-to-share`; `gh issue list -R Joevonlong/PaperTrail --milestone "M1 Safe to share"`.
 
 Flow (user's request, 2026-10-21): one sub-issue = one PR into `milestone/m1-safe-to-share`; merge after review/verify; **after merge: comment on the issue (what landed + evidence + PR) and `gh issue close` it** ("Closes #n" doesn't auto-close into a non-default branch); delete the merged remote branch; when M1 is done, open one PR `milestone/m1-safe-to-share` → `main` for Joe to review (don't merge).
@@ -25,8 +25,8 @@ Done since last save:
 - Nebius: the user has no hackathon deploy; Joe may. The user sent Joe a message; waiting for his reply.
 
 Open loops: none running.
-**Blocked 2026-10-22 ~11:52 UTC: the GitHub repo Joevonlong/PaperTrail was archived (read-only)** right after push 1ab2f45 landed. Half-done: #43 was detached from epic #5 (removeSubIssue went through) but is still in M1 with no comment; moving #43 and epic #7 to M2, deleting label batch-5, both comments, closing #5 and the PR to main all failed (403 archived).
+Repo was archived 2026-10-22 ~11:52 UTC and unarchived later that day.
 Decided (D-18): #43 not needed for M1 (all low; need API access plus a user-made outside link, or a user-picked file); move to M2. Epic #7 → M2 (only #20 left).
 **Final M1 gate: verifier PASS on 42269c9** (pnpm gate 63 files / 424 tests; #41 items 1–6 live on :3102 keyless; smoke /, /api/health keys all false). M1 marked done in PLAN.md.
-Still to do once writable (a watch polls `isArchived` every 10 min, up to 3 days, this session only): push; move #43 + epic #7 to M2 with comments (D-18); delete label batch-5; close epic #5 with a summary; PR `milestone/m1-safe-to-share` → `main` for Joe (don't merge); then ask "Anything worth a lesson?" (candidate: worktree base is main).
-Needs you: (1) did Joe archive the repo on purpose? ask him to unarchive, or decide another home (fork). (2) Joe's reply on the Nebius deploy.
+**Done after unarchive:** pushed fa19070; #43 and epic #7 moved to M2 with comments; label batch-5 deleted; epic #5 closed with a summary; M1 milestone has no open issues. **PR #44 `milestone/m1-safe-to-share` → `main` opened for Joe (not merged).**
+Needs you: (1) "Anything worth a lesson from M1?" (candidate: worktree base is main). (2) Joe's reply on the Nebius deploy and on PR #44.
