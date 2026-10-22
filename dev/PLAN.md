@@ -42,7 +42,7 @@ Out of scope (this cycle): Electron app, paid cloud, other fields than biomed,
 | 1 | Spike | Kill the riskiest unknown | #18 RESULTS.md: include precision ≥ 0.80 or a re-scope decision | builder | — | todo (M2 batch 1) |
 | 2 | Define | Work cut into independent sub-issues | 👤 issue list approved | coordinator | kickoff | done (D-02, issues #5–#30) |
 | 3 | Design | Contracts before parallel agent work | #19 merged: contracts + ADR, ownership disjoint per batch | architect | — | todo (M2 batch 1) |
-| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 batches 1–4 merged; gate verifier PASS; Docker PASS; Codex done, #11 closed; open: #43 batch 5) |
+| 4 | Build | Every sub-issue's Done-when true | Each milestone: all sub-issues closed with evidence | builder → reviewer → (verifier if `critical`) | /code-review | active (M1 done 2026-10-22, D-18: gate PASS 42269c9; GitHub tidy + PR → main waiting on the repo being unarchived) |
 | 5 | Harden | It works for real | Per milestone: verifier gate + security-scan, no open high/critical; end of M3: #30 | verifier | security-scan | todo |
 | 6 | Release | v0.4.0 out | 👤 tag v0.4.0, README updated (#30) | coordinator | — | todo |
 | 7 | Learn | The suite gets better | `retro` done, lessons saved | coordinator | retro, lesson | todo |
@@ -59,9 +59,8 @@ Run a batch only after the previous batch is merged. Sub-issues in one batch own
 | | 2 ✅ | #15 A2 untrusted data (PR #36) · #16 B2 durable storage (PR #38; open for the Docker check) · #17 D1 foundations + CI (PR #37) — merged 2026-10-21 | #15, #16 |
 | | 3 ✅ | #35 A3 API follow-ups + safe remote deploy (PR #40, merged 2026-10-21) | #35 |
 | | 4 ✅ | #41 A4 linear-time id parsing, read-side symlink containment, single decode (from the M1 gate re-scan, R1–R5; medium/low; PR #42, merged 2026-10-22) | at gate |
-| | 5 | #43 A5 real-path containment for delete, trash, append and library reads; linear DOI cleanup (Codex C1–C5, all low; D-17) | reviewer |
-| | gate | verifier on M1 + security-scan re-run (Codex 2026-10-22: no high/critical) | always |
-| M2 Research agent loop (due 2026-11-18) | 1 | #18 S1 spike · #19 X1 contracts (architect) · #20 E1 run from anywhere | — |
+| | gate ✅ | verifier PASS 4ca4274 + final PASS 42269c9 (#41 items, keyless smoke); Docker PASS 89b47a6; Codex 2026-10-22 no high/critical (5 low → #43, M2, D-18) | always |
+| M2 Research agent loop (due 2026-11-18) | 1 | #18 S1 spike · #19 X1 contracts (architect) · #20 E1 run from anywhere · #43 A5 containment hardening (low, D-18) | — |
 | | 2 | #21 X2 agent runtime · #22 X3 intent stage · #23 X6 knowledge base | #21 |
 | | 3 | #24 X4 find stage · #25 X5 filter stage | — |
 | | gate | verifier: full loop on a real question + security-scan | always |
