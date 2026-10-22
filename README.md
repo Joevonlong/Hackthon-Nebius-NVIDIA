@@ -26,13 +26,12 @@
   <img alt="License GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
+https://github.com/user-attachments/assets/103ed838-f69c-402c-931e-84eecf34bbe5
+
 <p align="center">
   <img src="docs/media/hero.gif" width="900" alt="PaperTrail in demo mode: a research question is typed, Build library is clicked, graded paper tiles stream in, and the citation graph opens">
 </p>
 <p align="center"><sub>Real app, demo mode (replay of a recorded real run, sped up 2x).</sub></p>
-
-
-https://github.com/user-attachments/assets/103ed838-f69c-402c-931e-84eecf34bbe5
 
 
 <p align="center"><sub><b>2-minute narrated demo</b> (English, subtitles burned in): a live run of the real app on the question "Can weight-loss drugs really make us healthier?". Sped-up footage is labelled on screen; the cover artwork is illustrative.</sub></p>
