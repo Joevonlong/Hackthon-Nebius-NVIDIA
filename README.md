@@ -26,7 +26,10 @@
   <img alt="License GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-blue">
 </p>
 
-https://github.com/user-attachments/assets/103ed838-f69c-402c-931e-84eecf34bbe5
+
+https://github.com/user-attachments/assets/33a24d11-017a-4fdd-9a8b-980657a9124f
+
+
 
 <p align="center">
   <img src="docs/media/hero.gif" width="900" alt="PaperTrail in demo mode: a research question is typed, Build library is clicked, graded paper tiles stream in, and the citation graph opens">
