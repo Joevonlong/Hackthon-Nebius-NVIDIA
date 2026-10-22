@@ -31,6 +31,11 @@
 </p>
 <p align="center"><sub>Real app, demo mode (replay of a recorded real run, sped up 2x).</sub></p>
 
+<p align="center">
+  <a href="docs/media/papertrail-demo.mp4"><img src="docs/media/papertrail-demo-poster.jpg" width="900" alt="Play the 2-minute narrated PaperTrail demo video (English, with subtitles)"></a>
+</p>
+<p align="center"><sub><b>2-minute narrated demo</b> (English, subtitles burned in): a live run of the real app on the question "Can weight-loss drugs really make us healthier?". Sped-up footage is labelled on screen; the cover artwork is illustrative.</sub></p>
+
 Type a research question, add the papers you already trust, and PaperTrail builds a graded library of new papers, with the evidence behind every score. Winner of the Healthcare & Life Sciences "Research Paper Discovery" track at the Nebius & NVIDIA Hackathon (18 October 2026).
 
 ## Quick start
