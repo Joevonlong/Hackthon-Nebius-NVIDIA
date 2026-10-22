@@ -1,8 +1,10 @@
 // Owner: lane W2 (D-37). One parent folder per research question on disk — the server is the source of truth:
 //   ${WORKSPACE_DIR}/<question>/{Question.md, seeds/*.md, notes/*.md, libraries/<libraryId>/…, exports/}
 // The question id IS the folder name (a safe file name). Deleting moves the folder to ${WORKSPACE_DIR}/.trash/.
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { dirname, join, relative, resolve, sep } from 'node:path'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
+import { HTTPException } from 'hono/http-exception'
+import { atomicWriteFileSync, atomicWriteJsonSync } from '../data/atomic'
 
 export const workspaceRoot = () => resolve(process.env.WORKSPACE_DIR || './workspace')
 
@@ -40,16 +42,38 @@ const firstParagraph = (content: string) => {
   return out.join(' ')
 }
 
-function walkMd(dir: string, base = dir): string[] {
+/**
+ * Read-side containment (#41): the real path of `p` must lie under the real workspace folder. This is narrower than the write side
+ * (atomic.ts also accepts the data and log folders) on purpose: notes, listings and Question.md only ever live under WORKSPACE_DIR.
+ */
+export function insideWorkspace(p: string): boolean {
+  try {
+    const root = realpathSync(workspaceRoot()); const real = realpathSync(p)
+    return real === root || real.startsWith(root + sep)
+  } catch { return false }
+}
+/** Throws the 409 `symlink_outside_workspace` error (same code as the write side) for a path that is, or sits in, a link leading out of the workspace. */
+export function assertReadable(file: string): void {
+  if (insideWorkspace(file)) return
+  const message = `Not read: ${basename(file)} is, or sits in a folder that is, a symbolic link pointing outside the workspace folder. Replace the link with a regular file or folder inside the workspace.`
+  throw new HTTPException(409, { message, res: Response.json({ error: message, code: 'symlink_outside_workspace' }, { status: 409 }) })
+}
+
+function walkMd(dir: string, base = dir, seen = new Set<string>()): string[] {
   if (!existsSync(dir)) return []
+  const real = realpathSync(dir)
+  if (seen.has(real)) return [] // a link back to a folder already walked
+  seen.add(real)
   const out: string[] = []
   for (const name of readdirSync(dir)) {
     if (name.startsWith('.')) continue
     const p = join(dir, name)
     const rel = relative(base, p).split(sep).join('/')
     if (rel === 'libraries' || rel === 'exports') continue
-    const st = statSync(p)
-    if (st.isDirectory()) out.push(...walkMd(p, base))
+    if (lstatSync(p).isSymbolicLink() && !insideWorkspace(p)) continue // links out of the workspace are not listed
+    let st
+    try { st = statSync(p) } catch { continue } // dangling link
+    if (st.isDirectory()) out.push(...walkMd(p, base, seen))
     else if (name.endsWith('.md')) out.push(rel)
   }
   return out
@@ -62,6 +86,7 @@ export function listQuestions(): QuestionInfo[] {
   for (const id of readdirSync(root)) {
     const dir = questionDir(id)
     if (!dir || !existsSync(join(dir, 'Question.md'))) continue
+    if (!insideWorkspace(join(dir, 'Question.md'))) continue
     const content = readFileSync(join(dir, 'Question.md'), 'utf8')
     const libs = existsSync(join(dir, 'libraries')) ? readdirSync(join(dir, 'libraries')).filter(x => !x.startsWith('.')).length : 0
     out.push({ id, name: id, text: firstParagraph(content), created: content.match(/^created:\s*(.+)$/m)?.[1]?.trim() ?? null, notes: walkMd(dir).length, libraries: libs })
@@ -74,7 +99,7 @@ export function createQuestion(id: string, content: string): QuestionInfo | 'exi
   if (!dir) return null
   if (existsSync(dir)) return 'exists'
   for (const sub of ['seeds', 'notes', 'libraries', 'exports']) mkdirSync(join(dir, sub), { recursive: true })
-  writeFileSync(join(dir, 'Question.md'), content)
+  atomicWriteFileSync(join(dir, 'Question.md'), content)
   return listQuestions().find(q => q.id === id) ?? null
 }
 
@@ -87,7 +112,7 @@ export function renameQuestion(id: string, next: string): 'ok' | 'exists' | null
   const libs = join(to, 'libraries')
   if (existsSync(libs)) for (const l of readdirSync(libs)) {
     const f = join(libs, l, 'library.json')
-    try { const j = JSON.parse(readFileSync(f, 'utf8')); j.questionId = next; j.questionName = next; writeFileSync(f, JSON.stringify(j, null, 2)) } catch { /* skip */ }
+    try { const j = JSON.parse(readFileSync(f, 'utf8')); j.questionId = next; j.questionName = next; atomicWriteJsonSync(f, j) } catch { /* skip */ }
   }
   return 'ok'
 }
@@ -108,20 +133,23 @@ export interface WsNote { path: string; content: string; updatedAt: number }
 export function listNotes(id: string): WsNote[] | null {
   const dir = questionDir(id)
   if (!dir || !existsSync(dir)) return null
+  assertReadable(dir)
   return walkMd(dir).map(rel => ({ path: rel, content: readFileSync(join(dir, rel), 'utf8'), updatedAt: statSync(join(dir, rel)).mtimeMs }))
 }
 
 export function writeNote(id: string, rel: string, content: string): boolean {
   const file = notePathIn(id, rel)
   if (!file || !existsSync(questionDir(id)!)) return false
-  mkdirSync(dirname(file), { recursive: true })
-  writeFileSync(file, content)
+  atomicWriteFileSync(file, content)
   return true
 }
 
+const lstatExists = (p: string) => { try { lstatSync(p); return true } catch { return false } }
+
 export function deleteNote(id: string, rel: string): boolean {
   const file = notePathIn(id, rel)
-  if (!file || !existsSync(file) || rel === 'Question.md') return false
+  // lstat: a link (even a dangling one or one leading outside) is removed itself; rmSync never follows it
+  if (!file || (!existsSync(file) && !lstatExists(file)) || rel === 'Question.md') return false
   rmSync(file)
   return true
 }
@@ -142,7 +170,7 @@ export function findQuestionLibrary(libraryId: string): { dir: string; questionI
     const dir = questionDir(q)
     if (!dir) continue
     const lib = join(dir, 'libraries', libraryId)
-    if (existsSync(join(lib, 'library.json'))) return { dir: lib, questionId: q }
+    if (existsSync(join(lib, 'library.json')) || existsSync(join(lib, 'manifest.json'))) return { dir: lib, questionId: q }
   }
   return null
 }
@@ -160,9 +188,8 @@ export function writeExport(questionId: string | null | undefined, name: string,
   const dir = questionDir(questionId)
   if (!dir || !existsSync(dir)) return null
   try {
-    mkdirSync(join(dir, 'exports'), { recursive: true })
     const f = join(dir, 'exports', name.replace(/[\\/:*?"<>|]/g, '-'))
-    writeFileSync(f, content)
+    atomicWriteFileSync(f, content)
     return relative(workspaceRoot(), f)
   } catch { return null }
 }

@@ -1,7 +1,7 @@
 // Library mode contracts (captain-owned). Spec: docs/LIBRARY_SPEC.md.
 // The whole vault is one research topic: goals → multi-source search → label → quality-score with evidence → top N.
 import { z } from 'zod'
-import { Paper, SourceRef } from './contracts'
+import { Paper, SafeUrl, SourceRef } from './contracts'
 
 export const SourceName = z.enum(['openalex', 'pubmed', 'arxiv', 'tavily', 'scholar'])
 export type SourceName = z.infer<typeof SourceName>
@@ -31,6 +31,7 @@ export const LibraryRequest = z.object({
   llmReadTopK: z.number().int().min(0).max(100).default(40), // LLM reads only the best pre-scored papers
   questionId: z.string().max(200).optional(), // D-33: the research question folder this build reads (Questions/<name>/)
   questionName: z.string().max(200).optional(),
+  notesAsKnown: z.boolean().optional(), // default true: ids named in non-seed notes count as known papers; false = seeds only
 })
 export type LibraryRequest = z.infer<typeof LibraryRequest>
 
@@ -54,7 +55,7 @@ export const Hit = z.object({ // one search result that led to a paper (provenan
   via: z.enum(['keyword', 'subtopic', 'known_paper', 'references', 'cited_by', 'similar', 'web', 'scout']),
   query: z.string().nullable(),
   rank: z.number().nullable(), // position in that source's result list (1 = first)
-  url: z.string(),
+  url: SafeUrl,
 })
 export type Hit = z.infer<typeof Hit>
 

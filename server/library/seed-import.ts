@@ -1,13 +1,21 @@
 // Owner: lane W2 (D-36). Seed file import: .bib / .ris / CSL JSON / .csv / .txt → paper ids; PDF → DOI from the first 2 pages.
 // Ids use the resolver's input formats: DOI "10.x/…", "PMID:<n>", "arXiv:<id>", OpenAlex "W<n>".
+import { extractPdfPages } from '../security/pdf-worker'
 export type SeedFormat = 'bibtex' | 'ris' | 'csl-json' | 'csv' | 'text' | 'pdf'
 
 const DOI_RE = /\b(10\.\d{4,9}\/[^\s"'<>\][(){}|,;]+)/gi
-const ARXIV_RE = /(?:\barXiv\s*[:/]?\s*|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(?:v\d+)?/gi
+// Linear time (#41): separators are bounded ({0,5}), so no start position rescans more than a fixed window.
+const ARXIV_RE = /(?:\barXiv\s{0,5}[:/]?\s{0,5}|arxiv\.org\/(?:abs|pdf)\/)(\d{4}\.\d{4,5})(?:v\d+)?/gi
 const OPENALEX_RE = /(?:openalex\.org\/(?:works\/)?|\b)(W\d{6,12})\b/g
-const PMID_LABELED_RE = /(?:\bPMID\s*[:=]?\s*\{?\s*|pubmed\.ncbi\.nlm\.nih\.gov\/)(\d{5,9})\b/gi
+const PMID_LABELED_RE = /(?:\bPMID\s{0,5}[:=]?\s{0,5}\{?\s{0,5}|pubmed\.ncbi\.nlm\.nih\.gov\/)(\d{5,9})\b/gi
 
-const cleanDoi = (d: string) => d.replace(/[.)\]}>*_]+$/, '').replace(/\}+$/, '')
+const TRAILING = new Set('.)]}>*_')
+/** Drops trailing punctuation with a scan from the end (a `[...]+$` regex rescans a long run from every start). */
+function cleanDoi(d: string): string {
+  let end = d.length
+  while (end > 0 && TRAILING.has(d[end - 1])) end--
+  return d.slice(0, end)
+}
 
 /** Ids found in free text (DOIs, labelled PMIDs, arXiv ids, OpenAlex ids). */
 export function idsInText(text: string, opts: { barePmids?: boolean } = {}): string[] {
@@ -22,7 +30,9 @@ export function idsInText(text: string, opts: { barePmids?: boolean } = {}): str
 
 function bibtex(text: string): string[] {
   const out: string[] = []
-  for (const m of text.matchAll(/\b(doi|pmid|eprint|arxiv|url)\s*=\s*[{"]\s*([^}"]+?)\s*[}"]/gi)) {
+  // Linear time (#35): a value is at most 1000 chars of non-brace text or one-level {groups}, whitespace runs before the value are at most 200 (the value's own whitespace is trimmed afterwards), and the
+  // alternatives start with different characters, so no start position rescans more than a bounded window.
+  for (const m of text.matchAll(/\b(doi|pmid|eprint|arxiv|url)[ \t\r\n]{0,200}=[ \t\r\n]{0,200}[{"]((?:[^{}"]|\{[^{}]{0,200}\}){1,1000})[}"]/gi)) {
     const k = m[1].toLowerCase(); const v = m[2].trim()
     if (k === 'doi') out.push(cleanDoi(v.replace(/^https?:\/\/(dx\.)?doi\.org\//i, '')))
     else if (k === 'pmid' && /^\d{5,9}$/.test(v)) out.push(`PMID:${v}`)
@@ -98,7 +108,7 @@ function csv(text: string): string[] {
 export function detectFormat(fileName: string, text: string): SeedFormat {
   const ext = fileName.toLowerCase().split('.').pop() ?? ''
   if (ext === 'pdf') return 'pdf'
-  if (ext === 'bib' || ext === 'bibtex' || /^\s*@\w+\s*\{/m.test(text)) return 'bibtex'
+  if (ext === 'bib' || ext === 'bibtex' || /^[ \t]*@\w+[ \t]*\{/m.test(text)) return 'bibtex'
   if (ext === 'ris' || ext === 'nbib' || /^TY\s{1,2}-/m.test(text)) return 'ris'
   if (ext === 'json' || /^\s*[[{]/.test(text)) return 'csl-json'
   if (ext === 'csv' || ext === 'tsv') return 'csv'
@@ -120,10 +130,7 @@ export function dedupe(ids: string[]): string[] {
 
 /** PDF: text of the first 2 pages (unpdf), then the first DOI / arXiv id found. */
 export async function parseSeedPdf(bytes: Uint8Array): Promise<{ format: 'pdf'; ids: string[]; text: number }> {
-  const { getDocumentProxy, extractText } = await import('unpdf')
-  const pdf = await getDocumentProxy(bytes)
-  const { text } = await extractText(pdf, { mergePages: false })
-  const pages = (Array.isArray(text) ? text : [text]).slice(0, 2).join('\n')
-  const ids = idsInText(pages.replace(/\s*\n\s*/g, ' ')).filter(x => x.startsWith('10.') || x.startsWith('arXiv:'))
+  const pages = (await extractPdfPages(bytes, { maxPages: 2 })).join('\n') // worker thread with a deadline (#12)
+  const ids = idsInText(pages.replace(/\s+/g, ' ')).filter(x => x.startsWith('10.') || x.startsWith('arXiv:'))
   return { format: 'pdf', ids: dedupe(ids).slice(0, 1), text: pages.length }
 }

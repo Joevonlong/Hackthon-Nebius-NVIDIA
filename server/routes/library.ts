@@ -9,6 +9,7 @@
 import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import { randomUUID } from 'node:crypto'
+import { existsSync, readFileSync } from 'node:fs'
 import { ChatRequest, LibraryRequest, type Goals, type LibPaper, type LibraryEvent } from '@shared/library'
 import { withRun } from '../trace'
 import { createLibraryState, emitLib, getLibraryState, runLibrary, subscribeLib } from '../library/pipeline'
@@ -17,7 +18,9 @@ import { fixtureGather } from '../library/fixtures'
 import { exportLibrary, isSafeId, listLibraries, readLibrary, readPaperFile, renameLibrary, trashLibrary } from '../library/store'
 import { AppliedBody, logApplied, runChat } from '../library/chat'
 import { parseSeedPdf, parseSeedText } from '../library/seed-import'
-import { createQuestion, deleteNote, listNotes, listQuestions, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
+import { PdfBusyError, PdfTimeoutError } from '../security/pdf-worker'
+import { logServerError } from '../security/errors'
+import { assertReadable, createQuestion, insideWorkspace, deleteNote, listNotes, listQuestions, notePathIn, renameQuestion, trashQuestion, writeExport, writeNote } from '../library/workspace'
 import { DEMO_LIBRARY_ID, demoLibraryForChat } from './demo'
 
 export const library = new Hono()
@@ -49,8 +52,7 @@ library.get('/library/:id/export', c => {
   if (!isSafeId(id)) return c.json({ error: 'bad id' }, 400)
   const r = exportLibrary(id)
   if (!r) return c.json({ error: 'library not found' }, 404)
-  const qid = (r.library as { questionId?: string | null })?.questionId
-  writeExport(qid, `${id}.json`, JSON.stringify(r, null, 2)) // D-37: a copy in <question>/exports/
+  // read-only (#35): this used to also write a copy to <question>/exports/<id>.json; library.json already holds the same content
   c.header('content-disposition', `attachment; filename="${id}.json"`)
   return c.json(r)
 })
@@ -67,7 +69,7 @@ library.post('/questions', async c => {
 })
 
 library.patch('/questions/:id', async c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   const body = await c.req.json().catch(() => null) as { name?: unknown } | null
   if (!body || typeof body.name !== 'string') return c.json({ error: 'Body must be { name }' }, 400)
   const r = renameQuestion(id, body.name)
@@ -76,27 +78,59 @@ library.patch('/questions/:id', async c => {
 })
 
 library.delete('/questions/:id', c => {
-  const id = decodeURIComponent(c.req.param('id'))
+  const id = c.req.param('id')
   return trashQuestion(id) ? c.json({ ok: true }) : c.json({ error: 'question not found' }, 404)
 })
 
 library.get('/questions/:id/notes', c => {
-  const notes = listNotes(decodeURIComponent(c.req.param('id')))
+  const notes = listNotes(c.req.param('id'))
   return notes ? c.json({ notes }) : c.json({ error: 'question not found' }, 404)
 })
 
-// note path = everything after /notes/ (e.g. seeds/S1%20Tirosh%202016.md)
-const notePath = (url: string) => decodeURIComponent(new URL(url).pathname.replace(/^.*?\/notes\//, ''))
+// Question id and note path from /questions/<id>/notes/<path> (e.g. seeds/S1%20Tirosh%202016.md). The id segment has no "/" (it is encoded),
+// so the first match is the right one even when the question folder is itself named "notes". A malformed %-escape gives null (400).
+const NOTE_ROUTE = /\/questions\/([^/]+)\/notes\/(.*)$/
+function noteRoute(url: string): { id: string; rel: string } | null {
+  const m = NOTE_ROUTE.exec(new URL(url).pathname)
+  if (!m) return null
+  try { return { id: decodeURIComponent(m[1]), rel: decodeURIComponent(m[2]) } } catch { return null }
+}
+/** FNV-1a + length of the text: the change detector the client keeps per note (hashText in client/src/stores/vault.ts; keep both identical). */
+export function noteHash(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) }
+  return `${(h >>> 0).toString(36)}:${s.length}`
+}
+/**
+ * Conditional writes (issue #13): a client that sends `If-Match: "<hash>"` (the hash of the copy it last saw) only changes the file while
+ * it still has that content, and `If-None-Match: *` only creates a file that does not exist; otherwise 412 with the current content.
+ * No header = an older client: the write goes through.
+ */
+function precondition(c: { req: { header(n: string): string | undefined } }, id: string, rel: string, forDelete = false): { current: string | null; failed: boolean } {
+  const file = notePathIn(id, rel)
+  // a link out of the workspace is never read: refused (409), except for DELETE, which removes the link itself and treats the note as unread
+  const readable = !!file && existsSync(file) && (forDelete ? insideWorkspace(file) : (assertReadable(file), true))
+  const current = readable ? readFileSync(file!, 'utf8') : null
+  const match = c.req.header('if-match'); const none = c.req.header('if-none-match')
+  const failed = (match !== undefined && (current === null || noteHash(current) !== match.trim().replace(/^"|"$/g, ''))) || (none?.trim() === '*' && current !== null)
+  return { current, failed }
+}
+const changedElsewhere = (current: string | null) => ({ error: 'changed on the server', content: current ?? undefined, hash: current === null ? undefined : noteHash(current) })
 library.put('/questions/:id/notes/*', async c => {
   const body = await c.req.json().catch(() => null) as { content?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 2_000_000) return c.json({ error: 'Body must be { content: string }' }, 400)
-  return writeNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url), body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
+  const route = noteRoute(c.req.url)
+  if (!route) return c.json({ error: 'bad note path' }, 400)
+  const { id, rel } = route
+  const pre = precondition(c, id, rel)
+  if (pre.failed) return c.json(changedElsewhere(pre.current), 412)
+  return writeNote(id, rel, body.content) ? c.json({ ok: true }) : c.json({ error: 'bad path or question not found' }, 400)
 })
 
 // Q2-4 (D-37): the References tab's BibTeX / CSL JSON / Markdown .zip of one question → <question>/exports/<name>
 const EXPORT_NAME = /^[^\\/:*?"<>|\x00-\x1f]{1,120}\.(bib|json|zip)$/
 library.put('/questions/:id/exports/:name', async c => {
-  const id = decodeURIComponent(c.req.param('id')), name = decodeURIComponent(c.req.param('name'))
+  const id = c.req.param('id'), name = c.req.param('name')
   if (!EXPORT_NAME.test(name) || name.startsWith('.')) return c.json({ error: 'bad export file name (.bib, .json or .zip)' }, 400)
   const body = await c.req.json().catch(() => null) as { content?: unknown; encoding?: unknown } | null
   if (!body || typeof body.content !== 'string' || body.content.length > 20_000_000) return c.json({ error: 'Body must be { content: string, encoding?: "base64" }' }, 400)
@@ -106,7 +140,12 @@ library.put('/questions/:id/exports/:name', async c => {
 })
 
 library.delete('/questions/:id/notes/*', c => {
-  return deleteNote(decodeURIComponent(c.req.param('id')), notePath(c.req.url)) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
+  const route = noteRoute(c.req.url)
+  if (!route) return c.json({ error: 'bad note path' }, 400)
+  const { id, rel } = route
+  const pre = precondition(c, id, rel, true)
+  if (pre.failed && pre.current !== null) return c.json(changedElsewhere(pre.current), 412)
+  return deleteNote(id, rel) ? c.json({ ok: true }) : c.json({ error: 'note not found' }, 404)
 })
 
 // ---- D-36: seed file import (lane W2). multipart field "file"; ids are resolved by the client via POST /api/seeds/resolve ----
@@ -125,7 +164,11 @@ library.post('/seeds/import', async c => {
     const r = parseSeedText(name, await file.text())
     return c.json({ file: name, format: r.format, ids: r.ids })
   } catch (e) {
-    return c.json({ error: `Could not read ${name}: ${(e as Error).message?.slice(0, 200)}` }, 422)
+    // the app's own known causes keep their message; anything else (parser or library text) stays in the log
+    if (e instanceof PdfBusyError) return c.json({ error: e.message, code: 'pdf_busy' }, 503)
+    if (e instanceof PdfTimeoutError) return c.json({ error: e.message, code: 'seed_timeout' }, 422)
+    logServerError('seeds/import', e)
+    return c.json({ error: `Could not read ${name}.`, code: 'seed_unreadable' }, 422)
   }
 })
 
@@ -137,8 +180,8 @@ library.post('/library', async c => {
   const libraryId = `lib_${new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '')}_${randomUUID().slice(0, 6)}`
   const s = createLibraryState(libraryId, body.data)
   withRun(libraryId, () => runLibrary(s, { gather: useFixture() ? fixtureGather : gather })).catch(e => {
-    console.error(`[library ${libraryId}] crashed`, e)
-    emitLib(s, { type: 'error', message: (e as Error).message?.slice(0, 300) || 'library run failed' })
+    logServerError(`library ${libraryId}`, e)
+    emitLib(s, { type: 'error', message: 'library run failed (details are in the server log)' })
     emitLib(s, { type: 'done', libraryId, total: s.papers.length, passed: s.papers.filter(p => p.passed).length, ms: Date.now() - s.startedAt, dir: s.dir ?? '' })
   })
   return c.json({ libraryId, fixture: useFixture() || undefined })
@@ -194,10 +237,7 @@ library.get('/library/:id', c => {
 
 // Q2-7: paperId may be the file id ("pmid_38082384") or the paper id ("pmid:38082384", a DOI with "/"); {.+} keeps slashes.
 library.get('/library/:id/papers/:paperId{.+}', c => {
-  const raw = c.req.param('paperId')
-  let pid = raw
-  try { pid = decodeURIComponent(raw) } catch { /* already decoded */ }
-  const r = readPaperFile(c.req.param('id'), pid)
+  const r = readPaperFile(c.req.param('id'), c.req.param('paperId')) // Hono has decoded the param once already (#41)
   if (r === 'bad') return c.json({ error: 'bad id' }, 400)
   if (!r) return c.json({ error: 'paper not found' }, 404)
   return c.json(r)

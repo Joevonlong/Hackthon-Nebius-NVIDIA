@@ -6,6 +6,7 @@
 import { computed, nextTick, reactive, ref } from 'vue'
 import type { LibPaper } from '@shared/library'
 import { useLibrary } from '../stores/library'
+import { safeUrl } from '../util/safeUrl'
 import { COMPONENT_META, f2, grade, keyNumber, notAssessedWhy, reason, ruleText, verdict, weightShare } from './score'
 import { compColor, scoreSlices, sliceText } from './charts/slices'
 import ScoreDonut from './charts/ScoreDonut.vue'
@@ -73,7 +74,7 @@ const passLine = computed(() => {
         <div class="more" :class="{ open: open[c.key] }"><div class="more-in">
           <p class="rule"><span>Rule</span> {{ ruleText(c.how) }}</p>
           <ul class="ev">
-            <li v-for="(e, i) in c.evidence" :key="i">{{ lib.deK(e.text) }}<template v-if="e.source"> · <a :href="e.source.url" target="_blank" rel="noopener">{{ lib.deK(e.source.name) }}</a></template></li>
+            <li v-for="(e, i) in c.evidence" :key="i">{{ lib.deK(e.text) }}<template v-if="e.source"> · <a v-if="safeUrl(e.source.url)" :href="safeUrl(e.source.url)!" target="_blank" rel="noopener">{{ lib.deK(e.source.name) }}</a><template v-else>{{ lib.deK(e.source.name) }}</template></template></li>
             <li v-if="!c.evidence.length" class="faint">No evidence lines recorded.</li>
           </ul>
         </div></div>

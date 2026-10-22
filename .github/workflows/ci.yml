@@ -1,0 +1,29 @@
+# Runs the same check as local development: typecheck + tests + build. Keyless: no secrets are used,
+# so tests must pass offline (AI outputs are recorded fixtures).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'milestone/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # pnpm via corepack, pinned to the version that wrote pnpm-lock.yaml (package.json has no packageManager field)
+      - run: corepack enable && corepack prepare pnpm@12.14.0 --activate
+      - run: pnpm install --frozen-lockfile --config.strict-dep-builds=false
+      - run: pnpm gate

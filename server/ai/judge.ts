@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { env } from '../env'
 import { chatJson, createLimiter, hasKey } from './http'
 import { verifyQuote } from './verify'
+import { UNTRUSTED_NOTICE, untrustedBlock } from './untrusted'
 import type { JudgeInput } from './index'
 
 const grade = z.coerce.number().transform(n => Math.max(0, Math.min(3, Math.round(n))))
@@ -46,6 +47,7 @@ export const JUDGE_SCHEMA = {
 }
 
 export const JUDGE_SYSTEM = `You are a careful biomedical literature screener. You grade one candidate paper for a researcher's question using ONLY its title and abstract. Reply with one JSON object and nothing else.
+${UNTRUSTED_NOTICE}
 
 Grades are integers 0-3 with this anchored rubric:
 3 = same entity: the abstract studies exactly this (same disease/phenomenon, same method, same population)
@@ -82,9 +84,7 @@ SEEDS: ${seeds.map(s => `${s.label} = ${s.shortName}`).join('; ') || '(none)'}
 SEED-LINK FACTS: ${seedFacts(seeds, features.out, features.in)}
 
 CANDIDATE
-Title: ${paper.title}
-Year: ${paper.year ?? 'unknown'} · Venue: ${paper.venue ?? 'unknown'} · OpenAlex type: ${paper.type ?? 'unknown'}
-ABSTRACT: ${abstract || '(no abstract)'}
+${untrustedBlock('paper', `Title: ${paper.title}\nYear: ${paper.year ?? 'unknown'} · Venue: ${paper.venue ?? 'unknown'} · OpenAlex type: ${paper.type ?? 'unknown'}\nABSTRACT: ${abstract || '(no abstract)'}`, { id: paper.id })}
 
 Return the JSON object now.`
 }
