@@ -1,7 +1,7 @@
 # Now
-Updated: 2026-10-22 · phase 4 Build (M1) · batches 1–4 merged ✅ · #16 Docker check PASS, #16 + epic #6 closed · left: #11 Codex (user's choice), then PR → main for Joe
+Updated: 2026-10-22 · phase 4 Build (M1) · batches 1–4 merged ✅ · Docker PASS · Codex done, #11 closed · left: #43 (batch 5), then PR → main for Joe
 
-**Next step:** Codex Security per the user's choice → triage → close #11 and epic #5 → PR `milestone/m1-safe-to-share` → `main` for Joe (don't merge) → mark M1 done in PLAN.md, D-line, ask "Anything worth a lesson?" (candidate: worktree base is main).
+**Next step:** #43 builder (branch from milestone/m1-safe-to-share) → reviewer → merge → close #43 and epic #5 → PR `milestone/m1-safe-to-share` → `main` for Joe (don't merge) → mark M1 done in PLAN.md, D-line, ask "Anything worth a lesson?" (candidate: worktree base is main).
 **How to check:** `gh pr list -R Joevonlong/PaperTrail --base milestone/m1-safe-to-share`; `gh issue list -R Joevonlong/PaperTrail --milestone "M1 Safe to share"`.
 
 Flow (user's request, 2026-10-21): one sub-issue = one PR into `milestone/m1-safe-to-share`; merge after review/verify; **after merge: comment on the issue (what landed + evidence + PR) and `gh issue close` it** ("Closes #n" doesn't auto-close into a non-default branch); delete the merged remote branch; when M1 is done, open one PR `milestone/m1-safe-to-share` → `main` for Joe to review (don't merge).
@@ -21,6 +21,8 @@ Done since last save:
 
 - **Docker check (2026-10-22):** verifier PASS at 89b47a6, keyless. Build 34 s, image 524 MB, non-root, healthy, data persists, refuses to start without a token; docker-local.sh is loopback-only. #16 and epic #6 closed. Side effect: the user's `kind-control-plane` container exited (137) during the run; not restarted, user told.
 
+- **Codex Security (2026-10-22):** scan 9ae7f4f5 on ChatGPT Plus (gpt-6.1-sol high, 16m50s), 241 files (110 fully reviewed), 5 low, 0 false positive → #43 (M1 batch 5, D-17). #11 closed with comment. Local: dev/security/2026-10-22/ (report, findings, triage). Gap: 86 non-test files only searched, not fully reviewed (sources/*, discovery/pipeline.ts, client api and result views).
+- Nebius: the user has no hackathon deploy; Joe may. The user sent Joe a message; waiting for his reply.
+
 Open loops: none running. Scratch: /private/tmp/claude-501/-Users-x-Documents-Projects-PaperTrail/1571df56-6e5c-48d6-a508-172ae87acee3/scratchpad. Session reminder set for 2026-10-22 09:07 (Nebius deploy).
-**⏰ Reminder for the user — Codex Security:** rejected 2026-10-21 ("model not supported when using Codex with a ChatGPT account", gpt-5.6-sol and gpt-6.1-sol; 0 files sent). Before the M1 gate: user picks a model their plan allows (Codex app → /model) or approves `--auth api-key` with `--max-cost`. Logs: dev/security/scan-2026-10-21.log.
-Needs you: (1) **Nebius, due 2026-10-22:** is a hackathon deploy (`papertrail-<version>`) still running? If yes, delete it (N1). (2) Codex Security: a model the plan allows, `--auth api-key` + `--max-cost` (paid), or skip for M1? (3) `kind-control-plane` exited (137) during the Docker check: restart it?
+Needs you: (1) build #43 now in M1 (recommended) or move it to M2? (2) a focused Codex run on the 86 files not fully reviewed? (3) Joe's reply on the Nebius deploy.
