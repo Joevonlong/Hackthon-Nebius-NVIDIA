@@ -24,5 +24,8 @@ Done since last save:
 - **Codex Security (2026-10-22):** scan 9ae7f4f5 on ChatGPT Plus (gpt-6.1-sol high, 16m50s), 241 files (110 fully reviewed), 5 low, 0 false positive → #43 (M1 batch 5, D-17). #11 closed with comment. Local: dev/security/2026-10-22/ (report, findings, triage). Gap: 86 non-test files only searched, not fully reviewed (sources/*, discovery/pipeline.ts, client api and result views).
 - Nebius: the user has no hackathon deploy; Joe may. The user sent Joe a message; waiting for his reply.
 
-Open loops: none running. Scratch: /private/tmp/claude-501/-Users-x-Documents-Projects-PaperTrail/1571df56-6e5c-48d6-a508-172ae87acee3/scratchpad. Session reminder set for 2026-10-22 09:07 (Nebius deploy).
-Needs you: (1) build #43 now in M1 (recommended) or move it to M2? (2) a focused Codex run on the 86 files not fully reviewed? (3) Joe's reply on the Nebius deploy.
+Open loops: none running.
+**Blocked 2026-10-22 ~11:52 UTC: the GitHub repo Joevonlong/PaperTrail was archived (read-only)** right after push 1ab2f45 landed. Half-done: #43 was detached from epic #5 (removeSubIssue went through) but is still in M1 with no comment; moving #43 and epic #7 to M2, deleting label batch-5, both comments, closing #5 and the PR to main all failed (403 archived).
+Decided (not yet recorded as D-18): #43 not needed for M1 (all low; need API access plus a user-made outside link, or a user-picked file); move to M2. Epic #7 → M2 (only #20 left).
+Still to do once writable: those edits + comments, close epic #5, final verifier on the milestone head (incl. #41's items per D-16), mark M1 done in PLAN.md, PR milestone → main for Joe.
+Needs you: (1) did Joe archive the repo on purpose? ask him to unarchive, or decide another home (fork). (2) Joe's reply on the Nebius deploy.
